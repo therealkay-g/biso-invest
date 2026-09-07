@@ -1,0 +1,16 @@
+{
+  "name": "Biso Invest",
+  "short_name": "BisoInvest",
+  "description": "Ensemble, construisons demain.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
