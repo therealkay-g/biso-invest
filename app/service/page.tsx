@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { SupportTicket, FaqItem, Announcement, NotificationItem } from '@/types'
 import Header from '@/components/Header'
 import { Headphones, HelpCircle, Bell, MessageSquare, Send } from 'lucide-react'
 
-export default function ServicePage() {
+function ServiceContent() {
   const searchParams = useSearchParams()
   const defaultTab = searchParams.get('tab') || 'faq'
   const [activeTab, setActiveTab] = useState(defaultTab)
@@ -244,5 +244,13 @@ export default function ServicePage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ServicePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-xs text-gray-500">Chargement...</div>}>
+      <ServiceContent />
+    </Suspense>
   )
 }

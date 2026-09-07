@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Wallet, WalletTransaction, PaymentAccount, WithdrawalAccount, Deposit, Withdrawal } from '@/types'
 import Header from '@/components/Header'
 import { Wallet as WalletIcon, Plus, ArrowUpRight, History, CreditCard, CheckCircle2, AlertCircle } from 'lucide-react'
 
-export default function WalletPage() {
+function WalletContent() {
   const searchParams = useSearchParams()
   const defaultTab = searchParams.get('tab') || 'overview'
   const [activeTab, setActiveTab] = useState(defaultTab)
@@ -409,5 +409,13 @@ export default function WalletPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function WalletPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-xs text-gray-500">Chargement...</div>}>
+      <WalletContent />
+    </Suspense>
   )
 }
