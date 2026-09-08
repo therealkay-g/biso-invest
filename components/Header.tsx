@@ -1,18 +1,31 @@
 'use client'
 
-import { Bell, ShieldCheck } from 'lucide-react'
+import { Bell, ShieldCheck, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 interface HeaderProps {
   displayName?: string
   vipLevel?: string
   unreadNotificationsCount?: number
+  showBack?: boolean
+  backUrl?: string
 }
 
-export default function Header({ displayName = 'Utilisateur', vipLevel = 'VIP0', unreadNotificationsCount = 0 }: HeaderProps) {
+export default function Header({ 
+  displayName = 'Utilisateur', 
+  vipLevel = 'VIP0', 
+  unreadNotificationsCount = 0,
+  showBack = false,
+  backUrl = '/dashboard'
+}: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-100 sticky top-0 z-40 px-4 py-3 flex items-center justify-between shadow-xs">
       <div className="flex items-center space-x-3">
+        {showBack && (
+          <Link href={backUrl} className="p-2 rounded-full hover:bg-gray-100 mr-1 transition-colors" aria-label="Retour">
+            <ArrowLeft className="w-5 h-5 text-gray-700" />
+          </Link>
+        )}
         <div className="w-10 h-10 rounded-full bg-biso-100 flex items-center justify-center text-biso-700 font-bold text-lg">
           {displayName.charAt(0).toUpperCase()}
         </div>

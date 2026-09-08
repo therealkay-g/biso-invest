@@ -100,7 +100,7 @@ function ServiceContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <Header displayName="Service Client" vipLevel="Support & FAQ" />
+      <Header displayName="Service Client" vipLevel="Support & FAQ" showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-6">
         {/* Tabs */}

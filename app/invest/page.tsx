@@ -51,7 +51,7 @@ export default function InvestPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <Header displayName="Investissements" vipLevel="Catalogue 42 Packs" />
+      <Header displayName="Investissements" vipLevel="Catalogue 42 Packs" showBack={true} />
 
       <div className="p-4 max-w-6xl mx-auto space-y-6">
         <div>

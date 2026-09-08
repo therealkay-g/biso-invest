@@ -52,7 +52,7 @@ export default function VipPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <Header displayName="Niveaux VIP" vipLevel={profile?.current_vip || 'VIP0'} />
+      <Header displayName="Niveaux VIP" vipLevel={profile?.current_vip || 'VIP0'} showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-6">
         {/* Current VIP Status Card */}

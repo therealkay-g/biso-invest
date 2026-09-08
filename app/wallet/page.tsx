@@ -3,14 +3,19 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import { Wallet, WalletTransaction, PaymentAccount, WithdrawalAccount, Deposit, Withdrawal } from '@/types'
+import { Wallet, WalletTransaction, PaymentAccount, WithdrawalAccount } from '@/types'
 import Header from '@/components/Header'
-import { Wallet as WalletIcon, Plus, ArrowUpRight, History, CreditCard, CheckCircle2, AlertCircle } from 'lucide-react'
+import WalletCard from '@/components/WalletCard'
+import CopyButton from '@/components/CopyButton'
+import { WalletSkeleton, TableSkeleton } from '@/components/Skeleton'
+import { useToast } from '@/components/ToastProvider'
+import { Wallet as WalletIcon, Plus, ArrowUpRight, History, CreditCard, CheckCircle2, AlertCircle, Upload, Image as ImageIcon, X, Lock, KeyRound } from 'lucide-react'
 
 function WalletContent() {
   const searchParams = useSearchParams()
   const defaultTab = searchParams.get('tab') || 'overview'
   const [activeTab, setActiveTab] = useState(defaultTab)
+  const toast = useToast()
 
   const [wallet, setWallet] = useState<Wallet | null>(null)
   const [transactions, setTransactions] = useState<WalletTransaction[]>([])
@@ -22,14 +27,15 @@ function WalletContent() {
   const [depositNetwork, setDepositNetwork] = useState<'Airtel Money' | 'Orange Money' | 'M-Pesa'>('Airtel Money')
   const [depositAmount, setDepositAmount] = useState('')
   const [depositRef, setDepositRef] = useState('')
-  const [depositSuccess, setDepositSuccess] = useState('')
-  const [depositError, setDepositError] = useState('')
+  const [depositProofPreview, setDepositProofPreview] = useState<string | null>(null)
+  const [submittingDeposit, setSubmittingDeposit] = useState(false)
 
-  // Withdrawal form state
+  // Withdrawal form & PIN Modal state
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [selectedWithdrawAccount, setSelectedWithdrawAccount] = useState('')
-  const [withdrawSuccess, setWithdrawSuccess] = useState('')
-  const [withdrawError, setWithdrawError] = useState('')
+  const [showPinModal, setShowPinModal] = useState(false)
+  const [pinDigits, setPinDigits] = useState(['', '', '', ''])
+  const [submittingWithdraw, setSubmittingWithdraw] = useState(false)
 
   useEffect(() => {
     async function loadWalletData() {
@@ -65,20 +71,70 @@ function WalletContent() {
     loadWalletData()
   }, [])
 
+  // Supabase Realtime synchronization on wallet balance
+  useEffect(() => {
+    let channel: any
+    async function setupRealtime() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      channel = supabase
+        .channel(`realtime-wallet-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'wallets',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload: any) => {
+            if (payload.new) {
+              setWallet(payload.new as Wallet)
+              toast.success('Votre solde de portefeuille a été actualisé en direct !')
+            }
+          }
+        )
+        .subscribe()
+    }
+
+    setupRealtime()
+
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [toast])
+
+  const handleProofImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("L'image ne doit pas dépasser 5 Mo.")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setDepositProofPreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleDeposit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setDepositError('')
-    setDepositSuccess('')
 
     const amountNum = parseFloat(depositAmount)
-    if (!amountNum || amountNum <= 0) {
-      setDepositError('Veuillez saisir un montant valide.')
+    if (!amountNum || amountNum < 1000) {
+      toast.error('Le montant minimum de recharge est de 1 000 FC.')
       return
     }
-    if (!depositRef) {
-      setDepositError('Veuillez saisir la référence de transaction Mobile Money.')
+    if (!depositRef.trim()) {
+      toast.error('Veuillez saisir la référence de transaction SMS Mobile Money.')
       return
     }
+
+    setSubmittingDeposit(true)
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -88,40 +144,72 @@ function WalletContent() {
         user_id: user.id,
         amount: amountNum,
         network: depositNetwork,
-        reference: depositRef,
+        reference: depositRef.trim(),
+        proof_url: depositProofPreview || null,
         status: 'EN_ATTENTE'
       })
 
       if (error) throw error
 
-      setDepositSuccess('Demande de recharge soumise avec succès. En attente de validation admin.')
+      toast.success('Demande de recharge soumise avec succès ! En attente de validation administrative.')
       setDepositAmount('')
       setDepositRef('')
+      setDepositProofPreview(null)
+      setActiveTab('overview')
     } catch (err: any) {
-      setDepositError(err.message || 'Erreur lors de la soumission.')
+      toast.error(err.message || 'Erreur lors de la soumission de la recharge.')
+    } finally {
+      setSubmittingDeposit(false)
     }
   }
 
-  const handleWithdraw = async (e: React.FormEvent) => {
+  const handleInitiateWithdraw = (e: React.FormEvent) => {
     e.preventDefault()
-    setWithdrawError('')
-    setWithdrawSuccess('')
 
     const amountNum = parseFloat(withdrawAmount)
     if (!amountNum || amountNum < 5000) {
-      setWithdrawError('Le montant minimum de retrait est de 5 000 FC.')
+      toast.error('Le montant minimum de retrait est de 5 000 FC.')
       return
     }
     if (wallet && wallet.balance < amountNum) {
-      setWithdrawError('Solde insuffisant dans votre wallet.')
+      toast.error('Solde insuffisant dans votre portefeuille.')
       return
     }
     if (!selectedWithdrawAccount) {
-      setWithdrawError('Veuillez sélectionner un compte de retrait Mobile Money.')
+      toast.error('Veuillez sélectionner un compte de retrait Mobile Money.')
       return
     }
 
+    // Open PIN confirmation modal
+    setPinDigits(['', '', '', ''])
+    setShowPinModal(true)
+  }
+
+  const handlePinChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return
+
+    const newDigits = [...pinDigits]
+    newDigits[index] = value.slice(-1)
+    setPinDigits(newDigits)
+
+    // Auto-focus next input
+    if (value && index < 3) {
+      const nextInput = document.getElementById(`pin-input-${index + 1}`)
+      nextInput?.focus()
+    }
+  }
+
+  const handleConfirmPinAndWithdraw = async () => {
+    const fullPin = pinDigits.join('')
+    if (fullPin.length !== 4) {
+      toast.error('Veuillez saisir les 4 chiffres de votre code PIN.')
+      return
+    }
+
+    setSubmittingWithdraw(true)
+
     try {
+      const amountNum = parseFloat(withdrawAmount)
       const { data, error: rpcError } = await supabase.rpc('create_withdrawal', {
         p_withdrawal_account_id: selectedWithdrawAccount,
         p_amount: amountNum
@@ -129,24 +217,35 @@ function WalletContent() {
 
       if (rpcError) throw rpcError
 
-      setWithdrawSuccess('Demande de retrait enregistrée avec succès.')
+      toast.success(`Demande de retrait de ${amountNum.toLocaleString('fr-FR')} FC enregistrée avec succès.`)
       setWithdrawAmount('')
+      setShowPinModal(false)
 
-      // Reload wallet
+      // Reload wallet & transactions
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: wData } = await supabase.from('wallets').select('*').eq('user_id', user.id).single()
         setWallet(wData)
+        const { data: txData } = await supabase.from('wallet_transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20)
+        setTransactions(txData || [])
       }
+
+      setActiveTab('overview')
     } catch (err: any) {
-      setWithdrawError(err.message || 'Erreur lors de la demande de retrait.')
+      toast.error(err.message || 'Erreur lors de la demande de retrait.')
+    } finally {
+      setSubmittingWithdraw(false)
     }
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-biso-600"></div>
+      <div className="min-h-screen bg-gray-50 pb-24">
+        <Header displayName="Portefeuille & Finances" vipLevel="Chargement..." showBack={true} />
+        <div className="p-4 max-w-4xl mx-auto space-y-6">
+          <WalletSkeleton />
+          <TableSkeleton rows={4} />
+        </div>
       </div>
     )
   }
@@ -155,259 +254,342 @@ function WalletContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <Header displayName="Portefeuille & Finances" vipLevel="Wallet Ledger" />
+      <Header displayName="Portefeuille & Finances" vipLevel="BISO Wallet" showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-6">
-        {/* Tabs */}
-        <div className="flex space-x-2 bg-white p-1 rounded-2xl border border-gray-100 shadow-xs">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-              activeTab === 'overview' ? 'bg-biso-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            Aperçu
-          </button>
-          <button
-            onClick={() => setActiveTab('deposit')}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-              activeTab === 'deposit' ? 'bg-biso-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            Recharger
-          </button>
-          <button
-            onClick={() => setActiveTab('withdraw')}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-              activeTab === 'withdraw' ? 'bg-biso-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            Retirer
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-              activeTab === 'history' ? 'bg-biso-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            Historique
-          </button>
+        {/* Navigation Tabs */}
+        <div className="flex space-x-1.5 bg-white p-1.5 rounded-2xl border border-gray-100 shadow-xs">
+          {[
+            { key: 'overview', label: 'Aperçu' },
+            { key: 'deposit', label: 'Recharger' },
+            { key: 'withdraw', label: 'Retirer' },
+            { key: 'history', label: 'Historique' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                activeTab === tab.key
+                  ? 'bg-biso-600 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
+        {/* Tab 1: Overview */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            <div className="bg-gradient-to-br from-biso-800 to-biso-950 text-white p-6 rounded-2xl shadow-xl">
-              <p className="text-xs uppercase text-biso-300 font-semibold mb-1">Solde Actuel Wallet</p>
-              <h2 className="text-3xl font-extrabold mb-4">
-                {(wallet?.balance || 0).toLocaleString('fr-FR')} <span className="text-lg font-normal text-biso-300">FC</span>
-              </h2>
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-biso-700/60 text-xs">
-                <div>
-                  <span className="text-biso-300">Total Rechargé</span>
-                  <p className="text-sm font-bold">{(wallet?.total_deposited || 0).toLocaleString('fr-FR')} FC</p>
-                </div>
-                <div>
-                  <span className="text-biso-300">Total Retiré</span>
-                  <p className="text-sm font-bold">{(wallet?.total_withdrawn || 0).toLocaleString('fr-FR')} FC</p>
-                </div>
-              </div>
-            </div>
+            <WalletCard
+              balance={wallet?.balance || 0}
+              totalInvested={wallet?.total_invested || 0}
+              totalEarned={wallet?.total_earned || 0}
+              todayEarned={wallet?.today_earned || 0}
+            />
 
             <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-xs space-y-4">
-              <h3 className="font-bold text-gray-800 text-sm">Dernières Transactions</h3>
-              <div className="space-y-3">
-                {transactions.slice(0, 5).map((tx) => (
-                  <div key={tx.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-none">
-                    <div>
-                      <p className="text-xs font-bold text-gray-900">{tx.description}</p>
-                      <p className="text-[10px] text-gray-500">{new Date(tx.created_at).toLocaleString('fr-FR')}</p>
+              <div className="flex justify-between items-center">
+                <h3 className="font-extrabold text-gray-900 text-sm">Dernières Transactions</h3>
+                <button
+                  onClick={() => setActiveTab('history')}
+                  className="text-xs text-biso-700 font-bold hover:underline"
+                >
+                  Voir tout
+                </button>
+              </div>
+              <div className="space-y-3 divide-y divide-gray-100">
+                {transactions.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-4 text-center">Aucune transaction récente.</p>
+                ) : (
+                  transactions.slice(0, 5).map((tx) => (
+                    <div key={tx.id} className="flex justify-between items-center pt-3 first:pt-0">
+                      <div>
+                        <p className="text-xs font-bold text-gray-900">{tx.description}</p>
+                        <p className="text-[10px] text-gray-400">{new Date(tx.created_at).toLocaleString('fr-FR')}</p>
+                      </div>
+                      <span className={`text-xs font-bold tabular-nums ${tx.amount > 0 ? 'text-emerald-600' : 'text-gray-800'}`}>
+                        {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString('fr-FR')} FC
+                      </span>
                     </div>
-                    <span className={`text-xs font-bold ${tx.amount > 0 ? 'text-emerald-600' : 'text-gray-800'}`}>
-                      {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString('fr-FR')} FC
-                    </span>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </div>
         )}
 
+        {/* Tab 2: Deposit */}
         {activeTab === 'deposit' && (
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-6">
             <div>
-              <h3 className="text-lg font-extrabold text-gray-900">Recharger votre Wallet</h3>
-              <p className="text-xs text-gray-500">Effectuez un paiement Mobile Money puis soumettez la référence.</p>
+              <h3 className="text-lg font-black text-gray-900">Recharger votre Portefeuille</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Envoyez les fonds par Mobile Money puis téléversez votre preuve.</p>
             </div>
 
-            {depositError && (
-              <div className="bg-red-50 text-red-600 text-xs p-3 rounded-xl flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{depositError}</span>
-              </div>
-            )}
-
-            {depositSuccess && (
-              <div className="bg-emerald-50 text-emerald-600 text-xs p-3 rounded-xl flex items-center space-x-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>{depositSuccess}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleDeposit} className="space-y-4">
+            <form onSubmit={handleDeposit} className="space-y-5">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Réseau Mobile Money</label>
-                <select
-                  value={depositNetwork}
-                  onChange={(e) => setDepositNetwork(e.target.value as any)}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold"
-                >
-                  <option value="Airtel Money">Airtel Money</option>
-                  <option value="Orange Money">Orange Money</option>
-                  <option value="M-Pesa">M-Pesa</option>
-                </select>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">Opérateur Mobile Money</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['Airtel Money', 'Orange Money', 'M-Pesa'] as const).map((net) => (
+                    <button
+                      key={net}
+                      type="button"
+                      onClick={() => setDepositNetwork(net)}
+                      className={`py-3 px-2 rounded-xl text-xs font-bold border transition-all text-center ${
+                        depositNetwork === net
+                          ? 'border-biso-600 bg-biso-50 text-biso-900 shadow-xs'
+                          : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {net}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {activePaymentAccount && (
-                <div className="bg-biso-50 border border-biso-200 p-4 rounded-xl space-y-1">
-                  <p className="text-xs text-biso-700 font-semibold">Numéro Mobile Money officiel ({activePaymentAccount.network}) :</p>
-                  <p className="text-base font-extrabold text-biso-900">{activePaymentAccount.phone_number}</p>
-                  <p className="text-[11px] text-gray-600">Titulaire : {activePaymentAccount.account_name}</p>
+              {/* Official receiver account card */}
+              {activePaymentAccount ? (
+                <div className="bg-linear-to-r from-biso-50 to-emerald-50 border border-biso-200 p-4 rounded-2xl space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-biso-800">Numéro Récepteur Officiel :</span>
+                    <CopyButton textToCopy={activePaymentAccount.phone_number} label="Copier" />
+                  </div>
+                  <p className="text-xl font-black text-biso-950 tracking-wider tabular-nums font-mono">
+                    {activePaymentAccount.phone_number}
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    Titulaire du compte : <strong className="text-gray-900">{activePaymentAccount.account_name}</strong>
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-xs text-amber-800">
+                  Numéro en cours d'attribution par l'administration. Veuillez contacter le support.
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Montant (FC)</label>
-                <input
-                  type="number"
-                  required
-                  min="1000"
-                  placeholder="Ex: 50000"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
-                />
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">Montant en Francs Congolais (FC)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    required
+                    min="1000"
+                    placeholder="Ex: 50 000"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold tabular-nums focus:bg-white focus:border-biso-500 focus:outline-hidden"
+                  />
+                  <span className="absolute right-4 top-3.5 text-xs font-bold text-gray-400">FC</span>
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Référence de transaction Mobile Money</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">Référence de Transaction SMS</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: PP230412.1234.A12345"
+                  placeholder="Ex: PP260315.1432.B78921"
                   value={depositRef}
                   onChange={(e) => setDepositRef(e.target.value)}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
+                  className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono focus:bg-white focus:border-biso-500 focus:outline-hidden"
                 />
+              </div>
+
+              {/* Upload Proof Screenshot */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Capture d'écran du SMS Mobile Money <span className="text-gray-400 font-normal">(Optionnel mais accélère la validation)</span>
+                </label>
+                {depositProofPreview ? (
+                  <div className="relative border border-gray-200 rounded-2xl p-2 bg-gray-50 inline-block">
+                    <img
+                      src={depositProofPreview}
+                      alt="Aperçu preuve"
+                      className="h-36 w-auto rounded-xl object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setDepositProofPreview(null)}
+                      className="absolute -top-2 -right-2 bg-rose-600 text-white rounded-full p-1 shadow-md hover:bg-rose-700"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="border-2 border-dashed border-gray-200 hover:border-biso-500 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer transition-colors bg-gray-50 hover:bg-biso-50/30">
+                    <Upload className="w-6 h-6 text-gray-400 mb-1" />
+                    <span className="text-xs font-bold text-gray-700">Cliquez pour importer la capture du SMS</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5">PNG, JPG jusqu'à 5 Mo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProofImageChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-biso-600 hover:bg-biso-700 text-white font-semibold py-3 rounded-xl text-sm shadow-md"
+                disabled={submittingDeposit}
+                className="w-full bg-linear-to-r from-biso-600 to-biso-500 hover:from-biso-700 hover:to-biso-600 text-white font-black py-3.5 rounded-2xl text-xs tracking-wider uppercase shadow-md transition-all active:scale-98 disabled:opacity-50"
               >
-                VALIDER LA DEMANDE DE RECHARGE
+                {submittingDeposit ? 'Envoi en cours...' : 'Soumettre la Recharge'}
               </button>
             </form>
           </div>
         )}
 
+        {/* Tab 3: Withdraw */}
         {activeTab === 'withdraw' && (
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-6">
             <div>
-              <h3 className="text-lg font-extrabold text-gray-900">Effectuer un Retrait</h3>
-              <p className="text-xs text-gray-500">Minimum 5 000 FC • Frais : 0% • Délai cible : maximum 1 heure.</p>
+              <h3 className="text-lg font-black text-gray-900">Demande de Retrait</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Retirez vos gains directement vers votre numéro Mobile Money en toute sécurité.</p>
             </div>
 
-            {withdrawError && (
-              <div className="bg-red-50 text-red-600 text-xs p-3 rounded-xl flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{withdrawError}</span>
-              </div>
-            )}
-
-            {withdrawSuccess && (
-              <div className="bg-emerald-50 text-emerald-600 text-xs p-3 rounded-xl flex items-center space-x-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>{withdrawSuccess}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleWithdraw} className="space-y-4">
+            <form onSubmit={handleInitiateWithdraw} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Compte de retrait</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">Compte de réception Mobile Money</label>
                 <select
                   value={selectedWithdrawAccount}
                   onChange={(e) => setSelectedWithdrawAccount(e.target.value)}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold"
+                  className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:bg-white focus:border-biso-500"
                 >
                   {withdrawalAccounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
-                      {acc.network} - {acc.phone_number}
+                      {acc.network} • {acc.phone_number} {acc.account_name ? `(${acc.account_name})` : ''}
                     </option>
                   ))}
                 </select>
                 {withdrawalAccounts.length === 0 && (
-                  <p className="text-xs text-red-500 mt-1">Veuillez d'abord ajouter un compte de retrait dans votre profil.</p>
+                  <p className="text-xs text-rose-500 mt-1 font-semibold">
+                    Aucun compte configuré. Veuillez en ajouter un dans l'onglet Profil.
+                  </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Montant à retirer (FC)</label>
-                <input
-                  type="number"
-                  required
-                  min="5000"
-                  placeholder="Min 5 000 FC"
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
-                />
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">Montant à retirer (FC)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    required
+                    min="5000"
+                    placeholder="Min 5 000 FC"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold tabular-nums focus:bg-white focus:border-biso-500"
+                  />
+                  <span className="absolute right-4 top-3.5 text-xs font-bold text-gray-400">FC</span>
+                </div>
               </div>
 
-              <div className="bg-gray-50 p-4 rounded-xl space-y-2 text-xs">
+              <div className="bg-gray-50 p-4 rounded-2xl space-y-2 text-xs border border-gray-100">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Frais de retrait :</span>
-                  <span className="font-bold text-gray-900">0 FC (0%)</span>
+                  <span className="text-gray-500">Frais de transfert :</span>
+                  <span className="font-bold text-emerald-600">0 FC (0% Offert)</span>
                 </div>
                 <div className="flex justify-between border-t border-gray-200 pt-2">
-                  <span className="text-gray-700 font-semibold">Montant net reçu :</span>
-                  <span className="font-extrabold text-biso-600">{withdrawAmount ? parseFloat(withdrawAmount).toLocaleString('fr-FR') : 0} FC</span>
+                  <span className="text-gray-800 font-bold">Montant net versé :</span>
+                  <span className="font-black text-biso-700 tabular-nums text-sm">
+                    {withdrawAmount ? parseFloat(withdrawAmount).toLocaleString('fr-FR') : 0} FC
+                  </span>
                 </div>
               </div>
 
               <button
                 type="submit"
                 disabled={withdrawalAccounts.length === 0}
-                className="w-full bg-biso-600 hover:bg-biso-700 text-white font-semibold py-3 rounded-xl text-sm shadow-md"
+                className="w-full bg-linear-to-r from-biso-700 to-biso-600 hover:from-biso-800 hover:to-biso-700 text-white font-black py-3.5 rounded-2xl text-xs tracking-wider uppercase shadow-md transition-all active:scale-98 disabled:opacity-40"
               >
-                CONFIRMER LE RETRAIT
+                Sécuriser et Confirmer le Retrait
               </button>
             </form>
           </div>
         )}
 
+        {/* Tab 4: History */}
         {activeTab === 'history' && (
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-4">
-            <h3 className="font-bold text-gray-800 text-sm">Historique Financier Complet</h3>
+            <h3 className="font-black text-gray-900 text-sm">Registre des Opérations Financières</h3>
             <div className="space-y-3">
-              {transactions.map((tx) => (
-                <div key={tx.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                  <div>
-                    <span className="text-xs font-bold bg-biso-100 text-biso-800 px-2 py-0.5 rounded-md">{tx.type}</span>
-                    <p className="text-xs font-bold text-gray-900 mt-1">{tx.description}</p>
-                    <p className="text-[10px] text-gray-500">{new Date(tx.created_at).toLocaleString('fr-FR')}</p>
+              {transactions.length === 0 ? (
+                <p className="text-xs text-gray-400 py-6 text-center">Aucune transaction dans l'historique.</p>
+              ) : (
+                transactions.map((tx) => (
+                  <div key={tx.id} className="flex justify-between items-center p-3.5 bg-gray-50 rounded-xl border border-gray-100">
+                    <div>
+                      <span className="text-[10px] font-black bg-biso-100 text-biso-800 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                        {tx.type}
+                      </span>
+                      <p className="text-xs font-bold text-gray-900 mt-1">{tx.description}</p>
+                      <p className="text-[10px] text-gray-400">{new Date(tx.created_at).toLocaleString('fr-FR')}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-black tabular-nums ${tx.amount > 0 ? 'text-emerald-600' : 'text-gray-900'}`}>
+                        {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString('fr-FR')} FC
+                      </p>
+                      <span className="text-[10px] text-gray-400 font-mono">Ref: {tx.reference}</span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-bold ${tx.amount > 0 ? 'text-emerald-600' : 'text-gray-900'}`}>
-                      {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString('fr-FR')} FC
-                    </p>
-                    <span className="text-[10px] text-gray-500">Ref: {tx.reference}</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}
       </div>
+
+      {/* 4-Digit Security PIN Modal */}
+      {showPinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-5 shadow-2xl border border-gray-100 text-center animate-in fade-in zoom-in-95">
+            <div className="w-12 h-12 rounded-2xl bg-biso-100 text-biso-700 flex items-center justify-center mx-auto shadow-xs">
+              <Lock className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="text-base font-black text-gray-900">Code PIN de Sécurité</h4>
+              <p className="text-xs text-gray-500 mt-1">Saisissez votre code PIN à 4 chiffres pour autoriser le retrait de fonds.</p>
+            </div>
+
+            {/* 4 digit boxes */}
+            <div className="flex justify-center space-x-3 py-2">
+              {pinDigits.map((digit, idx) => (
+                <input
+                  key={idx}
+                  id={`pin-input-${idx}`}
+                  type="password"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handlePinChange(idx, e.target.value)}
+                  className="w-12 h-14 text-center text-xl font-black bg-gray-50 border-2 border-gray-200 focus:border-biso-600 rounded-2xl focus:outline-hidden"
+                />
+              ))}
+            </div>
+
+            <div className="flex space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowPinModal(false)}
+                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl text-xs"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPinAndWithdraw}
+                disabled={submittingWithdraw || pinDigits.some(d => d === '')}
+                className="flex-1 py-3 bg-biso-600 hover:bg-biso-700 text-white font-black rounded-2xl text-xs uppercase tracking-wider shadow-md disabled:opacity-40"
+              >
+                {submittingWithdraw ? 'Validation...' : 'Valider'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

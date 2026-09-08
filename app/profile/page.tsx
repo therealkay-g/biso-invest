@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, WithdrawalAccount } from '@/types'
 import Header from '@/components/Header'
-import { User, Shield, LogOut, Phone, Plus, CreditCard, Info } from 'lucide-react'
+import { User, Shield, LogOut, Phone, Plus, CreditCard, Info, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ProfilePage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [withdrawalAccounts, setWithdrawalAccounts] = useState<WithdrawalAccount[]>([])
+  const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 
   // New withdrawal account state
@@ -34,6 +35,25 @@ export default function ProfilePage() {
 
         const { data: waData } = await supabase.from('withdrawal_accounts').select('*').eq('user_id', user.id)
         setWithdrawalAccounts(waData || [])
+
+        // Vérification des droits administrateur
+        try {
+          const { data: isAdminRpc } = await supabase.rpc('is_admin')
+          if (isAdminRpc) {
+            setIsAdmin(true)
+          } else {
+            const { data: adminRow } = await supabase
+              .from('admin_users')
+              .select('role')
+              .eq('id', user.id)
+              .maybeSingle()
+            if (adminRow) {
+              setIsAdmin(true)
+            }
+          }
+        } catch (e) {
+          console.warn('Erreur vérification admin:', e)
+        }
       } catch (err) {
         console.error('Error loading profile:', err)
       } finally {
@@ -88,7 +108,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <Header displayName={profile?.phone || 'Profil'} vipLevel={profile?.current_vip || 'VIP0'} />
+      <Header displayName={profile?.phone || 'Profil'} vipLevel={profile?.current_vip || 'VIP0'} showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-6">
         {/* Profile Card */}
@@ -158,6 +178,30 @@ export default function ProfilePage() {
             </button>
           </form>
         </div>
+
+        {/* Espace Admin (affiché seulement si l'utilisateur a les droits) */}
+        {isAdmin && (
+          <div className="bg-gradient-to-r from-biso-900 to-biso-800 rounded-2xl p-5 text-white shadow-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-biso-700/60 rounded-xl">
+                  <Shield className="w-6 h-6 text-biso-300" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-white">Espace Administrateur</h3>
+                  <p className="text-xs text-biso-200">Gestion des utilisateurs, dépôts et retraits</p>
+                </div>
+              </div>
+              <Link
+                href="/admin"
+                className="bg-white text-biso-900 hover:bg-gray-100 text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs transition-colors flex items-center space-x-1"
+              >
+                <span>Accéder</span>
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Links */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden divide-y divide-gray-100">
