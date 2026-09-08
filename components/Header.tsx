@@ -15,7 +15,7 @@ export default function Header({
   displayName = 'Utilisateur', 
   vipLevel = 'VIP0', 
   unreadNotificationsCount = 0,
-  showBack = false,
+  showBack = true,
   backUrl = '/dashboard'
 }: HeaderProps) {
   return (
