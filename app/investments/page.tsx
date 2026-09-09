@@ -147,7 +147,11 @@ export default function InvestmentsPage() {
             {investments.map((inv) => {
               const capital = inv.total_amount
               const monthlyReturn = (inv.product?.monthly_return || 0) * inv.quantity
-              const dailyProfit = monthlyReturn / 30
+              // Calcul avec jours réels du mois courant (pas /30 fixe)
+              const now = new Date()
+              const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+              const currentMonthName = now.toLocaleDateString('fr-FR', { month: 'long' })
+              const dailyProfit = monthlyReturn / daysInCurrentMonth
 
               // Calculate overall progress across 365 days
               const createdDate = new Date(inv.created_at).getTime()
@@ -205,6 +209,7 @@ export default function InvestmentsPage() {
                       <p className="font-black text-biso-700 tabular-nums mt-0.5">
                         +{dailyProfit.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC / j
                       </p>
+                      <p className="text-[9px] text-biso-400 mt-0.5">{daysInCurrentMonth} j. en {currentMonthName}</p>
                     </div>
                     <div>
                       <span className="text-gray-500 text-[11px]">Rente Mensuelle :</span>

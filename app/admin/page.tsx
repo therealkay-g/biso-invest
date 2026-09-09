@@ -1,11 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Deposit, Withdrawal, Product, VipLevel, PaymentAccount, AdminLog } from '@/types'
-import { Shield, Users, DollarSign, Package, CheckCircle2, XCircle, AlertCircle, Settings } from 'lucide-react'
+import { useToast } from '@/components/ToastProvider'
+import { Shield, Users, DollarSign, Package, CheckCircle2, XCircle, AlertCircle, Settings, Download, ChevronLeft, ChevronRight, History } from 'lucide-react'
 
 export default function AdminPage() {
+  const router = useRouter()
+  const toast = useToast()
+  const [isAdmin, setIsAdmin] = useState(false)
   const [activeTab, setActiveTab] = useState('dashboard')
   const [users, setUsers] = useState<Profile[]>([])
   const [deposits, setDeposits] = useState<Deposit[]>([])
@@ -13,12 +18,25 @@ export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [vipLevels, setVipLevels] = useState<VipLevel[]>([])
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([])
+  const [paymentAccountHistory, setPaymentAccountHistory] = useState<any[]>([])
   const [logs, setLogs] = useState<AdminLog[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Pagination states (10 items / page)
+  const PAGE_SIZE = 10
+  const [pageUsers, setPageUsers] = useState(1)
+  const [pageDeposits, setPageDeposits] = useState(1)
+  const [pageWithdrawals, setPageWithdrawals] = useState(1)
 
   // Rejection reason state
   const [rejectionReason, setRejectionReason] = useState('')
   const [targetDepositId, setTargetDepositId] = useState<string | null>(null)
+
+  // Withdrawal management state
+  const [targetWithdrawalId, setTargetWithdrawalId] = useState<string | null>(null)
+  const [withdrawalAction, setWithdrawalAction] = useState<'approve' | 'reject' | null>(null)
+  const [withdrawalPaymentRef, setWithdrawalPaymentRef] = useState('')
+  const [withdrawalRejectReason, setWithdrawalRejectReason] = useState('')
 
   // Payment number edit state
   const [editNetwork, setEditNetwork] = useState('')
@@ -29,9 +47,37 @@ export default function AdminPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
-          window.location.href = '/auth/login'
+          router.push('/auth/login')
           return
         }
+
+        // Vérification des droits administrateur
+        let authorized = false
+        try {
+          const { data: isAdminRpc } = await supabase.rpc('is_admin')
+          if (isAdminRpc) {
+            authorized = true
+          } else {
+            const { data: adminRow } = await supabase
+              .from('admin_users')
+              .select('role')
+              .eq('id', user.id)
+              .maybeSingle()
+            if (adminRow) {
+              authorized = true
+            }
+          }
+        } catch (e) {
+          console.warn('Erreur vérification admin:', e)
+        }
+
+        if (!authorized) {
+          toast.error('Accès refusé : cet espace est réservé aux administrateurs.')
+          router.push('/dashboard')
+          return
+        }
+
+        setIsAdmin(true)
 
         // Fetch admin data
         const { data: uData } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
@@ -52,6 +98,9 @@ export default function AdminPage() {
         const { data: paData } = await supabase.from('payment_accounts').select('*')
         setPaymentAccounts(paData || [])
 
+        const { data: pahData } = await supabase.from('payment_account_history').select('*').order('created_at', { ascending: false }).limit(20)
+        setPaymentAccountHistory(pahData || [])
+
         const { data: logData } = await supabase.from('admin_logs').select('*').order('created_at', { ascending: false }).limit(20)
         setLogs(logData || [])
 
@@ -63,24 +112,90 @@ export default function AdminPage() {
     }
 
     loadAdminData()
-  }, [])
+  }, [router, toast])
+
+  const downloadCsv = (filename: string, headers: string[], rows: (string | number)[][]) => {
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+    ].join('\n')
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const exportCsv = (type: 'users' | 'deposits' | 'withdrawals') => {
+    if (type === 'deposits') {
+      const headers = ['ID', 'Utilisateur', 'Montant_FC', 'Reseau', 'Reference', 'Statut', 'Date']
+      const rows = deposits.map(d => [
+        d.id,
+        (d as any).profile?.phone || d.user_id,
+        d.amount,
+        d.network,
+        d.reference,
+        d.status,
+        new Date(d.created_at).toLocaleString('fr-FR')
+      ])
+      downloadCsv('biso_depots_export.csv', headers, rows)
+      toast.success('Export CSV des dépôts téléchargé.')
+    } else if (type === 'withdrawals') {
+      const headers = ['ID', 'Utilisateur', 'Montant_Brut_FC', 'Frais_15_FC', 'Net_Verse_FC', 'Reseau', 'Numero', 'Reference_MM', 'Statut', 'Date']
+      const rows = withdrawals.map(w => {
+        const fee = w.fee ?? Math.round(w.amount * 0.15)
+        const net = w.net_amount ?? (w.amount - fee)
+        return [
+          w.id,
+          (w as any).profile?.phone || w.user_id,
+          w.amount,
+          fee,
+          net,
+          w.network,
+          w.phone_number,
+          w.payment_reference || '',
+          w.status,
+          new Date(w.created_at).toLocaleString('fr-FR')
+        ]
+      })
+      downloadCsv('biso_retraits_export.csv', headers, rows)
+      toast.success('Export CSV des retraits téléchargé.')
+    } else if (type === 'users') {
+      const headers = ['ID', 'Telephone', 'Nom', 'VIP', 'Code_Parrain', 'Date_Inscription']
+      const rows = users.map(u => [
+        u.id,
+        u.phone,
+        u.display_name || '',
+        u.current_vip,
+        u.referral_code,
+        new Date(u.created_at).toLocaleString('fr-FR')
+      ])
+      downloadCsv('biso_utilisateurs_export.csv', headers, rows)
+      toast.success('Export CSV des utilisateurs téléchargé.')
+    }
+  }
 
   const handleValidateDeposit = async (deposit: Deposit) => {
     try {
       const { error: rpcError } = await supabase.rpc('approve_deposit', { p_deposit_id: deposit.id })
       if (rpcError) throw rpcError
 
+      toast.success(`Dépôt de ${deposit.amount.toLocaleString('fr-FR')} FC validé avec succès !`)
+
       // Reload deposits
       const { data: depData } = await supabase.from('deposits').select('*, profile:profiles(*)').order('created_at', { ascending: false })
       setDeposits(depData || [])
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la validation')
+      toast.error(err.message || 'Erreur lors de la validation')
     }
   }
 
   const handleRefuseDeposit = async (depositId: string) => {
     if (!rejectionReason) {
-      alert('Veuillez saisir un motif de refus.')
+      toast.error('Veuillez saisir un motif de refus.')
       return
     }
 
@@ -88,13 +203,66 @@ export default function AdminPage() {
       const { error: rpcError } = await supabase.rpc('reject_deposit', { p_deposit_id: depositId, p_reason: rejectionReason })
       if (rpcError) throw rpcError
 
+      toast.info('Demande de recharge rejetée avec motif notifié.')
       setTargetDepositId(null)
       setRejectionReason('')
 
       const { data: depData } = await supabase.from('deposits').select('*, profile:profiles(*)').order('created_at', { ascending: false })
       setDeposits(depData || [])
     } catch (err: any) {
-      alert(err.message || 'Erreur lors du refus')
+      toast.error(err.message || 'Erreur lors du refus')
+    }
+  }
+
+  const handleApproveWithdrawal = async (withdrawalId: string) => {
+    if (!withdrawalPaymentRef.trim()) {
+      toast.error('Veuillez saisir la référence de paiement Mobile Money réelle.')
+      return
+    }
+
+    try {
+      const { data, error: rpcError } = await supabase.rpc('approve_withdrawal', {
+        p_withdrawal_id: withdrawalId,
+        p_payment_reference: withdrawalPaymentRef.trim()
+      })
+      if (rpcError) throw rpcError
+
+      const result = data as { success: boolean; net_amount: number }
+      toast.success(`Retrait validé ! Montant net versé : ${result?.net_amount?.toLocaleString('fr-FR') || '—'} FC`)
+      setTargetWithdrawalId(null)
+      setWithdrawalAction(null)
+      setWithdrawalPaymentRef('')
+
+      const { data: witData } = await supabase.from('withdrawals').select('*, profile:profiles(*)').order('created_at', { ascending: false })
+      setWithdrawals(witData || [])
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de la validation du retrait')
+    }
+  }
+
+  const handleRejectWithdrawal = async (withdrawalId: string) => {
+    if (!withdrawalRejectReason.trim()) {
+      toast.error('Veuillez saisir un motif de refus obligatoire.')
+      return
+    }
+
+    try {
+      const { data, error: rpcError } = await supabase.rpc('reject_withdrawal', {
+        p_withdrawal_id: withdrawalId,
+        p_reason: withdrawalRejectReason.trim()
+      })
+      if (rpcError) throw rpcError
+
+      const result = data as { success: boolean; refunded_amount: number }
+      toast.info(`Retrait refusé. ${result?.refunded_amount?.toLocaleString('fr-FR') || '—'} FC remboursés sur le wallet de l'utilisateur.`)
+      setTargetWithdrawalId(null)
+      setWithdrawalAction(null)
+      setWithdrawalRejectReason('')
+
+      const { data: witData } = await supabase.from('withdrawals').select('*, profile:profiles(*)').order('created_at', { ascending: false })
+      setWithdrawals(witData || [])
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors du refus du retrait')
     }
   }
 
@@ -103,6 +271,7 @@ export default function AdminPage() {
       await supabase.from('vip_levels').update({ is_active: !currentStatus }).eq('id', vipId)
       const { data: vipData } = await supabase.from('vip_levels').select('*').order('display_order')
       setVipLevels(vipData || [])
+      toast.success('Statut du palier VIP actualisé.')
     } catch (err) {
       console.error('Error toggling VIP:', err)
     }
@@ -110,10 +279,20 @@ export default function AdminPage() {
 
   const handleUpdatePaymentNumber = async (network: string, phone: string) => {
     try {
-      await supabase.from('payment_accounts').update({ phone_number: phone, updated_at: new Date().toISOString() }).eq('network', network)
+      const { data: { user } } = await supabase.auth.getUser()
+      await supabase.from('payment_accounts').update({
+        phone_number: phone,
+        updated_at: new Date().toISOString(),
+        updated_by: user?.id || null
+      }).eq('network', network)
+
       const { data: paData } = await supabase.from('payment_accounts').select('*')
       setPaymentAccounts(paData || [])
-      alert('Numéro Mobile Money mis à jour avec succès.')
+
+      const { data: pahData } = await supabase.from('payment_account_history').select('*').order('created_at', { ascending: false }).limit(20)
+      setPaymentAccountHistory(pahData || [])
+
+      toast.success('Numéro Mobile Money mis à jour et archivé dans l\'historique.')
     } catch (err) {
       console.error('Error updating payment account:', err)
     }
@@ -125,6 +304,10 @@ export default function AdminPage() {
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-biso-600"></div>
       </div>
     )
+  }
+
+  if (!isAdmin) {
+    return null
   }
 
   const pendingDeposits = deposits.filter(d => d.status === 'EN_ATTENTE')
@@ -183,7 +366,16 @@ export default function AdminPage() {
 
         {activeTab === 'users' && (
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-4">
-            <h3 className="font-bold text-gray-800 text-sm">Gestion des Utilisateurs ({users.length})</h3>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+              <h3 className="font-bold text-gray-800 text-sm">Gestion des Utilisateurs ({users.length})</h3>
+              <button
+                onClick={() => exportCsv('users')}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center space-x-1.5 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Exporter CSV</span>
+              </button>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-gray-50 text-gray-500 uppercase">
@@ -196,7 +388,7 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {users.map((u) => (
+                  {users.slice((pageUsers - 1) * PAGE_SIZE, pageUsers * PAGE_SIZE).map((u) => (
                     <tr key={u.id}>
                       <td className="p-3 font-semibold text-gray-900">{u.phone}</td>
                       <td className="p-3 text-biso-700 font-bold">{u.referral_code}</td>
@@ -210,14 +402,46 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {users.length > PAGE_SIZE && (
+              <div className="flex justify-between items-center pt-3 border-t border-gray-100 text-xs text-gray-500">
+                <span>Page {pageUsers} sur {Math.ceil(users.length / PAGE_SIZE)} ({users.length} utilisateurs)</span>
+                <div className="flex space-x-1">
+                  <button
+                    onClick={() => setPageUsers(p => Math.max(1, p - 1))}
+                    disabled={pageUsers === 1}
+                    className="p-1.5 border rounded-lg hover:bg-gray-50 disabled:opacity-40"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setPageUsers(p => Math.min(Math.ceil(users.length / PAGE_SIZE), p + 1))}
+                    disabled={pageUsers >= Math.ceil(users.length / PAGE_SIZE)}
+                    className="p-1.5 border rounded-lg hover:bg-gray-50 disabled:opacity-40"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'deposits' && (
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-4">
-            <h3 className="font-bold text-gray-800 text-sm">Gestion des Recharges ({deposits.length})</h3>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+              <h3 className="font-bold text-gray-800 text-sm">Gestion des Recharges ({deposits.length})</h3>
+              <button
+                onClick={() => exportCsv('deposits')}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center space-x-1.5 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Exporter CSV</span>
+              </button>
+            </div>
             <div className="space-y-3">
-              {deposits.map((dep) => (
+              {deposits.slice((pageDeposits - 1) * PAGE_SIZE, pageDeposits * PAGE_SIZE).map((dep) => (
                 <div key={dep.id} className="p-4 bg-gray-50 rounded-xl flex justify-between items-center">
                   <div>
                     <p className="text-xs font-bold text-gray-900">{dep.profile?.phone || 'Utilisateur'} • {dep.amount.toLocaleString('fr-FR')} FC ({dep.network})</p>
@@ -248,7 +472,33 @@ export default function AdminPage() {
                   </div>
                 </div>
               ))}
+              {deposits.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-6">Aucune recharge trouvée.</p>
+              )}
             </div>
+
+            {/* Pagination Controls */}
+            {deposits.length > PAGE_SIZE && (
+              <div className="flex justify-between items-center pt-3 border-t border-gray-100 text-xs text-gray-500">
+                <span>Page {pageDeposits} sur {Math.ceil(deposits.length / PAGE_SIZE)} ({deposits.length} dépôts)</span>
+                <div className="flex space-x-1">
+                  <button
+                    onClick={() => setPageDeposits(p => Math.max(1, p - 1))}
+                    disabled={pageDeposits === 1}
+                    className="p-1.5 border rounded-lg hover:bg-gray-50 disabled:opacity-40"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setPageDeposits(p => Math.min(Math.ceil(deposits.length / PAGE_SIZE), p + 1))}
+                    disabled={pageDeposits >= Math.ceil(deposits.length / PAGE_SIZE)}
+                    className="p-1.5 border rounded-lg hover:bg-gray-50 disabled:opacity-40"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {targetDepositId && (
               <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -273,22 +523,158 @@ export default function AdminPage() {
 
         {activeTab === 'withdrawals' && (
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-4">
-            <h3 className="font-bold text-gray-800 text-sm">Gestion des Retraits ({withdrawals.length})</h3>
-            <div className="space-y-3">
-              {withdrawals.map((wit) => (
-                <div key={wit.id} className="p-4 bg-gray-50 rounded-xl flex justify-between items-center">
-                  <div>
-                    <p className="text-xs font-bold text-gray-900">{wit.profile?.phone || 'Utilisateur'} • {wit.amount.toLocaleString('fr-FR')} FC ({wit.network})</p>
-                    <p className="text-[10px] text-gray-500">Compte: {wit.phone_number} • {new Date(wit.created_at).toLocaleString('fr-FR')}</p>
-                  </div>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                    wit.status === 'PAYE' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                  }`}>
-                    {wit.status}
-                  </span>
-                </div>
-              ))}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+              <div className="flex items-center space-x-2">
+                <h3 className="font-bold text-gray-800 text-sm">Gestion des Retraits ({withdrawals.length})</h3>
+                <span className="text-xs bg-amber-100 text-amber-700 font-bold px-2.5 py-1 rounded-full">
+                  {pendingWithdrawals.length} en attente
+                </span>
+              </div>
+              <button
+                onClick={() => exportCsv('withdrawals')}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center space-x-1.5 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Exporter CSV</span>
+              </button>
             </div>
+            <div className="space-y-4">
+              {withdrawals.slice((pageWithdrawals - 1) * PAGE_SIZE, pageWithdrawals * PAGE_SIZE).map((wit) => {
+                const fee = wit.fee ?? Math.round(wit.amount * 0.15 * 100) / 100
+                const netAmount = wit.net_amount ?? (wit.amount - fee)
+                const isPending = wit.status === 'EN_ATTENTE' || wit.status === 'EN_TRAITEMENT'
+                return (
+                  <div key={wit.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
+                    {/* Header */}
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-xs font-black text-gray-900">
+                          {(wit as any).profile?.phone || 'Utilisateur'} • {wit.network}
+                        </p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">
+                          Compte : {wit.phone_number} • {new Date(wit.created_at).toLocaleString('fr-FR')}
+                        </p>
+                        {wit.payment_reference && (
+                          <p className="text-[10px] text-biso-700 font-mono mt-0.5">Réf : {wit.payment_reference}</p>
+                        )}
+                      </div>
+                      <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${
+                        wit.status === 'PAYE' ? 'bg-emerald-50 text-emerald-700' :
+                        wit.status === 'REFUSE' ? 'bg-red-50 text-red-700' :
+                        'bg-amber-50 text-amber-700'
+                      }`}>
+                        {wit.status}
+                      </span>
+                    </div>
+
+                    {/* Montants brut / frais / net */}
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="bg-white rounded-xl p-2 border border-gray-100">
+                        <p className="text-[9px] text-gray-400 uppercase tracking-wider">Brut</p>
+                        <p className="text-xs font-black text-gray-900 tabular-nums">{wit.amount.toLocaleString('fr-FR')} FC</p>
+                      </div>
+                      <div className="bg-white rounded-xl p-2 border border-gray-100">
+                        <p className="text-[9px] text-rose-400 uppercase tracking-wider">Frais 15%</p>
+                        <p className="text-xs font-black text-rose-600 tabular-nums">{fee.toLocaleString('fr-FR')} FC</p>
+                      </div>
+                      <div className="bg-biso-50 rounded-xl p-2 border border-biso-100">
+                        <p className="text-[9px] text-biso-600 uppercase tracking-wider">Net versé</p>
+                        <p className="text-xs font-black text-biso-800 tabular-nums">{netAmount.toLocaleString('fr-FR')} FC</p>
+                      </div>
+                    </div>
+
+                    {/* Boutons d'action (seulement si en attente) */}
+                    {isPending && targetWithdrawalId !== wit.id && (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => { setTargetWithdrawalId(wit.id); setWithdrawalAction('approve'); setWithdrawalPaymentRef(''); }}
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl transition-colors"
+                        >
+                          ✓ Valider le paiement
+                        </button>
+                        <button
+                          onClick={() => { setTargetWithdrawalId(wit.id); setWithdrawalAction('reject'); setWithdrawalRejectReason(''); }}
+                          className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-2 rounded-xl transition-colors"
+                        >
+                          ✕ Refuser
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Modale inline : Valider avec référence */}
+                    {targetWithdrawalId === wit.id && withdrawalAction === 'approve' && (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-2">
+                        <p className="text-xs font-bold text-emerald-800">Référence Mobile Money du paiement effectué :</p>
+                        <input
+                          type="text"
+                          placeholder="Ex: PP260315.1432.B78921"
+                          value={withdrawalPaymentRef}
+                          onChange={(e) => setWithdrawalPaymentRef(e.target.value)}
+                          className="w-full p-2.5 border border-emerald-200 rounded-xl text-xs font-mono bg-white focus:outline-none focus:border-emerald-500"
+                        />
+                        <div className="flex space-x-2">
+                          <button onClick={() => { setTargetWithdrawalId(null); setWithdrawalAction(null); }} className="flex-1 bg-gray-100 py-2 rounded-xl text-xs font-semibold">
+                            Annuler
+                          </button>
+                          <button onClick={() => handleApproveWithdrawal(wit.id)} className="flex-1 bg-emerald-600 text-white py-2 rounded-xl text-xs font-black">
+                            Confirmer le paiement
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Modale inline : Refuser avec motif */}
+                    {targetWithdrawalId === wit.id && withdrawalAction === 'reject' && (
+                      <div className="bg-red-50 border border-red-200 rounded-xl p-3 space-y-2">
+                        <p className="text-xs font-bold text-red-800">Motif de refus (obligatoire — sera conservé dans le journal) :</p>
+                        <textarea
+                          rows={2}
+                          placeholder="Ex: Numéro invalide, fraude suspectée..."
+                          value={withdrawalRejectReason}
+                          onChange={(e) => setWithdrawalRejectReason(e.target.value)}
+                          className="w-full p-2.5 border border-red-200 rounded-xl text-xs bg-white focus:outline-none focus:border-red-500 resize-none"
+                        />
+                        <p className="text-[10px] text-red-600">Le montant brut ({wit.amount.toLocaleString('fr-FR')} FC) sera automatiquement remboursé sur le wallet.</p>
+                        <div className="flex space-x-2">
+                          <button onClick={() => { setTargetWithdrawalId(null); setWithdrawalAction(null); }} className="flex-1 bg-gray-100 py-2 rounded-xl text-xs font-semibold">
+                            Annuler
+                          </button>
+                          <button onClick={() => handleRejectWithdrawal(wit.id)} className="flex-1 bg-red-500 text-white py-2 rounded-xl text-xs font-black">
+                            Confirmer le refus
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              {withdrawals.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-6">Aucune demande de retrait.</p>
+              )}
+            </div>
+
+            {/* Pagination Controls */}
+            {withdrawals.length > PAGE_SIZE && (
+              <div className="flex justify-between items-center pt-3 border-t border-gray-100 text-xs text-gray-500">
+                <span>Page {pageWithdrawals} sur {Math.ceil(withdrawals.length / PAGE_SIZE)} ({withdrawals.length} retraits)</span>
+                <div className="flex space-x-1">
+                  <button
+                    onClick={() => setPageWithdrawals(p => Math.max(1, p - 1))}
+                    disabled={pageWithdrawals === 1}
+                    className="p-1.5 border rounded-lg hover:bg-gray-50 disabled:opacity-40"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setPageWithdrawals(p => Math.min(Math.ceil(withdrawals.length / PAGE_SIZE), p + 1))}
+                    disabled={pageWithdrawals >= Math.ceil(withdrawals.length / PAGE_SIZE)}
+                    className="p-1.5 border rounded-lg hover:bg-gray-50 disabled:opacity-40"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -367,6 +753,40 @@ export default function AdminPage() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Historique des Changements de Numéros */}
+            <div className="pt-4 border-t border-gray-100 space-y-3">
+              <div className="flex items-center space-x-2">
+                <History className="w-4 h-4 text-biso-600" />
+                <h4 className="font-bold text-gray-800 text-xs uppercase tracking-wider">Historique d'Audit des Numéros (payment_account_history)</h4>
+              </div>
+              {paymentAccountHistory.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-gray-50 text-gray-500 uppercase">
+                      <tr>
+                        <th className="p-2.5">Opérateur</th>
+                        <th className="p-2.5">Ancien Numéro</th>
+                        <th className="p-2.5">Nouveau Numéro</th>
+                        <th className="p-2.5">Date Modification</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 font-mono">
+                      {paymentAccountHistory.map((h: any) => (
+                        <tr key={h.id}>
+                          <td className="p-2.5 font-bold text-gray-900 font-sans">{h.network}</td>
+                          <td className="p-2.5 text-red-600 line-through">{h.old_number}</td>
+                          <td className="p-2.5 text-emerald-700 font-bold">{h.new_number}</td>
+                          <td className="p-2.5 text-gray-500 font-sans">{new Date(h.created_at).toLocaleString('fr-FR')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400">Aucune modification historique enregistrée.</p>
+              )}
             </div>
           </div>
         )}

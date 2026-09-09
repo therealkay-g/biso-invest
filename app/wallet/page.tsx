@@ -217,7 +217,12 @@ function WalletContent() {
 
       if (rpcError) throw rpcError
 
-      toast.success(`Demande de retrait de ${amountNum.toLocaleString('fr-FR')} FC enregistrée avec succès.`)
+      // La RPC renvoie {success, reference, gross_amount, fee, net_amount}
+      const result = data as { success: boolean; reference: string; gross_amount: number; fee: number; net_amount: number }
+      const feeDisplay = result?.fee ? result.fee.toLocaleString('fr-FR') : Math.round(amountNum * 0.15).toLocaleString('fr-FR')
+      const netDisplay = result?.net_amount ? result.net_amount.toLocaleString('fr-FR') : (amountNum - Math.round(amountNum * 0.15)).toLocaleString('fr-FR')
+
+      toast.success(`Retrait de ${amountNum.toLocaleString('fr-FR')} FC soumis — Frais : ${feeDisplay} FC — Vous recevez : ${netDisplay} FC`)
       setWithdrawAmount('')
       setShowPinModal(false)
 
@@ -488,18 +493,28 @@ function WalletContent() {
                 </div>
               </div>
 
-              <div className="bg-gray-50 p-4 rounded-2xl space-y-2 text-xs border border-gray-100">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Frais de transfert :</span>
-                  <span className="font-bold text-emerald-600">0 FC (0% Offert)</span>
-                </div>
-                <div className="flex justify-between border-t border-gray-200 pt-2">
-                  <span className="text-gray-800 font-bold">Montant net versé :</span>
-                  <span className="font-black text-biso-700 tabular-nums text-sm">
-                    {withdrawAmount ? parseFloat(withdrawAmount).toLocaleString('fr-FR') : 0} FC
-                  </span>
-                </div>
-              </div>
+              {/* Récapitulatif dynamique brut / frais 15% / net */}
+              {withdrawAmount && parseFloat(withdrawAmount) >= 5000 && (() => {
+                const gross = parseFloat(withdrawAmount)
+                const fee = Math.round(gross * 0.15 * 100) / 100
+                const net = gross - fee
+                return (
+                  <div className="bg-gray-50 p-4 rounded-2xl space-y-2 text-xs border border-gray-100">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Montant brut saisi :</span>
+                      <span className="font-bold text-gray-800 tabular-nums">{gross.toLocaleString('fr-FR')} FC</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Frais de gestion (15%) :</span>
+                      <span className="font-bold text-rose-600 tabular-nums">− {fee.toLocaleString('fr-FR')} FC</span>
+                    </div>
+                    <div className="flex justify-between border-t border-gray-200 pt-2">
+                      <span className="text-gray-800 font-black">Montant net reçu :</span>
+                      <span className="font-black text-biso-700 tabular-nums text-sm">{net.toLocaleString('fr-FR')} FC</span>
+                    </div>
+                  </div>
+                )
+              })()}
 
               <button
                 type="submit"
@@ -554,6 +569,29 @@ function WalletContent() {
               <h4 className="text-base font-black text-gray-900">Code PIN de Sécurité</h4>
               <p className="text-xs text-gray-500 mt-1">Saisissez votre code PIN à 4 chiffres pour autoriser le retrait de fonds.</p>
             </div>
+
+            {/* Récapitulatif dans la modale */}
+            {withdrawAmount && parseFloat(withdrawAmount) >= 5000 && (() => {
+              const gross = parseFloat(withdrawAmount)
+              const fee = Math.round(gross * 0.15 * 100) / 100
+              const net = gross - fee
+              return (
+                <div className="bg-gray-50 rounded-2xl p-3 space-y-1.5 text-xs border border-gray-100 text-left">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Montant brut :</span>
+                    <span className="font-bold tabular-nums">{gross.toLocaleString('fr-FR')} FC</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Frais (15%) :</span>
+                    <span className="font-bold text-rose-600 tabular-nums">− {fee.toLocaleString('fr-FR')} FC</span>
+                  </div>
+                  <div className="flex justify-between border-t border-gray-200 pt-1.5">
+                    <span className="font-black text-gray-800">Vous recevez :</span>
+                    <span className="font-black text-biso-700 tabular-nums">{net.toLocaleString('fr-FR')} FC</span>
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* 4 digit boxes */}
             <div className="flex justify-center space-x-3 py-2">
