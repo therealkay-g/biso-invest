@@ -107,7 +107,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-gray-50 pb-32">
       <Header displayName={profile?.phone || 'Profil'} vipLevel={profile?.current_vip || 'VIP0'} showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-6">
