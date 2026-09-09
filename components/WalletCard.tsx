@@ -37,8 +37,8 @@ export default function WalletCard({
     localStorage.setItem('biso_hide_balance', (!nextState).toString())
   }
 
-  // Taux indicatif de conversion (ex. 1 USD = 2800 CDF)
-  const EXCHANGE_RATE = 2800
+  // Taux indicatif de conversion (1 USD = 2400 CDF)
+  const EXCHANGE_RATE = 2400
   const usdBalance = (balance / EXCHANGE_RATE).toFixed(2)
 
   const formatAmount = (val: number, unit = 'FC') => {
