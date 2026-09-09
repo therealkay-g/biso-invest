@@ -19,7 +19,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             alt={product.name}
             className="w-full h-full object-cover"
           />
-          <div className="absolute top-3 right-3 bg-biso-900/80 backdrop-blur-xs text-white text-[11px] font-semibold px-2.5 py-1 rounded-full">
+          <div className="absolute top-3 right-3 bg-biso-900/80 backdrop-blur-sm text-white text-[11px] font-semibold px-2.5 py-1 rounded-full">
             {product.duration_months} mois
           </div>
         </div>
@@ -48,7 +48,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       <div className="p-4 pt-0">
         <Link
           href={`/invest/${product.id}`}
-          className="w-full bg-biso-600 hover:bg-biso-700 text-white font-semibold py-2.5 px-4 rounded-xl text-center text-sm flex items-center justify-center space-x-2 transition-all shadow-xs"
+          className="w-full bg-biso-600 hover:bg-biso-700 text-white font-semibold py-2.5 px-4 rounded-xl text-center text-sm flex items-center justify-center space-x-2 transition-all shadow-sm"
         >
           <span>INVESTIR</span>
           <ArrowRight className="w-4 h-4" />

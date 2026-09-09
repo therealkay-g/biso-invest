@@ -175,7 +175,7 @@ export default function InvestmentsPage() {
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => setSelectedCertInvestment(inv)}
-                        className="bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold px-3 py-1.5 rounded-xl border border-amber-200/80 flex items-center space-x-1.5 transition-all active:scale-95 shadow-2xs"
+                        className="bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold px-3 py-1.5 rounded-xl border border-amber-200/80 flex items-center space-x-1.5 transition-all active:scale-95 shadow-sm"
                       >
                         <Award className="w-3.5 h-3.5 text-amber-600" />
                         <span>Certificat Officiel</span>
@@ -197,7 +197,7 @@ export default function InvestmentsPage() {
                     <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                       <div
                         style={{ width: `${progressPercent}%` }}
-                        className="bg-linear-to-r from-biso-600 to-emerald-400 h-2 rounded-full transition-all duration-500"
+                        className="bg-gradient-to-r from-biso-600 to-emerald-400 h-2 rounded-full transition-all duration-500"
                       />
                     </div>
                   </div>
@@ -240,7 +240,7 @@ export default function InvestmentsPage() {
                             key={cycle.id}
                             className={`p-4 rounded-2xl border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition-all ${
                               cycle.status === 'ACTIVE'
-                                ? 'bg-emerald-50/30 border-emerald-200 shadow-2xs'
+                                ? 'bg-emerald-50/30 border-emerald-200 shadow-sm'
                                 : 'bg-gray-50 border-gray-200 opacity-90'
                             }`}
                           >

@@ -61,9 +61,14 @@ function RegisterForm() {
   return (
     <div className="min-h-screen flex flex-col justify-center px-6 py-12 bg-gray-50">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center mb-8">
-        <div className="w-16 h-16 bg-biso-600 rounded-2xl mx-auto flex items-center justify-center text-white font-extrabold text-2xl shadow-lg mb-4">
-          BI
-        </div>
+        <Image
+          src="/images/logo.png"
+          alt="BISO INVEST"
+          width={72}
+          height={72}
+          className="mx-auto rounded-2xl shadow-lg mb-4"
+          priority
+        />
         <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">Créer un compte Biso Invest</h2>
         <p className="text-sm text-gray-500 mt-1">« Ensemble, construisons demain. »</p>
       </div>

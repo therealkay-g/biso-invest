@@ -356,7 +356,7 @@ function WalletContent() {
 
               {/* Official receiver account card */}
               {activePaymentAccount ? (
-                <div className="bg-linear-to-r from-biso-50 to-emerald-50 border border-biso-200 p-4 rounded-2xl space-y-2">
+                <div className="bg-gradient-to-r from-biso-50 to-emerald-50 border border-biso-200 p-4 rounded-2xl space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-biso-800">Numéro Récepteur Officiel :</span>
                     <CopyButton textToCopy={activePaymentAccount.phone_number} label="Copier" />
@@ -440,7 +440,7 @@ function WalletContent() {
               <button
                 type="submit"
                 disabled={submittingDeposit}
-                className="w-full bg-linear-to-r from-biso-600 to-biso-500 hover:from-biso-700 hover:to-biso-600 text-white font-black py-3.5 rounded-2xl text-xs tracking-wider uppercase shadow-md transition-all active:scale-98 disabled:opacity-50"
+                className="w-full bg-gradient-to-r from-biso-600 to-biso-500 hover:from-biso-700 hover:to-biso-600 text-white font-black py-3.5 rounded-2xl text-xs tracking-wider uppercase shadow-md transition-all active:scale-98 disabled:opacity-50"
               >
                 {submittingDeposit ? 'Envoi en cours...' : 'Soumettre la Recharge'}
               </button>
@@ -519,7 +519,7 @@ function WalletContent() {
               <button
                 type="submit"
                 disabled={withdrawalAccounts.length === 0}
-                className="w-full bg-linear-to-r from-biso-700 to-biso-600 hover:from-biso-800 hover:to-biso-700 text-white font-black py-3.5 rounded-2xl text-xs tracking-wider uppercase shadow-md transition-all active:scale-98 disabled:opacity-40"
+                className="w-full bg-gradient-to-r from-biso-700 to-biso-600 hover:from-biso-800 hover:to-biso-700 text-white font-black py-3.5 rounded-2xl text-xs tracking-wider uppercase shadow-md transition-all active:scale-98 disabled:opacity-40"
               >
                 Sécuriser et Confirmer le Retrait
               </button>
@@ -529,7 +529,7 @@ function WalletContent() {
 
         {/* Tab 4: History */}
         {activeTab === 'history' && (
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-4">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm space-y-4">
             <h3 className="font-black text-gray-900 text-sm">Registre des Opérations Financières</h3>
             <div className="space-y-3">
               {transactions.length === 0 ? (
@@ -560,9 +560,9 @@ function WalletContent() {
 
       {/* 4-Digit Security PIN Modal */}
       {showPinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-5 shadow-2xl border border-gray-100 text-center animate-in fade-in zoom-in-95">
-            <div className="w-12 h-12 rounded-2xl bg-biso-100 text-biso-700 flex items-center justify-center mx-auto shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-biso-100 text-biso-700 flex items-center justify-center mx-auto shadow-sm">
               <Lock className="w-6 h-6" />
             </div>
             <div>

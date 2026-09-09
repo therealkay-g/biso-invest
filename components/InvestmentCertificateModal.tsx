@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { X, Printer, ShieldCheck, Award, QrCode } from 'lucide-react'
+import Image from 'next/image'
 import { Investment } from '@/types'
 
 interface CertificateProps {
@@ -23,19 +24,19 @@ export default function InvestmentCertificateModal({ investment, userName = 'Inv
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
       {/* Container with screen / print styling */}
       <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 relative shadow-2xl border border-gray-100 my-8">
         {/* Controls - Hidden on print */}
         <div className="flex justify-between items-center pb-4 border-b border-gray-100 print:hidden">
           <div className="flex items-center space-x-2">
-            <Award className="w-5 h-5 text-biso-600" />
-            <span className="font-extrabold text-xs uppercase tracking-wider text-gray-700">Certificat d'Investissement Officiel</span>
+            <Award className="w-5 h-5 text-biso-700" />
+            <span className="font-bold text-sm text-gray-800">Certificat Officiel d'Investissement</span>
           </div>
           <div className="flex items-center space-x-2">
             <button
               onClick={handlePrint}
-              className="bg-biso-600 hover:bg-biso-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center space-x-1.5 shadow-sm transition-all active:scale-95"
+              className="flex items-center space-x-1.5 bg-biso-600 hover:bg-biso-700 text-white font-semibold text-xs px-3.5 py-2 rounded-xl transition-all shadow-sm active:scale-95"
             >
               <Printer className="w-4 h-4" />
               <span>Imprimer / PDF</span>
@@ -50,7 +51,7 @@ export default function InvestmentCertificateModal({ investment, userName = 'Inv
         </div>
 
         {/* Printable Certificate Content */}
-        <div id="printable-certificate" className="mt-4 p-6 border-4 border-double border-biso-700/40 rounded-2xl relative bg-linear-to-b from-amber-50/20 via-white to-biso-50/30">
+        <div id="printable-certificate" className="mt-4 p-6 border-4 border-double border-biso-700/40 rounded-2xl relative bg-gradient-to-b from-amber-50/20 via-white to-biso-50/30">
           {/* Watermark */}
           <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none select-none">
             <ShieldCheck className="w-80 h-80 text-biso-900" />
@@ -59,15 +60,19 @@ export default function InvestmentCertificateModal({ investment, userName = 'Inv
           {/* Header */}
           <div className="text-center space-y-1 relative z-10 border-b pb-4 border-biso-700/20">
             <div className="flex justify-center items-center space-x-2 mb-1">
-              <div className="w-8 h-8 rounded-lg bg-biso-700 text-white font-extrabold flex items-center justify-center text-sm shadow-xs">
-                BI
-              </div>
+              <Image
+                src="/images/logo.png"
+                alt="BISO INVEST"
+                width={36}
+                height={36}
+                className="rounded-lg shadow-sm"
+              />
               <span className="text-base font-extrabold text-gray-900 tracking-tight">BISO INVEST SARL</span>
             </div>
             <p className="text-[10px] uppercase font-bold tracking-widest text-biso-800">RÉPUBLIQUE DÉMOCRATIQUE DU CONGO</p>
             <p className="text-[10px] text-gray-500">Plateforme de Financement Participatif de l'Économie Réelle</p>
             <div className="pt-2">
-              <span className="inline-block px-3 py-1 bg-biso-700 text-white font-extrabold text-[11px] rounded-full uppercase tracking-wider shadow-xs">
+              <span className="inline-block px-3 py-1 bg-biso-700 text-white font-extrabold text-[11px] rounded-full uppercase tracking-wider shadow-sm">
                 CERTIFICAT DE TITULARISATION DE PACK
               </span>
             </div>
@@ -86,7 +91,7 @@ export default function InvestmentCertificateModal({ investment, userName = 'Inv
             </p>
 
             {/* Pack details table */}
-            <div className="bg-white/80 border border-biso-200 rounded-xl p-4 shadow-2xs text-left grid grid-cols-2 gap-3 text-xs">
+            <div className="bg-white/80 border border-biso-200 rounded-xl p-4 shadow-sm text-left grid grid-cols-2 gap-3 text-xs">
               <div>
                 <span className="text-gray-500 text-[11px]">Désignation du Pack :</span>
                 <p className="font-bold text-gray-900 text-sm">{investment.product?.name || 'Pack Investissement'}</p>
@@ -131,7 +136,7 @@ export default function InvestmentCertificateModal({ investment, userName = 'Inv
             </div>
 
             {/* Official Stamp styling */}
-            <div className="border-2 border-biso-700 rounded-full w-24 h-24 p-1 flex items-center justify-center rotate-[-12deg] text-center opacity-85 shadow-2xs">
+            <div className="border-2 border-biso-700 rounded-full w-24 h-24 p-1 flex items-center justify-center rotate-[-12deg] text-center opacity-85 shadow-sm">
               <div className="border border-dashed border-biso-600 rounded-full w-full h-full flex flex-col items-center justify-center text-[8px] font-black text-biso-800 uppercase leading-tight">
                 <span>BISO INVEST</span>
                 <span className="text-[7px] text-emerald-600 font-bold">DIRECTION FINANCES</span>

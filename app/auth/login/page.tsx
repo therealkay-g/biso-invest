@@ -21,25 +21,32 @@ export default function LoginPage() {
 
     try {
       const email = `${phone.replace(/[^0-9]/g, '')}@bisoinvest.com`
-      console.log('[LOGIN] Tentative de connexion avec email:', email)
-      console.log('[LOGIN] Mot de passe saisi (longueur):', password.length)
 
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      console.log('[LOGIN] Réponse Supabase:', { data, error: authError })
-
       if (authError) {
-        console.error('[LOGIN] Erreur Supabase:', authError.message)
         throw authError
       }
 
-      console.log('[LOGIN] Connexion réussie, redirection vers /dashboard')
+      // Si l'utilisateur est un administrateur, redirection directe vers le panel admin
+      if (data?.user) {
+        const { data: adminRow } = await supabase
+          .from('admin_users')
+          .select('role')
+          .eq('id', data.user.id)
+          .maybeSingle()
+
+        if (adminRow) {
+          router.push('/admin')
+          return
+        }
+      }
+
       router.push('/dashboard')
     } catch (err: any) {
-      console.error('[LOGIN] Erreur attrapée:', err.message || err)
       setError(err.message || 'Erreur de connexion. Vérifiez vos identifiants.')
     } finally {
       setLoading(false)

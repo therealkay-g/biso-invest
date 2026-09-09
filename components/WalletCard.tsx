@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Wallet as WalletIcon, ArrowUpRight, Plus, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 interface WalletCardProps {
   balance: number
@@ -46,7 +47,7 @@ export default function WalletCard({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-linear-to-br from-zinc-950 via-zinc-900 to-emerald-950 text-white shadow-2xl border border-emerald-500/20 p-6 transition-all">
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-950 via-zinc-900 to-emerald-950 text-white shadow-2xl border border-emerald-500/20 p-6 transition-all">
       {/* Glossy & Metallic Ambient Glow */}
       <div className="absolute -right-12 -top-12 w-48 h-48 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute -left-12 -bottom-12 w-44 h-44 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -54,10 +55,14 @@ export default function WalletCard({
       <div className="relative z-10 flex flex-col justify-between space-y-5">
         {/* Top bar: Brand, VIP badge & Eye toggle */}
         <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-xl bg-linear-to-br from-amber-400 to-amber-600 flex items-center justify-center text-zinc-950 font-black text-xs shadow-md">
-              BI
-            </div>
+          <div className="flex items-center space-x-2.5">
+            <Image
+              src="/images/logo.png"
+              alt="BISO INVEST"
+              width={34}
+              height={34}
+              className="rounded-xl shadow-md border border-emerald-500/30 object-cover"
+            />
             <div>
               <span className="text-xs font-black tracking-widest text-zinc-200 uppercase">BISO BLACK CARD</span>
               <div className="flex items-center space-x-1.5">
@@ -75,7 +80,7 @@ export default function WalletCard({
             <button
               onClick={toggleVisibility}
               aria-label={showBalance ? 'Masquer le solde' : 'Afficher le solde'}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-300 hover:text-white transition-all active:scale-95 border border-white/10 backdrop-blur-xs"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-300 hover:text-white transition-all active:scale-95 border border-white/10 backdrop-blur-sm"
             >
               {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -87,7 +92,7 @@ export default function WalletCard({
 
         {/* EMV Chip & Contactless Visuals */}
         <div className="flex items-center justify-between py-1">
-          <div className="w-11 h-8 rounded-lg bg-linear-to-tr from-amber-300 via-amber-200 to-amber-400 border border-amber-500/50 shadow-inner flex items-center justify-around px-1">
+          <div className="w-11 h-8 rounded-lg bg-gradient-to-tr from-amber-300 via-amber-200 to-amber-400 border border-amber-500/50 shadow-inner flex items-center justify-around px-1">
             <div className="w-full h-4 border border-amber-600/40 rounded-xs flex flex-col justify-between py-0.5">
               <div className="w-full h-px bg-amber-600/50"></div>
               <div className="w-full h-px bg-amber-600/50"></div>
@@ -141,14 +146,14 @@ export default function WalletCard({
         <div className="grid grid-cols-2 gap-3 pt-1">
           <Link
             href="/wallet?tab=deposit"
-            className="bg-linear-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold py-3 px-4 rounded-2xl flex items-center justify-center space-x-2 shadow-lg shadow-emerald-950 transition-all active:scale-95 text-xs tracking-wide"
+            className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold py-3 px-4 rounded-2xl flex items-center justify-center space-x-2 shadow-lg shadow-emerald-950 transition-all active:scale-95 text-xs tracking-wide"
           >
             <Plus className="w-4 h-4" />
             <span>RECHARGER</span>
           </Link>
           <Link
             href="/wallet?tab=withdraw"
-            className="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold py-3 px-4 rounded-2xl flex items-center justify-center space-x-2 transition-all backdrop-blur-xs active:scale-95 text-xs tracking-wide shadow-md"
+            className="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold py-3 px-4 rounded-2xl flex items-center justify-center space-x-2 transition-all backdrop-blur-sm active:scale-95 text-xs tracking-wide shadow-md"
           >
             <ArrowUpRight className="w-4 h-4" />
             <span>RETIRER</span>

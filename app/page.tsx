@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { supabase } from '@/lib/supabase/client'
 
 export default function HomePage() {
@@ -11,6 +12,18 @@ export default function HomePage() {
     async function checkUser() {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
+        // Si l'utilisateur est admin, vérifier et router vers /admin ou /dashboard
+        try {
+          const { data: adminRow } = await supabase
+            .from('admin_users')
+            .select('role')
+            .eq('id', session.user.id)
+            .maybeSingle()
+          if (adminRow) {
+            router.push('/admin')
+            return
+          }
+        } catch {}
         router.push('/dashboard')
       } else {
         router.push('/auth/login')
@@ -21,9 +34,14 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-      <div className="w-16 h-16 bg-biso-600 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl shadow-lg mb-4 animate-pulse">
-        BI
-      </div>
+      <Image
+        src="/images/logo.png"
+        alt="BISO INVEST"
+        width={72}
+        height={72}
+        className="rounded-2xl shadow-xl mb-4 animate-pulse"
+        priority
+      />
       <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">BISO INVEST</h1>
       <p className="text-xs text-gray-500 mt-1">« Ensemble, construisons demain. »</p>
       <div className="mt-6 animate-spin rounded-full h-8 w-8 border-b-2 border-biso-600"></div>

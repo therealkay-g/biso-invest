@@ -79,9 +79,9 @@ export default function TeamPage() {
 
       <div className="p-4 max-w-4xl mx-auto space-y-6">
         {/* Referral Gold Box */}
-        <div className="bg-linear-to-br from-zinc-950 via-zinc-900 to-emerald-950 text-white rounded-3xl p-6 shadow-2xl border border-emerald-500/20 space-y-5">
+        <div className="bg-gradient-to-br from-zinc-950 via-zinc-900 to-emerald-950 text-white rounded-3xl p-6 shadow-2xl border border-emerald-500/20 space-y-5">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-400 text-zinc-950 font-black flex items-center justify-center text-xs shadow-xs">
+            <div className="w-8 h-8 rounded-xl bg-amber-400 text-zinc-950 font-black flex items-center justify-center text-xs shadow-sm">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
@@ -93,7 +93,7 @@ export default function TeamPage() {
           <div className="space-y-3">
             <div>
               <span className="text-[11px] uppercase text-zinc-400 font-bold block mb-1">Votre Code de Parrainage</span>
-              <div className="flex items-center justify-between bg-white/5 border border-white/10 p-3 rounded-2xl backdrop-blur-xs">
+              <div className="flex items-center justify-between bg-white/5 border border-white/10 p-3 rounded-2xl backdrop-blur-sm">
                 <span className="text-xl font-black text-amber-300 font-mono tracking-widest">{profile?.referral_code}</span>
                 <CopyButton textToCopy={profile?.referral_code || ''} label="Copier Code" />
               </div>
@@ -101,7 +101,7 @@ export default function TeamPage() {
 
             <div>
               <span className="text-[11px] uppercase text-zinc-400 font-bold block mb-1">Votre Lien Unique d'Invitation</span>
-              <div className="flex items-center justify-between bg-white/5 border border-white/10 p-3 rounded-2xl backdrop-blur-xs space-x-2">
+              <div className="flex items-center justify-between bg-white/5 border border-white/10 p-3 rounded-2xl backdrop-blur-sm space-x-2">
                 <span className="text-xs text-zinc-300 truncate font-mono">{referralLink}</span>
                 <CopyButton textToCopy={referralLink} label="Copier Lien" />
               </div>
@@ -111,28 +111,28 @@ export default function TeamPage() {
 
         {/* Team Levels 4 Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-2xs text-center space-y-1">
+          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center space-y-1">
             <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
               Niveau A • 10%
             </span>
             <p className="text-2xl font-black text-gray-900 tabular-nums">{teamA.length}</p>
             <p className="text-[10px] text-gray-400">Directs</p>
           </div>
-          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-2xs text-center space-y-1">
+          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center space-y-1">
             <span className="text-[10px] font-black uppercase text-biso-700 bg-biso-50 px-2 py-0.5 rounded-md">
               Niveau B • 3%
             </span>
             <p className="text-2xl font-black text-gray-900 tabular-nums">{teamB.length}</p>
             <p className="text-[10px] text-gray-400">Génération 2</p>
           </div>
-          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-2xs text-center space-y-1">
+          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center space-y-1">
             <span className="text-[10px] font-black uppercase text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
               Niveau C • 1%
             </span>
             <p className="text-2xl font-black text-gray-900 tabular-nums">{teamC.length}</p>
             <p className="text-[10px] text-gray-400">Génération 3</p>
           </div>
-          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-2xs text-center space-y-1">
+          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center space-y-1">
             <span className="text-[10px] font-black uppercase text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md">
               Niveau D • 1%
             </span>
@@ -142,7 +142,7 @@ export default function TeamPage() {
         </div>
 
         {/* Total Commissions Earned */}
-        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs flex justify-between items-center">
+        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex justify-between items-center">
           <div>
             <p className="text-xs text-gray-500 font-semibold">Total Commissions Réseau Cumulées</p>
             <p className="text-2xl font-black text-biso-700 mt-0.5 tabular-nums">
@@ -155,7 +155,7 @@ export default function TeamPage() {
         </div>
 
         {/* Commissions History */}
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xs space-y-4">
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
           <h3 className="font-black text-gray-900 text-sm">Historique des Gains d'Affiliation</h3>
           <div className="space-y-3">
             {commissions.length === 0 ? (

@@ -17,6 +17,8 @@ export default function DashboardPage() {
   const [popularProducts, setPopularProducts] = useState<Product[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [activeInvestments, setActiveInvestments] = useState<Investment[]>([])
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [adminRole, setAdminRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -35,6 +37,28 @@ export default function DashboardPage() {
           .eq('id', user.id)
           .single()
         setProfile(profileData)
+
+        // Check admin role
+        try {
+          const { data: adminRow } = await supabase
+            .from('admin_users')
+            .select('role')
+            .eq('id', user.id)
+            .maybeSingle()
+
+          if (adminRow) {
+            setIsAdmin(true)
+            setAdminRole(adminRow.role)
+          } else {
+            const { data: isAdminRpc } = await supabase.rpc('is_admin')
+            if (isAdminRpc) {
+              setIsAdmin(true)
+              setAdminRole('ADMIN')
+            }
+          }
+        } catch (adminErr) {
+          console.warn('Erreur check admin dashboard:', adminErr)
+        }
 
         // Fetch wallet
         const { data: walletData } = await supabase
@@ -140,14 +164,46 @@ export default function DashboardPage() {
         displayName={profile?.display_name || profile?.phone || 'Investisseur'}
         vipLevel={profile?.current_vip || 'VIP0'}
         showBack={false}
+        isAdmin={isAdmin}
+        adminRole={adminRole || 'ADMIN'}
       />
 
       <div className="p-4 space-y-6 max-w-4xl mx-auto">
+        {/* Super Admin Welcome Banner */}
+        {isAdmin && (
+          <div className="bg-gradient-to-r from-[#0b1e36] via-zinc-900 to-emerald-950 text-white p-5 rounded-3xl border border-amber-500/30 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center space-x-3.5">
+              <div className="p-3 bg-amber-500/20 text-amber-300 rounded-2xl border border-amber-500/30 shrink-0">
+                <Shield className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-black uppercase tracking-wider bg-amber-400 text-zinc-950 px-2 py-0.5 rounded-md">
+                    {adminRole || 'ADMIN'}
+                  </span>
+                  <span className="text-xs text-zinc-300 font-semibold">Accès Administrateur Détecté</span>
+                </div>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Vous disposez des droits de gestion (utilisateurs, validation des dépôts/retraits, packs, audits).
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/admin"
+              className="bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black text-xs px-5 py-3 rounded-2xl shadow-lg flex items-center space-x-2 transition-all active:scale-95 shrink-0 uppercase tracking-wide"
+            >
+              <Shield className="w-4 h-4" />
+              <span>Accéder au Panel Admin</span>
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
+
         {/* Official Announcements Banner */}
         {announcements.length > 0 && (
-          <div className="bg-linear-to-r from-biso-700 to-emerald-800 text-white p-4 rounded-2xl shadow-sm flex items-center justify-between">
+          <div className="bg-gradient-to-r from-biso-700 to-emerald-800 text-white p-4 rounded-2xl shadow-sm flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="p-2 rounded-xl bg-white/10 backdrop-blur-xs shrink-0">
+              <div className="p-2 rounded-xl bg-white/10 backdrop-blur-sm shrink-0">
                 <Bell className="w-5 h-5 text-amber-300" />
               </div>
               <div>
@@ -175,7 +231,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Link
             href="/invest"
-            className="bg-white p-4 rounded-2xl border border-gray-100 shadow-2xs flex flex-col items-center justify-center text-center space-y-1.5 hover:border-biso-300 transition-all active:scale-95"
+            className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center space-y-1.5 hover:border-biso-300 transition-all active:scale-95"
           >
             <div className="w-10 h-10 rounded-xl bg-biso-50 text-biso-600 flex items-center justify-center">
               <Package className="w-5 h-5" />
@@ -185,7 +241,7 @@ export default function DashboardPage() {
 
           <Link
             href="/team"
-            className="bg-white p-4 rounded-2xl border border-gray-100 shadow-2xs flex flex-col items-center justify-center text-center space-y-1.5 hover:border-biso-300 transition-all active:scale-95"
+            className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center space-y-1.5 hover:border-biso-300 transition-all active:scale-95"
           >
             <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <Users className="w-5 h-5" />
@@ -195,7 +251,7 @@ export default function DashboardPage() {
 
           <Link
             href="/investments"
-            className="bg-white p-4 rounded-2xl border border-gray-100 shadow-2xs flex flex-col items-center justify-center text-center space-y-1.5 hover:border-biso-300 transition-all active:scale-95"
+            className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center space-y-1.5 hover:border-biso-300 transition-all active:scale-95"
           >
             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <TrendingUp className="w-5 h-5" />
@@ -205,7 +261,7 @@ export default function DashboardPage() {
 
           <Link
             href="/vip"
-            className="bg-white p-4 rounded-2xl border border-gray-100 shadow-2xs flex flex-col items-center justify-center text-center space-y-1.5 hover:border-biso-300 transition-all active:scale-95"
+            className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center space-y-1.5 hover:border-biso-300 transition-all active:scale-95"
           >
             <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
               <Shield className="w-5 h-5" />
@@ -216,7 +272,7 @@ export default function DashboardPage() {
 
         {/* Active Investments Overview */}
         {activeInvestments.length > 0 && (
-          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs space-y-4">
+          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-black text-gray-900 text-sm">Investissements en cours ({activeInvestments.length})</h3>
               <Link href="/investments" className="text-xs text-biso-700 font-bold hover:underline flex items-center">

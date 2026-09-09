@@ -212,7 +212,7 @@ export default function ProductDetailPage() {
           <div className="space-y-2 bg-gray-50 p-4 rounded-2xl border border-gray-100">
             <div className="flex justify-between items-center text-xs">
               <span className="font-bold text-gray-700">Nombre de packs :</span>
-              <span className="font-black text-base text-biso-700 bg-white px-3 py-1 rounded-xl shadow-2xs border border-gray-200">
+              <span className="font-black text-base text-biso-700 bg-white px-3 py-1 rounded-xl shadow-sm border border-gray-200">
                 {quantity} pack{quantity > 1 ? 's' : ''}
               </span>
             </div>
@@ -266,7 +266,7 @@ export default function ProductDetailPage() {
             <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wider block">
               Courbe Prévisionnelle des Gains (12 Mois)
             </span>
-            <div className="h-32 w-full bg-linear-to-b from-emerald-50/40 to-transparent rounded-2xl p-2 flex items-end justify-between border border-emerald-100/60">
+            <div className="h-32 w-full bg-gradient-to-b from-emerald-50/40 to-transparent rounded-2xl p-2 flex items-end justify-between border border-emerald-100/60">
               {points.map((pt) => {
                 const heightPercent = Math.max(10, Math.round((pt.accumulated / maxVal) * 100))
                 return (
@@ -277,7 +277,7 @@ export default function ProductDetailPage() {
                     </div>
                     <div
                       style={{ height: `${heightPercent}%` }}
-                      className="w-full bg-linear-to-t from-biso-600 to-emerald-400 rounded-t-md transition-all duration-300 group-hover:from-biso-700 group-hover:to-emerald-500"
+                      className="w-full bg-gradient-to-t from-biso-600 to-emerald-400 rounded-t-md transition-all duration-300 group-hover:from-biso-700 group-hover:to-emerald-500"
                     />
                     <span className="text-[9px] text-gray-400 font-bold mt-1">M{pt.month}</span>
                   </div>
@@ -298,7 +298,7 @@ export default function ProductDetailPage() {
         </div>
         <button
           onClick={() => setShowConfirm(true)}
-          className="bg-linear-to-r from-biso-600 to-biso-500 hover:from-biso-700 hover:to-biso-600 text-white font-black py-3.5 px-7 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-900/20 active:scale-95 transition-all"
+          className="bg-gradient-to-r from-biso-600 to-biso-500 hover:from-biso-700 hover:to-biso-600 text-white font-black py-3.5 px-7 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-900/20 active:scale-95 transition-all"
         >
           SOUSCRIRE MAINTENANT
         </button>
@@ -306,9 +306,9 @@ export default function ProductDetailPage() {
 
       {/* Purchase Confirmation Modal */}
       {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-5 shadow-2xl border border-gray-100 text-center animate-in fade-in zoom-in-95">
-            <div className="w-14 h-14 rounded-2xl bg-biso-100 text-biso-700 flex items-center justify-center mx-auto shadow-xs">
+            <div className="w-14 h-14 rounded-2xl bg-biso-100 text-biso-700 flex items-center justify-center mx-auto shadow-sm">
               <ShieldCheck className="w-7 h-7" />
             </div>
             <div>
