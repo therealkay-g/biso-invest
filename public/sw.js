@@ -1,10 +1,9 @@
-﻿// BISO INVEST — Service Worker PWA
+// BISO INVEST — Service Worker PWA
 // STRICT POLICY: Cache uniquement les assets statiques de l'application.
-// AUCUNE donnée financière, transactionnelle ou requête Supabase n'est mise en cache.
+// AUCUNE donnée financière, transactionnelle, page dynamique ou navigation n'est interceptée.
 
-const CACHE_NAME = 'biso-static-v1';
+const CACHE_NAME = 'biso-static-v2';
 const STATIC_ASSETS = [
-  '/',
   '/manifest.json',
   '/icon.svg',
 ];
@@ -30,38 +29,68 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-
-  // 1. EXCLUSION STRICTE : Toute requête vers Supabase, API ou authentification = NETWORK ONLY
-  if (
-    url.hostname.includes('supabase.co') ||
-    url.pathname.startsWith('/rest/v1') ||
-    url.pathname.startsWith('/auth/v1') ||
-    url.pathname.startsWith('/api') ||
-    event.request.method !== 'GET'
-  ) {
-    return; // Pas d'interception, passage direct au réseau
+  // Ignorer toute méthode non-GET
+  if (event.request.method !== 'GET') {
+    return;
   }
 
-  // 2. Gestion des assets statiques uniquement (images, styles, icônes)
+  const url = new URL(event.request.url);
+
+  // 1. Uniquement les requêtes de même origine (ignore les scripts tiers, extensions, etc.)
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
+  // 2. Ne JAMAIS intercepter la navigation (pages HTML/SSR), Supabase, API ou authentification
+  if (
+    event.request.mode === 'navigate' ||
+    url.hostname.includes('supabase.co') ||
+    url.pathname.startsWith('/auth') ||
+    url.pathname.startsWith('/rest') ||
+    url.pathname.startsWith('/api') ||
+    url.pathname.startsWith('/admin') ||
+    url.pathname.startsWith('/dashboard') ||
+    url.pathname.startsWith('/wallet') ||
+    url.pathname.startsWith('/invest') ||
+    url.pathname.startsWith('/team') ||
+    url.pathname.startsWith('/profile') ||
+    url.pathname.startsWith('/vip') ||
+    url.pathname.startsWith('/about') ||
+    url.pathname.startsWith('/service')
+  ) {
+    return;
+  }
+
+  // 3. Intercepter UNIQUEMENT les assets statiques connus
+  const isStaticAsset =
+    url.pathname.startsWith('/_next/static/') ||
+    url.pathname === '/manifest.json' ||
+    url.pathname === '/icon.svg' ||
+    url.pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|css|js)$/i);
+
+  if (!isStaticAsset) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
-      return fetch(event.request).then((networkResponse) => {
-        if (
-          networkResponse &&
-          networkResponse.status === 200 &&
-          (url.pathname.endsWith('.svg') || url.pathname.endsWith('.png') || url.pathname.endsWith('.ico'))
-        ) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-        }
-        return networkResponse;
-      });
+      return fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // Si le réseau échoue pour un asset, retourner une réponse vide plutôt que de faire échouer la promesse
+          return new Response('', { status: 408, headers: { 'Content-Type': 'text/plain' } });
+        });
     })
   );
 });
