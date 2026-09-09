@@ -28,13 +28,13 @@ function calculateDailyRevenue(monthlyReturn, year, month) {
   return monthlyReturn / days;
 }
 
-// Simulation du système VIP
+// Simulation du système VIP (Paliers officiels : VIP1=30 000 FC, VIP2=50 000 FC, VIP3=100 000 FC, VIP4=250 000 FC)
 const VIP_LEVELS = [
   { level_name: 'VIP0', min_investment: 0, max_packs: 1, is_active: true, display_order: 0 },
   { level_name: 'VIP1', min_investment: 30000, max_packs: 3, is_active: true, display_order: 1 },
-  { level_name: 'VIP2', min_investment: 100000, max_packs: 5, is_active: true, display_order: 2 },
-  { level_name: 'VIP3', min_investment: 250000, max_packs: 8, is_active: true, display_order: 3 },
-  { level_name: 'VIP4', min_investment: 500000, max_packs: 10, is_active: true, display_order: 4 },
+  { level_name: 'VIP2', min_investment: 50000, max_packs: 5, is_active: true, display_order: 2 },
+  { level_name: 'VIP3', min_investment: 100000, max_packs: 8, is_active: true, display_order: 3 },
+  { level_name: 'VIP4', min_investment: 250000, max_packs: 10, is_active: true, display_order: 4 },
   { level_name: 'VIP5', min_investment: 1000000, max_packs: 12, is_active: false, display_order: 5 },
   { level_name: 'VIP6', min_investment: 2500000, max_packs: 15, is_active: false, display_order: 6 },
   { level_name: 'VIP7', min_investment: 5000000, max_packs: 20, is_active: false, display_order: 7 },
@@ -270,20 +270,20 @@ describe("8. Montée automatique de palier VIP", () => {
     assert.equal(vip.max_packs, 3);
   });
 
-  it("Passe automatiquement à VIP2 dès 100 000 FC investis", () => {
-    const vip = evaluateVip(100000);
+  it("Passe automatiquement à VIP2 dès 50 000 FC investis", () => {
+    const vip = evaluateVip(50000);
     assert.equal(vip.level_name, 'VIP2');
     assert.equal(vip.max_packs, 5);
   });
 
-  it("Passe automatiquement à VIP3 dès 250 000 FC investis", () => {
-    const vip = evaluateVip(250000);
+  it("Passe automatiquement à VIP3 dès 100 000 FC investis", () => {
+    const vip = evaluateVip(100000);
     assert.equal(vip.level_name, 'VIP3');
     assert.equal(vip.max_packs, 8);
   });
 
-  it("Passe automatiquement à VIP4 dès 500 000 FC investis", () => {
-    const vip = evaluateVip(500000);
+  it("Passe automatiquement à VIP4 dès 250 000 FC investis", () => {
+    const vip = evaluateVip(250000);
     assert.equal(vip.level_name, 'VIP4');
     assert.equal(vip.max_packs, 10);
   });

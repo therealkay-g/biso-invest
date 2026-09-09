@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client'
 import { ProductCategory, Product } from '@/types'
 import ProductCard from '@/components/ProductCard'
 import Header from '@/components/Header'
+import { ALLOWED_PACK_PRICES } from '@/utils/constants'
 
 export default function InvestPage() {
   const [categories, setCategories] = useState<ProductCategory[]>([])
@@ -24,9 +25,16 @@ export default function InvestPage() {
           .from('products')
           .select('*')
           .eq('is_active', true)
+          .in('price', [...ALLOWED_PACK_PRICES])
+          .order('price', { ascending: true })
+
+        // S'assurer qu'uniquement les 4 paliers autorisés sont retenus
+        const validProducts = (prodData || []).filter(p =>
+          ALLOWED_PACK_PRICES.includes(p.price as any)
+        )
 
         setCategories(catData || [])
-        setProducts(prodData || [])
+        setProducts(validProducts)
       } catch (err) {
         console.error('Error loading invest data:', err)
       } finally {
@@ -51,12 +59,14 @@ export default function InvestPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      <Header displayName="Investissements" vipLevel="Catalogue 42 Packs" showBack={true} />
+      <Header displayName="Investissements" vipLevel="Packs VIP1 - VIP4" showBack={true} />
 
       <div className="p-4 max-w-6xl mx-auto space-y-6">
         <div>
           <h2 className="text-xl font-extrabold text-gray-900">Opportunités d'Investissement</h2>
-          <p className="text-xs text-gray-500">7 secteurs économiques majeurs pour construire demain.</p>
+          <p className="text-xs text-gray-500">
+            Packs officiels exclusifs : VIP1 (30 000 FC), VIP2 (50 000 FC), VIP3 (100 000 FC) et VIP4 (250 000 FC).
+          </p>
         </div>
 
         {/* Categories Tabs */}
@@ -69,7 +79,7 @@ export default function InvestPage() {
                 : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
             }`}
           >
-            Tous (42)
+            Tous ({products.length})
           </button>
           {categories.map((cat) => (
             <button

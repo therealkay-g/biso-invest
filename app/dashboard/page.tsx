@@ -8,6 +8,7 @@ import ProductCard from '@/components/ProductCard'
 import { WalletSkeleton, ProductSkeleton } from '@/components/Skeleton'
 import { supabase } from '@/lib/supabase/client'
 import { Product, Profile, Wallet, Investment, Announcement } from '@/types'
+import { ALLOWED_PACK_PRICES } from '@/utils/constants'
 import { Plus, ArrowUpRight, Package, Users, TrendingUp, DollarSign, Shield, Bell, Sparkles, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 
@@ -68,13 +69,17 @@ export default function DashboardPage() {
           .single()
         setWallet(walletData)
 
-        // Fetch popular products
+        // Fetch popular products (only allowed VIP1 to VIP4 packs)
         const { data: prodData } = await supabase
           .from('products')
           .select('*')
           .eq('is_active', true)
-          .limit(4)
-        setPopularProducts(prodData || [])
+          .in('price', [...ALLOWED_PACK_PRICES])
+          .order('price', { ascending: true })
+        const validPopular = (prodData || []).filter(p =>
+          ALLOWED_PACK_PRICES.includes(p.price as any)
+        )
+        setPopularProducts(validPopular)
 
         // Fetch announcements
         const { data: annData } = await supabase

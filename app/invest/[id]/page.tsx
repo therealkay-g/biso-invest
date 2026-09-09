@@ -6,7 +6,8 @@ import { supabase } from '@/lib/supabase/client'
 import { Product, Wallet } from '@/types'
 import { ProductSkeleton } from '@/components/Skeleton'
 import { useToast } from '@/components/ToastProvider'
-import { ArrowLeft, ShieldCheck, CheckCircle2, AlertCircle, TrendingUp, Calendar, DollarSign, Calculator, Sparkles } from 'lucide-react'
+import { ArrowLeft, ShieldCheck, CheckCircle2, AlertCircle, TrendingUp, Calendar, DollarSign, Calculator, Sparkles, Award } from 'lucide-react'
+import { getVipTierForPrice } from '@/utils/constants'
 import Link from 'next/link'
 
 export default function ProductDetailPage() {
@@ -140,6 +141,7 @@ export default function ProductDetailPage() {
     return { month, accumulated }
   })
   const maxVal = totalExpectedReturn || 1
+  const vipTier = getVipTierForPrice(product.price)
 
   return (
     <div className="min-h-screen bg-gray-50 pb-28">
@@ -161,6 +163,12 @@ export default function ProductDetailPage() {
               alt={product.name}
               className="w-full h-full object-cover"
             />
+            {vipTier && (
+              <div className={`absolute top-3 left-3 ${vipTier.colorClass} font-extrabold text-xs px-3 py-1.5 rounded-full shadow-md flex items-center space-x-1.5`}>
+                <Award className="w-4 h-4" />
+                <span>{vipTier.level}</span>
+              </div>
+            )}
             <div className="absolute top-3 right-3 bg-zinc-900/80 backdrop-blur-md text-amber-300 font-extrabold text-xs px-3 py-1.5 rounded-full border border-amber-500/30 flex items-center space-x-1">
               <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
               <span>Contrat 12 Mois Garanti</span>
@@ -169,6 +177,11 @@ export default function ProductDetailPage() {
 
           <div className="p-6 space-y-4">
             <div>
+              {vipTier && (
+                <span className="text-xs font-extrabold text-biso-600 uppercase tracking-wider block mb-1">
+                  {vipTier.name} — Plafond VIP : {vipTier.maxPacks} packs max
+                </span>
+              )}
               <div className="flex justify-between items-start">
                 <h2 className="text-2xl font-black text-gray-900">{product.name}</h2>
                 <span className="text-lg font-black text-biso-700 tabular-nums">
