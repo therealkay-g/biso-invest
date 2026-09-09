@@ -2,29 +2,46 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, ShieldCheck, Clock } from 'lucide-react'
+import { ArrowRight, ShieldCheck, Clock, Award } from 'lucide-react'
 import { Product } from '@/types'
+import { getVipTierForPrice } from '@/utils/constants'
 
 interface ProductCardProps {
   product: Product
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
+  const vipTier = getVipTierForPrice(product.price)
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
       <div>
         <div className="relative h-40 w-full bg-gray-100">
           <img
-            src={product.image_url || 'https://images.unsplash.com/photo-1551754655-cd9e3fb8c371?auto=format&fit=crop&w=600&q=80'}
+            src={product.image_url || '/images/logo.png'}
             alt={product.name}
             className="w-full h-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/images/logo.png'
+            }}
           />
+          {vipTier && (
+            <div className={`absolute top-3 left-3 ${vipTier.colorClass} shadow-md text-[11px] font-extrabold px-2.5 py-1 rounded-full flex items-center space-x-1 tracking-wider`}>
+              <Award className="w-3.5 h-3.5" />
+              <span>{vipTier.level}</span>
+            </div>
+          )}
           <div className="absolute top-3 right-3 bg-biso-900/80 backdrop-blur-sm text-white text-[11px] font-semibold px-2.5 py-1 rounded-full">
             {product.duration_months} mois
           </div>
         </div>
 
         <div className="p-4">
+          {vipTier && (
+            <span className="text-[11px] font-bold text-biso-600 uppercase tracking-wide block mb-1">
+              {vipTier.name}
+            </span>
+          )}
           <h3 className="font-bold text-gray-800 text-base mb-1">{product.name}</h3>
           <p className="text-xs text-gray-500 line-clamp-2 mb-3">{product.description}</p>
 
