@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import { Lock, Phone, Gift, ArrowRight } from 'lucide-react'
+import Image from 'next/image'
 
 function RegisterForm() {
   const router = useRouter()
