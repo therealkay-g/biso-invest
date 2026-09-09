@@ -204,23 +204,23 @@ export default function ProfilePage() {
         )}
 
         {/* Links */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden divide-y divide-gray-100">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
           <Link href="/about" className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
             <div className="flex items-center space-x-3">
               <Info className="w-5 h-5 text-biso-600" />
               <span className="text-sm font-semibold text-gray-800">À propos de Biso Invest</span>
             </div>
           </Link>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-between p-4 hover:bg-red-50 transition-colors text-red-600"
-          >
-            <div className="flex items-center space-x-3">
-              <LogOut className="w-5 h-5" />
-              <span className="text-sm font-semibold">Déconnexion</span>
-            </div>
-          </button>
         </div>
+
+        {/* Logout Button - prominent and separate */}
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center space-x-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-4 px-4 rounded-2xl border border-red-200 transition-colors shadow-xs"
+        >
+          <LogOut className="w-5 h-5" />
+          <span className="text-sm font-bold">Se déconnecter</span>
+        </button>
       </div>
     </div>
   )
