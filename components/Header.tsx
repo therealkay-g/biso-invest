@@ -33,7 +33,7 @@ export default function Header({
         )}
         <div className="relative">
           <Image
-            src="/images/logo.png"
+            src="/icon.svg"
             alt="BISO INVEST"
             width={40}
             height={40}

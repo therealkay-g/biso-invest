@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Wallet as WalletIcon, ArrowUpRight, Plus, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { USD_TO_FC } from '../utils/constants'
 
 interface WalletCardProps {
   balance: number
@@ -38,8 +39,7 @@ export default function WalletCard({
   }
 
   // Taux indicatif de conversion (1 USD = 2400 CDF)
-  const EXCHANGE_RATE = 2400
-  const usdBalance = (balance / EXCHANGE_RATE).toFixed(2)
+  const usdBalance = (balance / USD_TO_FC).toFixed(2)
 
   const formatAmount = (val: number, unit = 'FC') => {
     if (!showBalance) return '••••••'
@@ -115,7 +115,7 @@ export default function WalletCard({
           {showBalance && (
             <p className="text-xs text-zinc-400 mt-0.5 tabular-nums">
               ≈ <span className="text-amber-300 font-semibold">{usdBalance} $</span> USD
-              <span className="text-[10px] text-zinc-500 ml-2">(1 $ ≈ 2 800 FC)</span>
+              <span className="text-[10px] text-zinc-500 ml-2">(1 $ ≈ 2400 FC)</span>
             </p>
           )}
         </div>
