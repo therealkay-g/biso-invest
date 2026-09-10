@@ -35,6 +35,7 @@ export type TransactionType =
   | 'DAILY_PROFIT'
   | 'WITHDRAWAL'
   | 'COMMISSION'
+  | 'REFERRAL_TASK_REWARD'
   | 'COUPON'
   | 'ADJUSTMENT'
 
@@ -205,6 +206,46 @@ export interface Commission {
   status: 'PENDING' | 'PAID' | 'CANCELLED'
   created_at: string
   source_user?: Profile
+}
+
+export interface ReferralTask {
+  id: string
+  required_invites: number
+  reward_amount: number
+  display_order: number
+  is_active: boolean
+  progress?: number
+  claimed?: boolean
+}
+
+export interface ReferralTaskReward {
+  id: string
+  user_id: string
+  task_id: string
+  required_invites: number
+  reward_amount: number
+  transaction_id?: string
+  claimed_at: string
+  created_at: string
+}
+
+export interface ReferralTaskStats {
+  total_team: number
+  valid_invites: number
+  pending_invites: number
+  total_rewards: number
+  tasks: ReferralTask[]
+  next_reward: { id: string; required_invites: number; reward_amount: number } | null
+}
+
+export interface AdminTaskOverviewRow {
+  user_id: string
+  phone: string
+  referral_code: string
+  total_team: number
+  valid_invites: number
+  total_rewards: number
+  history: { required_invites: number; reward_amount: number; claimed_at: string }[]
 }
 
 export interface VipLevel {

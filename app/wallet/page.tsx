@@ -524,7 +524,7 @@ function WalletContent() {
                 disabled={withdrawalAccounts.length === 0}
                 className="w-full bg-gradient-to-r from-biso-700 to-biso-600 hover:from-biso-800 hover:to-biso-700 text-white font-black py-3.5 rounded-2xl text-xs tracking-wider uppercase shadow-md transition-all active:scale-98 disabled:opacity-40"
               >
-                Sécuriser et Confirmer le Retrait
+                Soumettre
               </button>
             </form>
           </div>

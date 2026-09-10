@@ -19,7 +19,7 @@ SET min_investment = 0, max_packs = 1, benefits = 'Condition 0 FC — Maximum 1 
 WHERE level_name = 'VIP0';
 
 UPDATE vip_levels 
-SET min_investment = 30000, max_packs = 3, benefits = 'Pack VIP1 (30 000 FC) — Maximum 3 packs', is_active = true 
+SET min_investment = 20000, max_packs = 3, benefits = 'Pack VIP1 (20 000 FC) — Maximum 3 packs', is_active = true 
 WHERE level_name = 'VIP1';
 
 UPDATE vip_levels 

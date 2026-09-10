@@ -18,9 +18,9 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const ref = searchParams.get('ref')
-    if (ref) {
-      setReferralCode(ref)
+    const code = searchParams.get('recommendCode') || searchParams.get('ref')
+    if (code) {
+      setReferralCode(code)
     }
   }, [searchParams])
 

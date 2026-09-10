@@ -28,10 +28,10 @@ function calculateDailyRevenue(monthlyReturn, year, month) {
   return monthlyReturn / days;
 }
 
-// Simulation du système VIP (Paliers officiels : VIP1=30 000 FC, VIP2=50 000 FC, VIP3=100 000 FC, VIP4=250 000 FC)
+// Simulation du système VIP (Paliers officiels : VIP1=20 000 FC, VIP2=50 000 FC, VIP3=100 000 FC, VIP4=250 000 FC)
 const VIP_LEVELS = [
   { level_name: 'VIP0', min_investment: 0, max_packs: 1, is_active: true, display_order: 0 },
-  { level_name: 'VIP1', min_investment: 30000, max_packs: 3, is_active: true, display_order: 1 },
+  { level_name: 'VIP1', min_investment: 20000, max_packs: 3, is_active: true, display_order: 1 },
   { level_name: 'VIP2', min_investment: 50000, max_packs: 5, is_active: true, display_order: 2 },
   { level_name: 'VIP3', min_investment: 100000, max_packs: 8, is_active: true, display_order: 3 },
   { level_name: 'VIP4', min_investment: 250000, max_packs: 10, is_active: true, display_order: 4 },
@@ -264,8 +264,8 @@ describe("8. Montée automatique de palier VIP", () => {
     assert.equal(vip.max_packs, 1);
   });
 
-  it("Passe automatiquement à VIP1 dès 30 000 FC investis", () => {
-    const vip = evaluateVip(30000);
+it("Passe automatiquement à VIP1 dès 20 000 FC investis", () => {
+    const vip = evaluateVip(20000);
     assert.equal(vip.level_name, 'VIP1');
     assert.equal(vip.max_packs, 3);
   });
@@ -691,6 +691,261 @@ describe("12. Validation quotidienne du bénéfice (bouton VENDRE)", () => {
       assert.ok(c.claimed_at instanceof Date);
     }
     assert.deepEqual(claims.map((c) => c.profit_date), ['2024-04-01', '2024-04-02']);
+  });
+});
+
+describe('Suite 13 : Tâches d\'invitation (remplacement du parrainage A/B/C/D)', () => {
+  const REFERRAL_TASKS = [
+    { id: 'task-1', required_invites: 1, reward_amount: 3000, display_order: 1 },
+    { id: 'task-5', required_invites: 5, reward_amount: 15000, display_order: 2 },
+    { id: 'task-10', required_invites: 10, reward_amount: 30000, display_order: 3 },
+    { id: 'task-20', required_invites: 20, reward_amount: 60000, display_order: 4 },
+    { id: 'task-50', required_invites: 50, reward_amount: 200000, display_order: 5 },
+    { id: 'task-100', required_invites: 100, reward_amount: 500000, display_order: 6 },
+  ];
+
+  // Miroir du trigger on_new_user_created (migration 015) : profil + wallet + ligne référent
+  function registerWithReferral({ codeProfile, referrals, childId, referralCode }) {
+    if (referrals.some((r) => r.child_id === childId)) {
+      return { created: true, error: 'DUPLICATE_CHILD' };
+    }
+    if (!referralCode) return { created: true, referral: null };
+    const parentId = codeProfile.get(referralCode);
+    if (!parentId) return { created: true, referral: null };
+    if (parentId === childId) return { created: true, referral: null, autoparrainage: true };
+    referrals.push({ parent_id: parentId, child_id: childId, level: 'A' });
+    return { created: true, referral: { parent_id: parentId, child_id: childId } };
+  }
+
+  // Miroir de count_valid_invitations : unique côté serveur, require un investissement ACTIVE/COMPLETED
+  function countValidInvitations(parentId, referrals, investments) {
+    const children = referrals.filter((r) => r.parent_id === parentId).map((r) => r.child_id);
+    const valid = new Set();
+    for (const child of children) {
+      if (investments.some((i) => i.user_id === child && ['ACTIVE', 'COMPLETED'].includes(i.status))) {
+        valid.add(child);
+      }
+    }
+    return valid.size;
+  }
+
+  // Miroir de claim_referral_task_reward : validate + credit atomique + ledger
+  function claimReferralTaskReward({ userId, taskId, referrals, investments, rewards, wallet }) {
+    const task = REFERRAL_TASKS.find((t) => t.id === taskId);
+    if (!task) throw new Error('Tâche introuvable ou désactivée');
+    const valid = countValidInvitations(userId, referrals, investments);
+    if (valid < task.required_invites) {
+      throw new Error(`Invitations insuffisantes : ${valid}/${task.required_invites}`);
+    }
+    if (rewards.some((r) => r.user_id === userId && r.task_id === taskId)) {
+      return { success: true, already_claimed: true, reward_amount: 0 };
+    }
+    rewards.push({
+      user_id: userId,
+      task_id: taskId,
+      required_invites: task.required_invites,
+      reward_amount: task.reward_amount,
+      claimed_at: new Date(),
+    });
+    const before = wallet.balance;
+    wallet.balance = Math.round((before + task.reward_amount) * 100) / 100;
+    wallet.transactions.push({
+      type: 'REFERRAL_TASK_REWARD',
+      amount: task.reward_amount,
+      balance_before: before,
+      balance_after: wallet.balance,
+      status: 'COMPLETED',
+    });
+    return { success: true, already_claimed: false, reward_amount: task.reward_amount, new_balance: wallet.balance };
+  }
+
+  // Miroir de la nouvelle distribute_commissions (no-op) : plus aucune commission 10/3/1/1
+  function disabledDistributeCommissions(commissionsLog, amount) {
+    return undefined; // retourne void, ne crée aucune commission
+  }
+
+  const newParcrain = (tasks) => tasks.map((t) => ({ parent_id: 'user-1', child_id: t, level: 'A' }));
+  const investFor = (users, status = 'ACTIVE') => users.map((u) => ({ user_id: u, status }));
+
+  it("1. Inscription avec code de parrainage valide : le parrainage est créé", () => {
+    const codeProfile = new Map([['BISO1234', 'user-1']]);
+    const referrals = [];
+    const res = registerWithReferral({ codeProfile, referrals, childId: 'user-2', referralCode: 'BISO1234' });
+    assert.ok(res.referral);
+    assert.deepEqual(res.referral, { parent_id: 'user-1', child_id: 'user-2' });
+    assert.equal(referrals.length, 1);
+  });
+
+  it('2. Inscription sans code : aucun parrainage créé', () => {
+    const codeProfile = new Map([['BISO1234', 'user-1']]);
+    const referrals = [];
+    const res = registerWithReferral({ codeProfile, referrals, childId: 'user-2', referralCode: null });
+    assert.equal(res.referral, null);
+    assert.equal(referrals.length, 0);
+  });
+
+  it('3. Un investissement validé du filleul rend l\'invitation valide', () => {
+    const referrals = newParcrain(['user-f1']);
+    const investments = investFor(['user-f1'], 'ACTIVE');
+    assert.equal(countValidInvitations('user-1', referrals, investments), 1);
+  });
+
+  it('4. Validation : un filleul sans investissement actif ne compte pas', () => {
+    const referrals = newParcrain(['user-f1', 'user-f2']);
+    const investments = investFor(['user-f1'], 'COMPLETED');
+    assert.equal(countValidInvitations('user-1', referrals, investments), 1);
+  });
+
+  it('5. Un filleul est compté une seule fois malgré plusieurs investissements', () => {
+    const referrals = newParcrain(['user-f1']);
+    const investments = [
+      { user_id: 'user-f1', status: 'ACTIVE' },
+      { user_id: 'user-f1', status: 'ACTIVE' },
+      { user_id: 'user-f1', status: 'COMPLETED' },
+    ];
+    assert.equal(countValidInvitations('user-1', referrals, investments), 1);
+  });
+
+  it('6. Auto-parrainage : un utilisateur ne peut pas être son propre filleul', () => {
+    const codeProfile = new Map([['BISO1234', 'user-9']]);
+    const referrals = [];
+    const res = registerWithReferral({ codeProfile, referrals, childId: 'user-9', referralCode: 'BISO1234' });
+    assert.equal(res.autoparrainage, true);
+    assert.equal(res.referral, null);
+    assert.equal(referrals.length, 0);
+  });
+
+  it('7. Palier 1 invitation : récompense de 3 000 FC', () => {
+    const rewards = [];
+    const wallet = { balance: 10000, transactions: [] };
+    const res = claimReferralTaskReward({ userId: 'user-1', taskId: 'task-1', referrals: newParcrain(['f']), investments: investFor(['f']), rewards, wallet });
+    assert.equal(res.already_claimed, false);
+    assert.equal(res.reward_amount, 3000);
+    assert.equal(res.new_balance, 13000);
+  });
+
+  it('8. Palier 5 invitations : récompense de 15 000 FC', () => {
+    const rewards = [];
+    const wallet = { balance: 0, transactions: [] };
+    const kids = ['a', 'b', 'c', 'd', 'e'];
+    const res = claimReferralTaskReward({ userId: 'user-1', taskId: 'task-5', referrals: newParcrain(kids), investments: investFor(kids), rewards, wallet });
+    assert.equal(res.reward_amount, 15000);
+    assert.equal(res.new_balance, 15000);
+  });
+
+  it('9. Palier 10 invitations : récompense de 30 000 FC', () => {
+    const rewards = [];
+    const wallet = { balance: 0, transactions: [] };
+    const kids = Array.from({ length: 10 }, (_, i) => `f-10-${i}`);
+    const res = claimReferralTaskReward({ userId: 'user-1', taskId: 'task-10', referrals: newParcrain(kids), investments: investFor(kids), rewards, wallet });
+    assert.equal(res.reward_amount, 30000);
+  });
+
+  it('10. Palier 20 invitations : récompense de 60 000 FC', () => {
+    const rewards = [];
+    const wallet = { balance: 0, transactions: [] };
+    const kids = Array.from({ length: 20 }, (_, i) => `f-20-${i}`);
+    const res = claimReferralTaskReward({ userId: 'user-1', taskId: 'task-20', referrals: newParcrain(kids), investments: investFor(kids), rewards, wallet });
+    assert.equal(res.reward_amount, 60000);
+  });
+
+  it('11. Palier 50 invitations : récompense de 200 000 FC', () => {
+    const rewards = [];
+    const wallet = { balance: 0, transactions: [] };
+    const kids = Array.from({ length: 50 }, (_, i) => `f-50-${i}`);
+    const res = claimReferralTaskReward({ userId: 'user-1', taskId: 'task-50', referrals: newParcrain(kids), investments: investFor(kids), rewards, wallet });
+    assert.equal(res.reward_amount, 200000);
+  });
+
+  it('12. Palier 100 invitations : récompense de 500 000 FC', () => {
+    const rewards = [];
+    const wallet = { balance: 0, transactions: [] };
+    const kids = Array.from({ length: 100 }, (_, i) => `f-100-${i}`);
+    const res = claimReferralTaskReward({ userId: 'user-1', taskId: 'task-100', referrals: newParcrain(kids), investments: investFor(kids), rewards, wallet });
+    assert.equal(res.reward_amount, 500000);
+  });
+
+  it('13. Invitations insuffisantes : la réclamation est refusée', () => {
+    const rewards = [];
+    const wallet = { balance: 50000, transactions: [] };
+    const kids = ['a', 'b']; // seulement 2 valides pour le palier 5
+    assert.throws(
+      () => claimReferralTaskReward({ userId: 'user-1', taskId: 'task-5', referrals: newParcrain(kids), investments: investFor(kids), rewards, wallet }),
+      /Invitations insuffisantes : 2\/5/
+    );
+    assert.equal(wallet.balance, 50000); // aucun crédit
+    assert.equal(wallet.transactions.length, 0);
+  });
+
+  it('14. Double réclamation du même palier : aucune seconde récompense', () => {
+    const rewards = [];
+    const wallet = { balance: 0, transactions: [] };
+    const kids = ['a'];
+    const first = claimReferralTaskReward({ userId: 'user-1', taskId: 'task-1', referrals: newParcrain(kids), investments: investFor(kids), rewards, wallet });
+    const second = claimReferralTaskReward({ userId: 'user-1', taskId: 'task-1', referrals: newParcrain(kids), investments: investFor(kids), rewards, wallet });
+    assert.equal(first.already_claimed, false);
+    assert.equal(second.already_claimed, true);
+    assert.equal(second.reward_amount, 0);
+    assert.equal(wallet.balance, 3000);
+    assert.equal(rewards.filter((r) => r.task_id === 'task-1').length, 1);
+    assert.equal(wallet.transactions.length, 1);
+  });
+
+  it('15. Le portefeuille est crédité de la récompense', () => {
+    const rewards = [];
+    const wallet = { balance: 200, transactions: [] };
+    claimReferralTaskReward({ userId: 'user-1', taskId: 'task-1', referrals: newParcrain(['a']), investments: investFor(['a']), rewards, wallet });
+    assert.equal(wallet.balance, 3200);
+  });
+
+  it('16. Une écriture wallet_transactions de type REFERRAL_TASK_REWARD est créée', () => {
+    const rewards = [];
+    const wallet = { balance: 1000, transactions: [] };
+    claimReferralTaskReward({ userId: 'user-1', taskId: 'task-1', referrals: newParcrain(['a']), investments: investFor(['a']), rewards, wallet });
+    assert.equal(wallet.transactions.length, 1);
+    const tx = wallet.transactions[0];
+    assert.equal(tx.type, 'REFERRAL_TASK_REWARD');
+    assert.equal(tx.amount, 3000);
+    assert.equal(tx.balance_before, 1000);
+    assert.equal(tx.balance_after, 4000);
+    assert.equal(tx.status, 'COMPLETED');
+  });
+
+  it('17. L\'ancien système A/B/C/D ne génère plus aucune commission', () => {
+    const commissionsLog = [];
+    const profits = disabledDistributeCommissions(commissionsLog, 100000);
+    assert.equal(profits, undefined);
+    assert.equal(commissionsLog.length, 0);
+  });
+
+  it('18. Isolation : les récompenses d\'un utilisateur sont invisibles pour un autre (RLS)', () => {
+    const rewards = [];
+    const walletA = { balance: 0, transactions: [] };
+    const walletB = { balance: 0, transactions: [] };
+    claimReferralTaskReward({ userId: 'user-1', taskId: 'task-1', referrals: newParcrain(['f1']), investments: investFor(['f1']), rewards, wallet: walletA });
+    const myRewards = (u) => rewards.filter((r) => r.user_id === u);
+    assert.equal(myRewards('user-1').length, 1);
+    assert.equal(myRewards('user-2').length, 0);
+    assert.equal(walletB.balance, 0);
+    assert.equal(walletB.transactions.length, 0);
+  });
+
+  it('19. Manipulation du nombre d\'invitations : seuls les filleuls investis comptent', () => {
+    const referrals = newParcrain(['f1', 'fake-1', 'fake-2']);
+    // fake-1 et fake-2 n'ont AUCUN investissement, même si le client prétend qu'ils comptent
+    const investments = investFor(['f1']);
+    const valid = countValidInvitations('user-1', referrals, investments);
+    assert.equal(valid, 1);
+  });
+
+  it('20. Idempotence : un filleul ne peut appartenir qu\'à un seul parrain', () => {
+    const codeProfile = new Map([['BISO1111', 'user-1'], ['BISO2222', 'user-2']]);
+    const referrals = [];
+    registerWithReferral({ codeProfile, referrals, childId: 'user-3', referralCode: 'BISO1111' });
+    const second = registerWithReferral({ codeProfile, referrals, childId: 'user-3', referralCode: 'BISO2222' });
+    assert.equal(second.error, 'DUPLICATE_CHILD');
+    assert.equal(referrals.length, 1);
+    assert.equal(referrals[0].parent_id, 'user-1');
   });
 });
 

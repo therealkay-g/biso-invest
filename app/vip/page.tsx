@@ -29,10 +29,10 @@ export default function VipPage() {
 
         const { data: vData } = await supabase.from('vip_levels').select('*').order('display_order')
         
-        // Paliers officiels demandés : VIP1=30 000 FC, VIP2=50 000 FC, VIP3=100 000 FC, VIP4=250 000 FC
+        // Paliers officiels demandés : VIP1=20 000 FC, VIP2=50 000 FC, VIP3=100 000 FC, VIP4=250 000 FC
         const OFFICIAL_VIP: Record<string, { min_investment: number; max_packs: number; benefits: string }> = {
           VIP0: { min_investment: 0, max_packs: 1, benefits: 'Condition 0 FC — Maximum 1 pack' },
-          VIP1: { min_investment: 30000, max_packs: 3, benefits: 'Pack 30 000 FC — Maximum 3 packs' },
+          VIP1: { min_investment: 20000, max_packs: 3, benefits: 'Pack 20 000 FC — Maximum 3 packs' },
           VIP2: { min_investment: 50000, max_packs: 5, benefits: 'Pack 50 000 FC — Maximum 5 packs' },
           VIP3: { min_investment: 100000, max_packs: 8, benefits: 'Pack 100 000 FC — Maximum 8 packs' },
           VIP4: { min_investment: 250000, max_packs: 10, benefits: 'Pack 250 000 FC — Maximum 10 packs' },

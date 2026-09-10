@@ -245,13 +245,13 @@ export default function DashboardPage() {
           </Link>
 
           <Link
-            href="/team"
+            href="/task"
             className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center space-y-1.5 hover:border-biso-300 transition-all active:scale-95"
           >
             <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <Users className="w-5 h-5" />
             </div>
-            <span className="text-xs font-bold text-gray-800">Mon Équipe</span>
+            <span className="text-xs font-bold text-gray-800">Mes Tâches</span>
           </Link>
 
           <Link

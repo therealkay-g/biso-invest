@@ -16,7 +16,7 @@ export default function BottomNavigation() {
     { href: '/dashboard', label: 'Accueil', icon: Home },
     { href: '/invest', label: 'Investir', icon: Package },
     { href: '/service', label: 'Service', icon: Headphones },
-    { href: '/team', label: 'Équipe', icon: Users },
+    { href: '/task', label: 'Tâche', icon: Users },
     { href: '/profile', label: 'Moi', icon: User },
   ]
 

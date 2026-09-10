@@ -49,7 +49,7 @@ create table if not exists wallets (
 create table if not exists wallet_transactions (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade not null,
-  type varchar(30) not null check (type in ('DEPOSIT', 'INVESTMENT', 'INVESTMENT_PAYMENT', 'DAILY_PROFIT', 'WITHDRAWAL', 'COMMISSION', 'COUPON', 'ADJUSTMENT')),
+  type varchar(30) not null check (type in ('DEPOSIT', 'INVESTMENT', 'INVESTMENT_PAYMENT', 'DAILY_PROFIT', 'WITHDRAWAL', 'COMMISSION', 'REFERRAL_TASK_REWARD', 'COUPON', 'ADJUSTMENT')),
   amount numeric(15,2) not null,
   balance_before numeric(15,2) not null,
   balance_after numeric(15,2) not null,
@@ -406,7 +406,7 @@ on conflict (network) do nothing;
 insert into vip_levels (level_name, min_investment, max_packs, benefits, is_active, display_order)
 values
   ('VIP0', 0, 1, 'Condition 0 FC - Maximum 1 pack', true, 0),
-  ('VIP1', 30000, 3, 'Condition 30 000 FC - Maximum 3 packs', true, 1),
+  ('VIP1', 20000, 3, 'Condition 20 000 FC - Maximum 3 packs', true, 1),
   ('VIP2', 100000, 5, 'Condition 100 000 FC - Maximum 5 packs', true, 2),
   ('VIP3', 250000, 8, 'Condition 250 000 FC - Maximum 8 packs', true, 3),
   ('VIP4', 500000, 10, 'Condition 500 000 FC - Maximum 10 packs', true, 4),
@@ -701,85 +701,17 @@ grant execute on function public.get_days_in_month(date) to authenticated, anon;
 -- by the 008 revised versions. Using CREATE OR REPLACE ensures the 008
 -- versions are the final authoritative ones.
 
--- Distribution helper (final version from 008)
+-- Distribution helper (DÉSACTIVÉ depuis la migration 015 : le parrainage
+-- A/B/C/D ne génère plus aucune commission ; l'historique existant est conservé)
 create or replace function public.distribute_commissions(
   p_user_id uuid,
   p_base_amount numeric,
   p_source_tx_id uuid
 )
 returns void as $$
-declare
-  curr_parent uuid;
-  comm_rate numeric;
-  comm_amt numeric;
-  v_level varchar(2);
-  v_rates numeric[] := array[10.0, 3.0, 1.0, 1.0];
-  v_levels varchar[] := array['A', 'B', 'C', 'D'];
-  v_wallet record;
-  v_new_bal numeric;
-  v_ref varchar;
-  v_visited uuid[] := array[p_user_id];
 begin
-  if exists (select 1 from commissions where source_transaction_id = p_source_tx_id) then
-    return;
-  end if;
-
-  curr_parent := p_user_id;
-
-  for i in 1..4 loop
-    v_level := v_levels[i];
-    comm_rate := v_rates[i];
-
-    select parent_id into curr_parent
-    from referrals
-    where child_id = curr_parent and level = 'A';
-
-    if curr_parent is null or curr_parent = any(v_visited) then
-      exit;
-    end if;
-
-    v_visited := array_append(v_visited, curr_parent);
-    comm_amt := round((p_base_amount * comm_rate) / 100.0, 2);
-
-    if comm_amt > 0 then
-      insert into commissions (
-        beneficiary_id, source_user_id, level, base_amount,
-        rate, commission_amount, source_transaction_id, status
-      )
-      values (
-        curr_parent, p_user_id, v_level, p_base_amount,
-        comm_rate, comm_amt, p_source_tx_id, 'PAID'
-      );
-
-      select * into v_wallet from wallets where user_id = curr_parent for update;
-      if found then
-        v_new_bal := v_wallet.balance + comm_amt;
-        update wallets set
-          balance = v_new_bal,
-          team_earned = team_earned + comm_amt,
-          total_earned = total_earned + comm_amt,
-          today_earned = today_earned + comm_amt,
-          updated_at = now()
-        where user_id = curr_parent;
-
-        v_ref := 'COM-' || upper(substring(md5(random()::text || clock_timestamp()::text) from 1 for 10));
-        insert into wallet_transactions (
-          user_id, type, amount, balance_before, balance_after,
-          reference, description, status
-        )
-        values (
-          curr_parent,
-          'COMMISSION',
-          comm_amt,
-          v_wallet.balance,
-          v_new_bal,
-          v_ref,
-          'Commission réseau niveau ' || v_level || ' (' || comm_rate || '%) sur achat ' || p_base_amount || ' FC',
-          'COMPLETED'
-        );
-      end if;
-    end if;
-  end loop;
+  -- DÉSACTIVÉ : l'ancien parrainage A/B/C/D ne crédite plus rien.
+  return;
 end;
 $$ language plpgsql security definer set search_path = public, pg_temp;
 
@@ -1656,7 +1588,7 @@ SET min_investment = 0, max_packs = 1, benefits = 'Condition 0 FC — Maximum 1 
 WHERE level_name = 'VIP0';
 
 UPDATE vip_levels
-SET min_investment = 30000, max_packs = 3, benefits = 'Pack VIP1 (30 000 FC) — Maximum 3 packs', is_active = true
+SET min_investment = 20000, max_packs = 3, benefits = 'Pack VIP1 (20 000 FC) — Maximum 3 packs', is_active = true
 WHERE level_name = 'VIP1';
 
 UPDATE vip_levels
@@ -1842,6 +1774,368 @@ end;
 $$ language plpgsql security definer set search_path = public, pg_temp;
 
 grant execute on function public.claim_daily_profit() to authenticated;
+
+-- ============================================================================
+-- 19. TÂCHES D'INVITATION (from 015 — remplace le parrainage A/B/C/D)
+-- ============================================================================
+-- L'ancien distribute_commissions (section 9) est déjà DÉSACTIVÉ en no-op.
+
+-- 19.1 Tables
+create table if not exists referral_tasks (
+  id uuid default gen_random_uuid() primary key,
+  required_invites int not null unique,
+  reward_amount numeric(15,2) not null,
+  display_order int not null default 0,
+  is_active boolean default true not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create table if not exists referral_task_rewards (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references profiles(id) on delete cascade not null,
+  task_id uuid references referral_tasks(id) on delete cascade not null,
+  required_invites int not null,
+  reward_amount numeric(15,2) not null,
+  transaction_id uuid references wallet_transactions(id) on delete set null,
+  claimed_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  constraint referral_task_rewards_one_claim unique (user_id, task_id)
+);
+
+create index if not exists idx_referral_task_rewards_user on referral_task_rewards (user_id, claimed_at desc);
+
+insert into referral_tasks (required_invites, reward_amount, display_order)
+values
+  (1, 3000, 1),
+  (5, 15000, 2),
+  (10, 30000, 3),
+  (20, 60000, 4),
+  (50, 200000, 5),
+  (100, 500000, 6)
+on conflict (required_invites) do update
+  set reward_amount = excluded.reward_amount,
+      display_order = excluded.display_order,
+      is_active = true;
+
+alter table referral_tasks enable row level security;
+drop policy if exists "Public can view referral tasks" on referral_tasks;
+create policy "Public can view referral tasks" on referral_tasks for select using (true);
+
+alter table referral_task_rewards enable row level security;
+drop policy if exists "Users view own task rewards" on referral_task_rewards;
+create policy "Users view own task rewards"
+  on referral_task_rewards for select
+  using (auth.uid() = user_id or public.is_admin());
+
+grant select on referral_tasks to anon, authenticated;
+grant select on referral_task_rewards to authenticated;
+
+-- 19.2 Ledger : type de transaction identifiable
+alter table wallet_transactions drop constraint if exists wallet_transactions_type_check;
+alter table wallet_transactions
+  add constraint wallet_transactions_type_check
+  check (type in ('DEPOSIT', 'INVESTMENT', 'INVESTMENT_PAYMENT', 'DAILY_PROFIT', 'WITHDRAWAL', 'COMMISSION', 'REFERRAL_TASK_REWARD', 'COUPON', 'ADJUSTMENT'));
+
+-- 19.3 Compteur serveur des invitations valides
+create or replace function public.count_valid_invitations(p_parent_id uuid)
+returns int as $$
+declare
+  v_count int;
+begin
+  select count(distinct r.child_id)
+  into v_count
+  from referrals r
+  join investments i on i.user_id = r.child_id
+  where r.parent_id = p_parent_id
+    and i.status in ('ACTIVE', 'COMPLETED');
+
+  return coalesce(v_count, 0);
+end;
+$$ language plpgsql stable security definer set search_path = public, pg_temp;
+
+grant execute on function public.count_valid_invitations(uuid) to authenticated;
+
+-- 19.4 Données complètes de la page Tâche
+create or replace function public.get_referral_task_data()
+returns jsonb as $$
+declare
+  v_user_id uuid;
+  v_total_team int;
+  v_valid int;
+  v_total_rewards numeric;
+  v_next jsonb;
+  v_tasks jsonb := '[]';
+  v_task record;
+  v_claimed boolean;
+begin
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'Non authentifié';
+  end if;
+
+  select count(*) into v_total_team from referrals where parent_id = v_user_id;
+  v_total_team := coalesce(v_total_team, 0);
+
+  v_valid := public.count_valid_invitations(v_user_id);
+
+  select coalesce(sum(reward_amount), 0) into v_total_rewards
+  from referral_task_rewards
+  where user_id = v_user_id;
+
+  for v_task in
+    select t.id, t.required_invites, t.reward_amount, t.display_order
+    from referral_tasks t
+    where t.is_active = true
+    order by t.display_order asc
+  loop
+    select exists (
+      select 1 from referral_task_rewards r
+      where r.user_id = v_user_id and r.task_id = v_task.id
+    ) into v_claimed;
+
+    v_tasks := v_tasks || jsonb_build_object(
+      'id', v_task.id,
+      'required_invites', v_task.required_invites,
+      'reward_amount', v_task.reward_amount,
+      'display_order', v_task.display_order,
+      'progress', least(v_valid, v_task.required_invites),
+      'claimed', v_claimed
+    );
+  end loop;
+
+  select jsonb_build_object(
+    'id', t.id,
+    'required_invites', t.required_invites,
+    'reward_amount', t.reward_amount
+  )
+  into v_next
+  from referral_tasks t
+  where t.is_active = true
+    and t.required_invites > v_valid
+    and not exists (
+      select 1 from referral_task_rewards r
+      where r.user_id = v_user_id and r.task_id = t.id
+    )
+  order by t.required_invites asc
+  limit 1;
+
+  return json_build_object(
+    'total_team', v_total_team,
+    'valid_invites', v_valid,
+    'pending_invites', greatest(v_total_team - v_valid, 0),
+    'total_rewards', v_total_rewards,
+    'tasks', v_tasks,
+    'next_reward', v_next
+  );
+end;
+$$ language plpgsql security definer set search_path = public, pg_temp;
+
+grant execute on function public.get_referral_task_data() to authenticated;
+
+-- 19.5 Réclamation d'une récompense (unique + atomique)
+create or replace function public.claim_referral_task_reward(p_task_id uuid)
+returns jsonb as $$
+declare
+  v_user_id uuid;
+  v_task record;
+  v_valid int;
+  v_wallet record;
+  v_new_balance numeric;
+  v_ref varchar;
+  v_tx_id uuid;
+  v_reward_id uuid;
+  v_reward_amount numeric;
+begin
+  v_user_id := auth.uid();
+  if v_user_id is null then
+    raise exception 'Non authentifié';
+  end if;
+
+  select * into v_task
+  from referral_tasks
+  where id = p_task_id and is_active = true;
+  if not found then
+    raise exception 'Tâche introuvable ou désactivée';
+  end if;
+
+  v_valid := public.count_valid_invitations(v_user_id);
+  if v_valid < v_task.required_invites then
+    raise exception 'Invitations insuffisantes : %/%', v_valid, v_task.required_invites;
+  end if;
+
+  v_reward_amount := v_task.reward_amount;
+
+  v_reward_id := null;
+  insert into referral_task_rewards (user_id, task_id, required_invites, reward_amount, transaction_id)
+  values (v_user_id, p_task_id, v_task.required_invites, v_reward_amount, null)
+  on conflict (user_id, task_id) do nothing
+  returning id into v_reward_id;
+
+  if v_reward_id is null then
+    return json_build_object(
+      'success', true,
+      'already_claimed', true,
+      'reward_amount', 0,
+      'message', 'Cette récompense a déjà été réclamée'
+    );
+  end if;
+
+  select * into v_wallet from wallets where user_id = v_user_id for update;
+  if not found then
+    raise exception 'Wallet introuvable';
+  end if;
+
+  v_new_balance := v_wallet.balance + v_reward_amount;
+  v_ref := 'RWR-' || upper(substring(md5(random()::text || clock_timestamp()::text) from 1 for 10));
+
+  update wallets set
+    balance = v_new_balance,
+    team_earned = team_earned + v_reward_amount,
+    total_earned = total_earned + v_reward_amount,
+    today_earned = today_earned + v_reward_amount,
+    updated_at = now()
+  where user_id = v_user_id;
+
+  insert into wallet_transactions (
+    user_id, type, amount, balance_before, balance_after,
+    reference, description, status
+  )
+  values (
+    v_user_id,
+    'REFERRAL_TASK_REWARD',
+    v_reward_amount,
+    v_wallet.balance,
+    v_new_balance,
+    v_ref,
+    'Récompense tâche d''invitation : ' || v_task.required_invites || ' invitation(s) valide(s) — ' || v_reward_amount || ' FC',
+    'COMPLETED'
+  )
+  returning id into v_tx_id;
+
+  update referral_task_rewards set transaction_id = v_tx_id where id = v_reward_id;
+
+  insert into admin_logs (admin_id, action, target_object, new_value)
+  values (
+    null,
+    'REFERRAL_TASK_REWARD',
+    'referral_task_rewards',
+    'User ' || v_user_id || ' a réclamé la récompense de ' || v_task.required_invites || ' invitation(s) valide(s) : ' || v_reward_amount || ' FC'
+  );
+
+  return json_build_object(
+    'success', true,
+    'already_claimed', false,
+    'reward_amount', v_reward_amount,
+    'transaction_id', v_tx_id,
+    'new_balance', v_new_balance
+  );
+end;
+$$ language plpgsql security definer set search_path = public, pg_temp;
+
+grant execute on function public.claim_referral_task_reward(uuid) to authenticated;
+
+-- 19.6 Admin : vue globale des tâches d'invitation
+create or replace function public.admin_referral_task_overview()
+returns jsonb as $$
+declare
+  v_admin_id uuid;
+  v_rows jsonb := '[]';
+  v_p record;
+  v_valid int;
+  v_total_team int;
+  v_total_rewards numeric;
+begin
+  v_admin_id := auth.uid();
+  if v_admin_id is null or not public.is_admin() then
+    raise exception 'Accès non autorisé';
+  end if;
+
+  for v_p in
+    select p.id, p.phone, p.referral_code
+    from profiles p
+    order by p.created_at asc
+  loop
+    v_valid := public.count_valid_invitations(v_p.id);
+
+    select count(*) into v_total_team from referrals where parent_id = v_p.id;
+    v_total_team := coalesce(v_total_team, 0);
+
+    select coalesce(sum(rw.reward_amount), 0) into v_total_rewards
+    from referral_task_rewards rw
+    where rw.user_id = v_p.id;
+
+    v_rows := v_rows || jsonb_build_object(
+      'user_id', v_p.id,
+      'phone', v_p.phone,
+      'referral_code', v_p.referral_code,
+      'total_team', v_total_team,
+      'valid_invites', v_valid,
+      'total_rewards', v_total_rewards,
+      'history', (
+        select coalesce(
+          jsonb_agg(
+            jsonb_build_object(
+              'required_invites', h.required_invites,
+              'reward_amount', h.reward_amount,
+              'claimed_at', h.claimed_at
+            )
+          ),
+          '[]'::jsonb
+        )
+        from (
+          select required_invites, reward_amount, claimed_at
+          from referral_task_rewards
+          where user_id = v_p.id
+          order by claimed_at desc
+        ) h
+      )
+    );
+  end loop;
+
+  return v_rows;
+end;
+$$ language plpgsql security definer set search_path = public, pg_temp;
+
+grant execute on function public.admin_referral_task_overview() to authenticated;
+
+-- 19.7 Signup : verrous anti-fraude (auto-parrainage bloqué, filleul unique)
+create or replace function public.on_new_user_created()
+returns trigger as $$
+declare
+  generated_code varchar(20);
+  ref_user_id uuid;
+begin
+  generated_code := 'BISO' || upper(substring(md5(random()::text) from 1 for 6));
+
+  insert into public.profiles (id, phone, referral_code, current_vip, status)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'phone', new.email, '+243000000000'),
+    generated_code,
+    'VIP0',
+    'ACTIVE'
+  );
+
+  insert into public.wallets (user_id, balance, total_deposited, total_withdrawn, total_invested, total_earned, today_earned, team_earned, total_assets)
+  values (new.id, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00);
+
+  if new.raw_user_meta_data->>'referral_code' is not null then
+    select id into ref_user_id from public.profiles where referral_code = new.raw_user_meta_data->>'referral_code';
+    if ref_user_id is not null and ref_user_id <> new.id then
+      insert into public.referrals (parent_id, child_id, level)
+      values (ref_user_id, new.id, 'A')
+      on conflict (child_id) do nothing;
+    end if;
+  end if;
+
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public, pg_temp;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.on_new_user_created();
 
 -- ============================================================================
 -- END OF COMPLETE_SETUP.sql

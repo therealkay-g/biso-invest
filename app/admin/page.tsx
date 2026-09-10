@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import { Profile, Deposit, Withdrawal, Product, VipLevel, PaymentAccount, AdminLog } from '@/types'
+import { Profile, Deposit, Withdrawal, Product, VipLevel, PaymentAccount, AdminLog, AdminTaskOverviewRow } from '@/types'
 import { useToast } from '@/components/ToastProvider'
 import { Shield, Users, DollarSign, Package, CheckCircle2, XCircle, AlertCircle, Settings, Download, ChevronLeft, ChevronRight, History } from 'lucide-react'
 
@@ -20,6 +20,7 @@ export default function AdminPage() {
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([])
   const [paymentAccountHistory, setPaymentAccountHistory] = useState<any[]>([])
   const [logs, setLogs] = useState<AdminLog[]>([])
+  const [taskOverview, setTaskOverview] = useState<AdminTaskOverviewRow[]>([])
   const [loading, setLoading] = useState(true)
 
   // Pagination states (10 items / page)
@@ -104,6 +105,9 @@ export default function AdminPage() {
         const { data: logData } = await supabase.from('admin_logs').select('*').order('created_at', { ascending: false }).limit(20)
         setLogs(logData || [])
 
+        const { data: taskData } = await supabase.rpc('admin_referral_task_overview')
+        if (taskData) setTaskOverview(taskData as AdminTaskOverviewRow[])
+
       } catch (err) {
         console.error('Error loading admin:', err)
       } finally {
@@ -129,8 +133,20 @@ export default function AdminPage() {
     document.body.removeChild(link)
   }
 
-  const exportCsv = (type: 'users' | 'deposits' | 'withdrawals') => {
-    if (type === 'deposits') {
+  const exportCsv = (type: 'users' | 'deposits' | 'withdrawals' | 'tasks') => {
+    if (type === 'tasks') {
+      const headers = ['Utilisateur', 'Code_Parrainage', 'Mon_Equipe', 'Filleuls_Valides', 'Recompenses_FC', 'Historique']
+      const rows = taskOverview.map(row => [
+        row.phone,
+        row.referral_code,
+        row.total_team,
+        row.valid_invites,
+        row.total_rewards,
+        row.history.map(h => `${h.required_invites} inv. +${h.reward_amount} FC`).join(' | ')
+      ])
+      downloadCsv('biso_taches_invitation_export.csv', headers, rows)
+      toast.success('Export CSV des tâches d\u2019invitation téléchargé.')
+    } else if (type === 'deposits') {
       const headers = ['ID', 'Utilisateur', 'Montant_FC', 'Reseau', 'Reference', 'Statut', 'Date']
       const rows = deposits.map(d => [
         d.id,
@@ -328,7 +344,7 @@ export default function AdminPage() {
       <div className="p-4 max-w-7xl mx-auto space-y-6">
         {/* Admin Navigation */}
         <div className="flex space-x-2 overflow-x-auto bg-white p-2 rounded-2xl border border-gray-100 shadow-xs">
-          {['dashboard', 'users', 'deposits', 'withdrawals', 'products', 'vip', 'payments', 'logs'].map((tab) => (
+          {['dashboard', 'users', 'deposits', 'withdrawals', 'products', 'vip', 'tasks', 'payments', 'logs'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -675,6 +691,87 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'tasks' && (
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+              <div>
+                <h3 className="font-bold text-gray-800 text-sm">Tâches d&apos;invitation</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Invitations valides (filleul + investissement validé), récompenses réclamées et disponibles.
+                </p>
+              </div>
+              <button
+                onClick={() => exportCsv('tasks')}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center space-x-1.5 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Exporter CSV</span>
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-gray-200 text-gray-500 font-bold uppercase text-[10px]">
+                    <th className="py-2.5 pr-3">Utilisateur</th>
+                    <th className="py-2.5 pr-3">Code de parrainage</th>
+                    <th className="py-2.5 pr-3">Mon équipe</th>
+                    <th className="py-2.5 pr-3">Filleuls valides</th>
+                    <th className="py-2.5 pr-3">Récompenses réclamées (FC)</th>
+                    <th className="py-2.5 pr-3">Récompenses disponibles</th>
+                    <th className="py-2.5">Historique</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {taskOverview.map((row) => {
+                    const claimed = new Set(row.history.map((h) => h.required_invites))
+                    const available = [1, 5, 10, 20, 50, 100]
+                      .filter((t) => row.valid_invites >= t && !claimed.has(t))
+                    return (
+                      <tr key={row.user_id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-2.5 pr-3 font-semibold text-gray-800">{row.phone}</td>
+                        <td className="py-2.5 pr-3 font-mono text-biso-700">{row.referral_code}</td>
+                        <td className="py-2.5 pr-3 tabular-nums">{row.total_team}</td>
+                        <td className="py-2.5 pr-3 tabular-nums text-emerald-600 font-bold">{row.valid_invites}</td>
+                        <td className="py-2.5 pr-3 tabular-nums font-bold">{row.total_rewards.toLocaleString('fr-FR')}</td>
+                        <td className="py-2.5 pr-3">
+                          {available.length > 0 ? (
+                            <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                              {available.map((t) => `${t} inv.`).join(', ')}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="py-2.5">
+                          {row.history.length === 0 ? (
+                            <span className="text-gray-400">—</span>
+                          ) : (
+                            <div className="space-y-1">
+                              {row.history.map((h, i) => (
+                                <div key={i} className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md font-semibold">
+                                  {h.required_invites} inv. • +{h.reward_amount.toLocaleString('fr-FR')} FC • {new Date(h.claimed_at).toLocaleDateString('fr-FR')}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {taskOverview.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-6 text-center text-gray-400 text-xs">
+                        Aucune donnée de tâche d&apos;invitation.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

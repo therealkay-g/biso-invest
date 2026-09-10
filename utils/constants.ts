@@ -16,8 +16,8 @@ export const VIP_TIERS: Record<number, VipTierInfo> = {
   30000: {
     level: 'VIP1',
     badge: 'VIP 1',
-    name: 'Pack VIP 1 (30 000 FC)',
-    minInvestment: 30000,
+    name: 'Pack VIP 1 (20 000 FC)',
+    minInvestment: 20000,
     maxPacks: 3,
     colorClass: 'bg-amber-500 text-white',
   },
