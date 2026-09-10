@@ -20,7 +20,7 @@ create table if not exists profiles (
 
 -- 2. WALLETS TABLE
 create table if not exists wallets (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade unique not null,
   balance numeric(15,2) default 0.00 not null check (balance >= 0),
   total_deposited numeric(15,2) default 0.00 not null,
@@ -35,7 +35,7 @@ create table if not exists wallets (
 
 -- 3. WALLET TRANSACTIONS LEDGER
 create table if not exists wallet_transactions (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade not null,
   type varchar(30) not null check (type in ('DEPOSIT', 'INVESTMENT', 'INVESTMENT_PAYMENT', 'WITHDRAWAL', 'COMMISSION', 'COUPON', 'ADJUSTMENT')),
   amount numeric(15,2) not null,
@@ -49,7 +49,7 @@ create table if not exists wallet_transactions (
 
 -- 4. PRODUCT CATEGORIES
 create table if not exists product_categories (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   name varchar(100) unique not null,
   slug varchar(100) unique not null,
   description text,
@@ -60,7 +60,7 @@ create table if not exists product_categories (
 
 -- 5. PRODUCTS (42 packs)
 create table if not exists products (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   category_id uuid references product_categories(id) on delete cascade not null,
   name varchar(150) not null,
   price numeric(15,2) not null,
@@ -77,7 +77,7 @@ create table if not exists products (
 
 -- 6. INVESTMENTS
 create table if not exists investments (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade not null,
   product_id uuid references products(id) on delete restrict not null,
   quantity int default 1 not null,
@@ -94,7 +94,7 @@ create table if not exists investments (
 
 -- 7. INVESTMENT PAYMENTS (12 installments per investment)
 create table if not exists investment_payments (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   investment_id uuid references investments(id) on delete cascade not null,
   installment_number int not null check (installment_number between 1 and 12),
   amount numeric(15,2) not null,
@@ -107,7 +107,7 @@ create table if not exists investment_payments (
 
 -- 8. PAYMENT ACCOUNTS (Admin Mobile Money numbers)
 create table if not exists payment_accounts (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   network varchar(30) unique not null check (network in ('Airtel Money', 'Orange Money', 'M-Pesa')),
   phone_number varchar(30) not null,
   account_name varchar(100) not null,
@@ -118,7 +118,7 @@ create table if not exists payment_accounts (
 
 -- 9. PAYMENT ACCOUNT HISTORY
 create table if not exists payment_account_history (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   network varchar(30) not null,
   old_number varchar(30) not null,
   new_number varchar(30) not null,
@@ -128,7 +128,7 @@ create table if not exists payment_account_history (
 
 -- 10. DEPOSITS
 create table if not exists deposits (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade not null,
   amount numeric(15,2) not null check (amount > 0),
   network varchar(30) not null check (network in ('Airtel Money', 'Orange Money', 'M-Pesa')),
@@ -143,7 +143,7 @@ create table if not exists deposits (
 
 -- 11. WITHDRAWAL ACCOUNTS
 create table if not exists withdrawal_accounts (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade not null,
   network varchar(30) not null check (network in ('Airtel Money', 'Orange Money', 'M-Pesa')),
   phone_number varchar(30) not null,
@@ -154,7 +154,7 @@ create table if not exists withdrawal_accounts (
 
 -- 12. WITHDRAWALS
 create table if not exists withdrawals (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade not null,
   withdrawal_account_id uuid references withdrawal_accounts(id) on delete restrict not null,
   amount numeric(15,2) not null check (amount >= 30000),
@@ -172,7 +172,7 @@ create table if not exists withdrawals (
 
 -- 13. REFERRALS & TEAM
 create table if not exists referrals (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   parent_id uuid references profiles(id) on delete cascade not null,
   child_id uuid references profiles(id) on delete cascade not null unique,
   level varchar(5) not null check (level in ('A', 'B', 'C', 'D')),
@@ -181,7 +181,7 @@ create table if not exists referrals (
 
 -- 14. COMMISSIONS
 create table if not exists commissions (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   beneficiary_id uuid references profiles(id) on delete cascade not null,
   source_user_id uuid references profiles(id) on delete cascade not null,
   level varchar(5) not null check (level in ('A', 'B', 'C', 'D')),
@@ -195,7 +195,7 @@ create table if not exists commissions (
 
 -- 15. VIP LEVELS
 create table if not exists vip_levels (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   level_name varchar(10) unique not null,
   min_investment numeric(15,2) not null,
   max_packs int not null,
@@ -207,7 +207,7 @@ create table if not exists vip_levels (
 
 -- 16. USER VIP HISTORY
 create table if not exists user_vip_history (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade not null,
   old_vip varchar(10) not null,
   new_vip varchar(10) not null,
@@ -217,7 +217,7 @@ create table if not exists user_vip_history (
 
 -- 17. COUPONS
 create table if not exists coupons (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   code varchar(50) unique not null,
   discount_type varchar(20) default 'FIXED' check (discount_type in ('PERCENTAGE', 'FIXED')),
   value numeric(15,2) not null,
@@ -229,7 +229,7 @@ create table if not exists coupons (
 );
 
 create table if not exists coupon_usages (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   coupon_id uuid references coupons(id) on delete cascade not null,
   user_id uuid references profiles(id) on delete cascade not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
@@ -238,7 +238,7 @@ create table if not exists coupon_usages (
 
 -- 18. SUPPORT TICKETS & MESSAGES
 create table if not exists support_tickets (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade not null,
   subject varchar(200) not null,
   status varchar(20) default 'EN_ATTENTE' check (status in ('EN_ATTENTE', 'EN_COURS', 'RESOLU', 'FERME')),
@@ -247,7 +247,7 @@ create table if not exists support_tickets (
 );
 
 create table if not exists support_messages (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   ticket_id uuid references support_tickets(id) on delete cascade not null,
   sender_id uuid references profiles(id) on delete cascade not null,
   is_admin boolean default false not null,
@@ -257,7 +257,7 @@ create table if not exists support_messages (
 
 -- 19. FAQ
 create table if not exists faq (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   question text not null,
   answer text not null,
   display_order int default 0 not null,
@@ -266,7 +266,7 @@ create table if not exists faq (
 
 -- 20. NOTIFICATIONS
 create table if not exists notifications (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade not null,
   title varchar(150) not null,
   message text not null,
@@ -277,7 +277,7 @@ create table if not exists notifications (
 
 -- 21. ANNOUNCEMENTS
 create table if not exists announcements (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   title varchar(200) not null,
   content text not null,
   is_published boolean default true not null,
@@ -294,7 +294,7 @@ create table if not exists admin_users (
 );
 
 create table if not exists admin_logs (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   admin_id uuid references auth.users(id) on delete set null,
   action varchar(100) not null,
   target_object varchar(100) not null,

@@ -9,7 +9,7 @@
 create extension if not exists "pgcrypto";
 
 create table if not exists phone_verifications (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   phone varchar(30) not null,
   otp_code varchar(64) not null,
   attempts int default 0 not null,

@@ -538,7 +538,7 @@ begin
     v_product.monthly_return * p_quantity, v_product.duration_months,
     0, v_product.duration_months, now() + interval '1 month',
     v_product.total_returns * p_quantity, 'ACTIVE',
-    coalesce(trim(p_idempotency_key), 'INV-KEY-' || uuid_generate_v4()::text)
+    coalesce(trim(p_idempotency_key), 'INV-KEY-' || gen_random_uuid()::text)
   )
   returning id into v_inv_id;
 
@@ -613,7 +613,7 @@ create trigger on_investment_created_init_cycles
 create extension if not exists "pgcrypto";
 
 create table if not exists phone_verifications (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   phone varchar(30) not null,
   otp_code varchar(64) not null, -- Stockage exclusif du hash SHA-256 (64 caractères hex)
   attempts int default 0 not null,

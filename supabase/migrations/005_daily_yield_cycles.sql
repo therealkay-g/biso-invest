@@ -2,7 +2,7 @@
 
 -- 1. INVESTMENT CYCLES TABLE
 create table if not exists investment_cycles (
-  id uuid default uuid_generate_v4() primary key,
+  id uuid default gen_random_uuid() primary key,
   investment_id uuid references investments(id) on delete cascade not null,
   cycle_number int not null check (cycle_number between 1 and 12),
   cycle_start_date timestamp with time zone not null,
