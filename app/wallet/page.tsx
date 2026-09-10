@@ -491,6 +491,9 @@ function WalletContent() {
                   />
                   <span className="absolute right-4 top-3.5 text-xs font-bold text-gray-400">FC</span>
                 </div>
+                <p className="text-[11px] text-gray-500 mt-1.5">
+                  Le montant minimum de retrait est de 5 000 CDF, et les frais de retrait sont de 15%.
+                </p>
               </div>
 
               {/* Récapitulatif dynamique brut / frais 15% / net */}
