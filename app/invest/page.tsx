@@ -65,7 +65,7 @@ export default function InvestPage() {
         <div>
           <h2 className="text-xl font-extrabold text-gray-900">Opportunités d'Investissement</h2>
           <p className="text-xs text-gray-500">
-            Packs officiels exclusifs : VIP1 (30 000 FC), VIP2 (50 000 FC), VIP3 (100 000 FC) et VIP4 (250 000 FC).
+            Packs officiels exclusifs : VIP1 (20 000 FC), VIP2 (50 000 FC), VIP3 (100 000 FC) et VIP4 (250 000 FC).
           </p>
         </div>
 

@@ -151,7 +151,7 @@ export default function InvestmentsPage() {
             </div>
             <div className="space-y-1">
               <p className="text-base font-bold text-gray-900">Vous n'avez pas encore d'investissements actifs</p>
-              <p className="text-xs text-gray-400">Rejoignez l'économie réelle congolaise dès 30 000 FC.</p>
+              <p className="text-xs text-gray-400">Rejoignez l'économie réelle congolaise dès 20 000 FC.</p>
             </div>
             <Link
               href="/invest"

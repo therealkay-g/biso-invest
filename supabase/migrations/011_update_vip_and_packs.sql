@@ -1,17 +1,17 @@
 -- BISO INVEST - MIGRATION 011: CONFIGURATION EXCLUSIVE DES 4 PACKS & PALIERS VIP
--- 1. Packs autorisés : 30 000 FC (VIP1), 50 000 FC (VIP2), 100 000 FC (VIP3) et 250 000 FC (VIP4)
+-- 1. Packs autorisés : 20 000 FC (VIP1), 50 000 FC (VIP2), 100 000 FC (VIP3) et 250 000 FC (VIP4)
 -- 2. Désactivation de tous les packs supérieurs (500 000 FC, 1 000 000 FC, 2 500 000 FC...)
 -- 3. Mise à jour des seuils d'accès VIP dans vip_levels
 
 -- 1. Désactiver tous les packs non autorisés
 UPDATE products 
 SET is_active = false 
-WHERE price NOT IN (30000, 50000, 100000, 250000);
+WHERE price NOT IN (20000, 50000, 100000, 250000);
 
 -- 2. Activer exclusivement les 4 packs autorisés
 UPDATE products 
 SET is_active = true 
-WHERE price IN (30000, 50000, 100000, 250000);
+WHERE price IN (20000, 50000, 100000, 250000);
 
 -- 3. Paliers VIP officiels
 UPDATE vip_levels 

@@ -1,7 +1,7 @@
 export const USD_TO_FC = 2400;
 
 // Packs autorisés et correspondance exacte avec les paliers VIP
-export const ALLOWED_PACK_PRICES = [30000, 50000, 100000, 250000] as const;
+export const ALLOWED_PACK_PRICES = [20000, 50000, 100000, 250000] as const;
 
 export interface VipTierInfo {
   level: string;
@@ -13,7 +13,7 @@ export interface VipTierInfo {
 }
 
 export const VIP_TIERS: Record<number, VipTierInfo> = {
-  30000: {
+  20000: {
     level: 'VIP1',
     badge: 'VIP 1',
     name: 'Pack VIP 1 (20 000 FC)',

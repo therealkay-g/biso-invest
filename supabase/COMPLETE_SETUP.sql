@@ -438,7 +438,7 @@ begin
   -- AGRICULTURE
   insert into products (category_id, name, price, monthly_return, duration_months, total_returns, purchase_limit, description, image_url)
   values
-    (ag_id, 'Pack Maïs', 30000, 30000, 12, 360000, 10, 'Investissement dans la culture et la récolte de maïs local de haute qualité.', 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=600&q=80'),
+    (ag_id, 'Pack Maïs', 20000, 20000, 12, 240000, 10, 'Investissement dans la culture et la récolte de maïs local de haute qualité.', 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=600&q=80'),
     (ag_id, 'Pack Riz', 50000, 50000, 12, 600000, 10, 'Soutien aux rizières et à la production de riz communautaire.', 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80'),
     (ag_id, 'Pack Manioc', 100000, 100000, 12, 1200000, 8, 'Culture à grande échelle de tubercules de manioc pour l''approvisionnement.', 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80'),
     (ag_id, 'Pack Soja', 250000, 250000, 12, 3000000, 6, 'Production de soja biologique destiné aux marchés locaux et régionaux.', 'https://images.unsplash.com/photo-1599409636295-e3cf3538f212?auto=format&fit=crop&w=600&q=80'),
@@ -449,7 +449,7 @@ begin
   -- ÉLEVAGE
   insert into products (category_id, name, price, monthly_return, duration_months, total_returns, purchase_limit, description, image_url)
   values
-    (el_id, 'Pack Poulets', 30000, 30000, 12, 360000, 10, 'Élevage avicole moderne de poulets de chair.', 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=600&q=80'),
+    (el_id, 'Pack Poulets', 20000, 20000, 12, 240000, 10, 'Élevage avicole moderne de poulets de chair.', 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=600&q=80'),
     (el_id, 'Pack Porcs', 50000, 50000, 12, 600000, 10, 'Élevage porcin rigoureusement encadré et nourri.', 'https://images.unsplash.com/photo-1516467508483-a7212febe31a?auto=format&fit=crop&w=600&q=80'),
     (el_id, 'Pack Chèvres', 100000, 100000, 12, 1200000, 8, 'Élevage caprin en pâturage contrôlé.', 'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=600&q=80'),
     (el_id, 'Pack Œufs', 250000, 250000, 12, 3000000, 6, 'Centre de ponte moderne et production d''œufs frais.', 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?auto=format&fit=crop&w=600&q=80'),
@@ -462,7 +462,7 @@ begin
 
   insert into products (category_id, name, price, monthly_return, duration_months, total_returns, purchase_limit, description, image_url)
   values
-    (pi_id, 'Tilapia', 30000, 30000, 12, 360000, 10, 'Élevage intensif de tilapias en étangs et bassins contrôlés.', 'https://images.unsplash.com/photo-1524704654690-b56c05c78a00?auto=format&fit=crop&w=600&q=80'),
+    (pi_id, 'Tilapia', 20000, 20000, 12, 240000, 10, 'Élevage intensif de tilapias en étangs et bassins contrôlés.', 'https://images.unsplash.com/photo-1524704654690-b56c05c78a00?auto=format&fit=crop&w=600&q=80'),
     (pi_id, 'Silure', 50000, 50000, 12, 600000, 10, 'Production de silures (poisson-chat) en bassins à forte densité.', 'https://images.unsplash.com/photo-1534081333815-ae5019106622?auto=format&fit=crop&w=600&q=80'),
     (pi_id, 'Anguille', 100000, 100000, 12, 1200000, 10, 'Élevage d''anguilles en circuits fermés maîtrisés.', 'https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=600&q=80'),
     (pi_id, 'Carpe', 250000, 250000, 12, 3000000, 10, 'Élevage de carpes en étangs communautaires extensifs.', 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=600&q=80')
@@ -1575,12 +1575,12 @@ DELETE FROM product_categories WHERE slug IN (
 -- Deactivate all packs not in the authorized price list
 UPDATE products
 SET is_active = false
-WHERE price NOT IN (30000, 50000, 100000, 250000);
+WHERE price NOT IN (20000, 50000, 100000, 250000);
 
 -- Activate exclusively the 4 authorized packs
 UPDATE products
 SET is_active = true
-WHERE price IN (30000, 50000, 100000, 250000);
+WHERE price IN (20000, 50000, 100000, 250000);
 
 -- Official VIP thresholds
 UPDATE vip_levels
@@ -1623,7 +1623,7 @@ WHERE category_id = (SELECT id FROM product_categories WHERE slug = 'piscicultur
 
 UPDATE products
 SET is_active = true,
-    price = 30000, monthly_return = 30000, duration_months = 12, total_returns = 360000, purchase_limit = 10
+    price = 20000, monthly_return = 20000, duration_months = 12, total_returns = 240000, purchase_limit = 10
 WHERE category_id = (SELECT id FROM product_categories WHERE slug = 'pisciculture')
   AND name = 'Tilapia';
 
