@@ -1045,6 +1045,12 @@ describe("Suite 14 : Pop-up de bienvenue BISO INVEST (missions pop-up)", () => {
         if (!signedIn) return;
         if (store.getItem(WELCOME_KEY) !== 'u1') { open = true; store.setItem(WELCOME_KEY, 'u1'); }
       },
+      restore: () => { signedIn = true; },
+      mountCheck: () => {
+        // Vérification au montage : session persistante sans clé → affiché une seule fois.
+        if (!signedIn) return;
+        if (store.getItem(WELCOME_KEY) !== 'u1') { open = true; store.setItem(WELCOME_KEY, 'u1'); }
+      },
       signOut: () => { signedIn = false; store.removeItem(WELCOME_KEY); open = false; },
       isOpen: () => open,
     };
@@ -1217,6 +1223,16 @@ describe("Suite 14 : Pop-up de bienvenue BISO INVEST (missions pop-up)", () => {
     for (const forbidden of ['purchase_investment', 'request_withdrawal', 'claim_daily_profit', 'update_deposit_status', 'distribute_commissions']) {
       assert.ok(!componentSrc.includes(forbidden), `aucune référence à la RPC ${forbidden}`);
     }
+  });
+
+  it('21. Ouverture du site déjà connecté (session persistante) → visible une seule fois', () => {
+    const s = createAuthenticatedWelcomeSession();
+    s.restore();
+    s.mountCheck();
+    assert.equal(s.isOpen(), true);
+    s.close();
+    s.mountCheck();
+    assert.equal(s.isOpen(), false, 'un rechargement avec clé présente ne réaffiche pas');
   });
 });
 

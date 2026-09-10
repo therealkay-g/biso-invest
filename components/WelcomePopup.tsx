@@ -29,40 +29,46 @@ export default function WelcomePopup() {
   useEffect(() => {
     let cancelled = false
 
-    const { data: sub } = supabase.auth.onAuthStateChange(
-      (event: string, session: { user?: { id: string } | null } | null) => {
-      const user = session?.user ?? null
-
-      if (event === 'SIGNED_OUT') {
-        if (typeof window !== 'undefined') clearWelcomeShown(window.sessionStorage)
-        setSectors([])
-        setOpen(false)
-        return
-      }
-
-      if (!user) {
-        setOpen(false)
-        return
-      }
-
+    const maybeOpen = (userId: string) => {
       const storage = typeof window !== 'undefined' ? window.sessionStorage : null
       if (!storage) return
-
-      // SIGNED_IN : nouvelle connexion → toujours afficher, quelle que soit la clé précédente.
-      if (event === 'SIGNED_IN') {
-        clearWelcomeShown(storage)
-        openPopup(user.id)
-        markWelcomeShown(storage, user.id)
-        return
+      // INITIAL_SESSION (rechargement pendant une session active) : n'affiche
+      // qu'en l'absence de clé (jamais 2 fois par connexion).
+      if (!isWelcomeShown(storage, userId)) {
+        openPopup(userId)
+        markWelcomeShown(storage, userId)
       }
+    }
 
-      // INITIAL_SESSION (rechargement de page pendant une session active) :
-      // n'affiche qu'en l'absence de clé (jamais à chaque navigation, jamais 2 fois/session).
-      if (!isWelcomeShown(storage, user.id)) {
-        openPopup(user.id)
-        markWelcomeShown(storage, user.id)
-      }
-    })
+    const { data: sub } = supabase.auth.onAuthStateChange(
+      (event: string, session: { user?: { id: string } | null } | null) => {
+        const user = session?.user ?? null
+
+        if (event === 'SIGNED_OUT') {
+          if (typeof window !== 'undefined') clearWelcomeShown(window.sessionStorage)
+          setSectors([])
+          setOpen(false)
+          return
+        }
+
+        if (!user) {
+          setOpen(false)
+          return
+        }
+
+        // SIGNED_IN : nouvelle connexion → toujours afficher, quelle que soit la clé précédente.
+        if (event === 'SIGNED_IN') {
+          if (typeof window !== 'undefined') {
+            clearWelcomeShown(window.sessionStorage)
+            openPopup(user.id)
+            markWelcomeShown(window.sessionStorage, user.id)
+          }
+          return
+        }
+
+        maybeOpen(user.id)
+      },
+    )
 
     async function openPopup(userId: string) {
       if (cancelled) return
@@ -87,6 +93,12 @@ export default function WelcomePopup() {
       )
       setSectors(built)
     }
+
+    // Vérification au montage : session déjà active sans clé → affiche une fois.
+    supabase.auth.getUser().then((result: { data: { user?: { id: string } | null } }) => {
+      const { user } = result.data
+      if (!cancelled && user) maybeOpen(user.id)
+    })
 
     return () => {
       cancelled = true
