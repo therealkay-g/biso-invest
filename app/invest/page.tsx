@@ -29,7 +29,7 @@ export default function InvestPage() {
           .order('price', { ascending: true })
 
         // S'assurer qu'uniquement les 4 paliers autorisés sont retenus
-        const validProducts = (prodData || []).filter(p =>
+        const validProducts = (prodData || []).filter((p: Product) =>
           ALLOWED_PACK_PRICES.includes(p.price as any)
         )
 

@@ -418,7 +418,8 @@ on conflict (level_name) do nothing;
 insert into product_categories (name, slug, description, icon, order_index)
 values
   ('Agriculture', 'agriculture', 'Opportunités agricoles durables', 'Sprout', 1),
-  ('Élevage', 'elevage', 'Élevage avicole, porcin et caprin', 'Beef', 2)
+  ('Élevage', 'elevage', 'Élevage avicole, porcin et caprin', 'Beef', 2),
+  ('Pisciculture', 'pisciculture', 'Élevage de poissons et production aquacole durable', 'Fish', 3)
 on conflict (slug) do nothing;
 
 -- ============================================================================
@@ -429,6 +430,7 @@ do $$
 declare
   ag_id uuid;
   el_id uuid;
+  pi_id uuid;
 begin
   select id into ag_id from product_categories where slug = 'agriculture';
   select id into el_id from product_categories where slug = 'elevage';
@@ -453,6 +455,17 @@ begin
     (el_id, 'Pack Œufs', 250000, 250000, 12, 3000000, 6, 'Centre de ponte moderne et production d''œufs frais.', 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?auto=format&fit=crop&w=600&q=80'),
     (el_id, 'Pack Élevage Mixte', 500000, 500000, 12, 6000000, 5, 'Complexe d''élevage diversifié (volaille et bétail).', 'https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=600&q=80'),
     (el_id, 'Pack Élevage Premium', 1000000, 1000000, 12, 12000000, 3, 'Ferme d''élevage industrielle hautement automatisée.', 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?auto=format&fit=crop&w=600&q=80')
+  on conflict (name) do nothing;
+
+  -- PISCICULTURE (4 packs officiels)
+  select id into pi_id from product_categories where slug = 'pisciculture';
+
+  insert into products (category_id, name, price, monthly_return, duration_months, total_returns, purchase_limit, description, image_url)
+  values
+    (pi_id, 'Tilapia', 30000, 30000, 12, 360000, 10, 'Élevage intensif de tilapias en étangs et bassins contrôlés.', 'https://images.unsplash.com/photo-1524704654690-b56c05c78a00?auto=format&fit=crop&w=600&q=80'),
+    (pi_id, 'Silure', 50000, 50000, 12, 600000, 10, 'Production de silures (poisson-chat) en bassins à forte densité.', 'https://images.unsplash.com/photo-1534081333815-ae5019106622?auto=format&fit=crop&w=600&q=80'),
+    (pi_id, 'Anguille', 100000, 100000, 12, 1200000, 10, 'Élevage d''anguilles en circuits fermés maîtrisés.', 'https://images.unsplash.com/photo-1559314809-0d155014e29e?auto=format&fit=crop&w=600&q=80'),
+    (pi_id, 'Carpe', 250000, 250000, 12, 3000000, 10, 'Élevage de carpes en étangs communautaires extensifs.', 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=600&q=80')
   on conflict (name) do nothing;
 
 end $$;
@@ -1662,6 +1675,43 @@ WHERE level_name = 'VIP4';
 UPDATE vip_levels
 SET is_active = false
 WHERE level_name IN ('VIP5', 'VIP6', 'VIP7');
+
+-- ============================================================================
+-- 17. PISCICULTURE: SEULS LES 4 PACKS OFFICIELS PEUVENT ETRE ACTIFS
+-- ============================================================================
+-- Après la réactivation globale (section 16), on redésactive tout pack
+-- Pisciculture qui n'est pas l'un des 4 officiels (Tilapia, Silure,
+-- Anguille, Carpe). On ne supprime jamais : les investissements
+-- historiques restent référencés et intacts.
+
+UPDATE products
+SET is_active = false
+WHERE category_id = (SELECT id FROM product_categories WHERE slug = 'pisciculture')
+  AND name NOT IN ('Tilapia', 'Silure', 'Anguille', 'Carpe');
+
+UPDATE products
+SET is_active = true,
+    price = 30000, monthly_return = 30000, duration_months = 12, total_returns = 360000, purchase_limit = 10
+WHERE category_id = (SELECT id FROM product_categories WHERE slug = 'pisciculture')
+  AND name = 'Tilapia';
+
+UPDATE products
+SET is_active = true,
+    price = 50000, monthly_return = 50000, duration_months = 12, total_returns = 600000, purchase_limit = 10
+WHERE category_id = (SELECT id FROM product_categories WHERE slug = 'pisciculture')
+  AND name = 'Silure';
+
+UPDATE products
+SET is_active = true,
+    price = 100000, monthly_return = 100000, duration_months = 12, total_returns = 1200000, purchase_limit = 10
+WHERE category_id = (SELECT id FROM product_categories WHERE slug = 'pisciculture')
+  AND name = 'Anguille';
+
+UPDATE products
+SET is_active = true,
+    price = 250000, monthly_return = 250000, duration_months = 12, total_returns = 3000000, purchase_limit = 10
+WHERE category_id = (SELECT id FROM product_categories WHERE slug = 'pisciculture')
+  AND name = 'Carpe';
 
 -- ============================================================================
 -- END OF COMPLETE_SETUP.sql

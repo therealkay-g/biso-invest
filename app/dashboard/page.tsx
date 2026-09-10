@@ -76,7 +76,7 @@ export default function DashboardPage() {
           .eq('is_active', true)
           .in('price', [...ALLOWED_PACK_PRICES])
           .order('price', { ascending: true })
-        const validPopular = (prodData || []).filter(p =>
+        const validPopular = (prodData || []).filter((p: Product) =>
           ALLOWED_PACK_PRICES.includes(p.price as any)
         )
         setPopularProducts(validPopular)

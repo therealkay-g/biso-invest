@@ -38,7 +38,7 @@ export default function VipPage() {
           VIP4: { min_investment: 250000, max_packs: 10, benefits: 'Pack 250 000 FC — Maximum 10 packs' },
         }
 
-        const normalizedLevels = (vData || []).map((v) => {
+        const normalizedLevels = (vData || []).map((v: VipLevel) => {
           if (OFFICIAL_VIP[v.level_name]) {
             return {
               ...v,
