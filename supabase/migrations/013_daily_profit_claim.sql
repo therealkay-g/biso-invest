@@ -8,8 +8,10 @@
 --     unique + FOR UPDATE + insert on conflict retournant la ligne créditée).
 --   - Montant calculé et crédité côté serveur UNIQUEMENT (RPC security definer).
 --   - Aucune donnée d'un autre utilisateur ne peut être lue ou créditée.
--- Aucune autre table/fonction existante n'est modifiée (wallets via RPC,
--- ledger, dépôts, retraits 15%, commissions, OTP, RLS existantes…).
+-- Aucune autre table n'est recréée ; seule la contrainte de type de
+-- wallet_transactions est élargie pour accepter 'DAILY_PROFIT'.
+-- Les écritures wallets passent exclusivement par la RPC ci-dessous
+-- (ledger, dépôts, retraits 15%, commissions, OTP, RLS existantes…).
 -- ============================================================================
 
 -- 1. TABLE profit_claims (historique des bénéfices réclamés)
@@ -42,7 +44,13 @@ create policy "Users can view own profit claims"
 -- direct n'est accordé.
 grant select on profit_claims to authenticated;
 
--- 3. RPC sécurisée claim_daily_profit()
+-- 4. Le ledger doit accepter le nouveau type DAILY_PROFIT (contrainte mise à jour)
+alter table wallet_transactions drop constraint if exists wallet_transactions_type_check;
+alter table wallet_transactions
+  add constraint wallet_transactions_type_check
+  check (type in ('DEPOSIT', 'INVESTMENT', 'INVESTMENT_PAYMENT', 'DAILY_PROFIT', 'WITHDRAWAL', 'COMMISSION', 'COUPON', 'ADJUSTMENT'));
+
+-- 5. RPC sécurisée claim_daily_profit()
 create or replace function public.claim_daily_profit()
 returns jsonb as $$
 declare

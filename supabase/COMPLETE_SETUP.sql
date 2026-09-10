@@ -49,7 +49,7 @@ create table if not exists wallets (
 create table if not exists wallet_transactions (
   id uuid default gen_random_uuid() primary key,
   user_id uuid references profiles(id) on delete cascade not null,
-  type varchar(30) not null check (type in ('DEPOSIT', 'INVESTMENT', 'INVESTMENT_PAYMENT', 'WITHDRAWAL', 'COMMISSION', 'COUPON', 'ADJUSTMENT')),
+  type varchar(30) not null check (type in ('DEPOSIT', 'INVESTMENT', 'INVESTMENT_PAYMENT', 'DAILY_PROFIT', 'WITHDRAWAL', 'COMMISSION', 'COUPON', 'ADJUSTMENT')),
   amount numeric(15,2) not null,
   balance_before numeric(15,2) not null,
   balance_after numeric(15,2) not null,
