@@ -26,13 +26,13 @@ export default function AboutPage() {
             Biso Invest est née d'une idée simple : l'avenir se construit ensemble.
           </p>
           <p>
-            Dans de nombreuses communautés, des agriculteurs, éleveurs, commerçants, restaurateurs, transporteurs et entrepreneurs travaillent chaque jour pour développer leurs activités, mais l'accès au financement reste souvent difficile.
+            Dans de nombreuses communautés, des agriculteurs, éleveurs et entrepreneurs travaillent chaque jour pour développer leurs activités, mais l'accès au financement reste souvent difficile.
           </p>
           <p>
             Biso Invest a été imaginée pour créer un pont entre les personnes souhaitant participer à des projets économiques et les secteurs qui font vivre nos communautés.
           </p>
           <p>
-            De l'agriculture à l'élevage, du commerce à la transformation, de l'énergie solaire au transport et à la restauration, notre ambition est de mettre en avant des opportunités liées à l'économie réelle.
+            De l'agriculture à l'élevage, notre ambition est de mettre en avant des opportunités liées à l'économie réelle.
           </p>
           <p>
             Biso signifie « nous ». Il représente une vision collective : le développement se construit ensemble.

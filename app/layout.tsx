@@ -11,7 +11,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'BISO INVEST — Ensemble, construisons demain.',
-  description: 'Plateforme d\'investissement dans l\'économie réelle en RDC (Agriculture, Élevage, Commerce, Énergie, Transport, Restauration).',
+  description: 'Plateforme d\'investissement dans l\'économie réelle en RDC (Agriculture, Élevage).',
   manifest: '/manifest.json',
   icons: {
     icon: [

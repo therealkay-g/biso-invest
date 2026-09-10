@@ -153,7 +153,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-gradient-to-l from-transparent to-[#0b1e36]/40" />
         <div className="absolute bottom-8 left-8 right-8 text-white">
           <h3 className="text-2xl font-bold drop-shadow-lg">Investissez dans l&apos;économie réelle</h3>
-          <p className="text-sm mt-2 text-white/80 drop-shadow">Agriculture · Élevage · Commerce · Énergie · Transport · Restauration</p>
+          <p className="text-sm mt-2 text-white/80 drop-shadow">Agriculture · Élevage</p>
         </div>
       </div>
 
@@ -166,7 +166,7 @@ export default function LoginPage() {
           className="object-cover"
         />
         <div className="absolute inset-0 bg-[#0b1e36]/50 flex items-center justify-center">
-          <p className="text-white text-xs font-semibold text-center px-4">Agriculture · Élevage · Commerce · Énergie · Transport · Restauration</p>
+          <p className="text-white text-xs font-semibold text-center px-4">Agriculture · Élevage</p>
         </div>
       </div>
     </div>
