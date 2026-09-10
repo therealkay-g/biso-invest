@@ -6,6 +6,7 @@ import { ToastProvider } from '@/components/ToastProvider'
 import NetworkStatus from '@/components/NetworkStatus'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt'
 import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
+import WelcomePopup from '@/components/WelcomePopup'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -48,6 +49,7 @@ export default function RootLayout({
           <NetworkStatus />
           <PWAInstallPrompt />
           <ServiceWorkerRegister />
+          <WelcomePopup />
           <div className="max-w-md mx-auto md:max-w-4xl lg:max-w-6xl min-h-screen bg-white shadow-xl relative flex flex-col justify-between">
             <main className="flex-1 pb-16 md:pb-0">
               {children}

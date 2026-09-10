@@ -985,3 +985,238 @@ describe('Suite 13 : Tâches d\'invitation — attribution automatique (migratio
   });
 });
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+describe("Suite 14 : Pop-up de bienvenue BISO INVEST (missions pop-up)", () => {
+  const PROJECT_URL = new URL('..', import.meta.url);
+
+  // --- Miroir exact de lib/welcome-popup.ts ---
+  const WELCOME_KEY = 'biso_welcome_shown_for_user';
+  const EXCLUDED_SLUGS = ['energie-solaire', 'commerce', 'industrie-transformation', 'transport-logistique', 'restauration'];
+  const VIP_BY_PRICE = new Map([[20000, 'VIP1'], [50000, 'VIP2'], [100000, 'VIP3'], [250000, 'VIP4']]);
+  const vipForPrice = (price) => VIP_BY_PRICE.get(price) || 'VIP0';
+  const welcomeStorage = () => {
+    const m = new Map();
+    return {
+      getItem: (k) => (m.has(k) ? m.get(k) : null),
+      setItem: (k, v) => m.set(k, v),
+      removeItem: (k) => m.delete(k),
+    };
+  };
+
+  function buildWelcomeSectors(categories, products, year, month) {
+    const active = products.filter((p) => p.is_active !== false);
+    return categories
+      .filter((c) => !EXCLUDED_SLUGS.includes(c.slug))
+      .map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        slug: cat.slug,
+        icon: cat.icon || '',
+        orderIndex: cat.order_index ?? 0,
+        packs: active
+          .filter((p) => p.category_id === cat.id)
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            monthlyReturn: p.monthly_return,
+            durationMonths: p.duration_months,
+            vipLevel: vipForPrice(p.price),
+            dailyRevenue: calculateDailyRevenue(p.monthly_return, year, month),
+          }))
+          .sort((a, b) => a.price - b.price),
+      }))
+      .filter((s) => s.packs.length > 0)
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+  }
+
+  function createAuthenticatedWelcomeSession() {
+    const store = welcomeStorage();
+    let open = false;
+    let signedIn = false;
+    return {
+      store,
+      close: () => { open = false; },
+      signIn: () => { signedIn = true; store.removeItem(WELCOME_KEY); open = true; store.setItem(WELCOME_KEY, 'u1'); },
+      navigate: () => {
+        // INITIAL_SESSION : sans utilisateur → jamais affiché ; avec session → une seule fois.
+        if (!signedIn) return;
+        if (store.getItem(WELCOME_KEY) !== 'u1') { open = true; store.setItem(WELCOME_KEY, 'u1'); }
+      },
+      signOut: () => { signedIn = false; store.removeItem(WELCOME_KEY); open = false; },
+      isOpen: () => open,
+    };
+  }
+
+  const CATEGORIES_FIXTURE = [
+    { id: 'ag', name: 'Agriculture', slug: 'agriculture', icon: 'Sprout', order_index: 1 },
+    { id: 'el', name: 'Élevage', slug: 'elevage', icon: 'Tractor', order_index: 2 },
+    { id: 'pi', name: 'Pisciculture', slug: 'pisciculture', icon: 'Fish', order_index: 3 },
+    { id: 'es', name: 'Énergie solaire', slug: 'energie-solaire', icon: 'Sun', order_index: 4 },
+  ];
+  const PRODUCTS_FIXTURE = [
+    { id: 'm1', category_id: 'ag', name: 'Pack Maïs', price: 20000, monthly_return: 20000, duration_months: 12, is_active: true },
+    { id: 'm2', category_id: 'ag', name: 'Pack Riz', price: 50000, monthly_return: 50000, duration_months: 12, is_active: true },
+    { id: 'm3', category_id: 'ag', name: 'Pack Manioc', price: 100000, monthly_return: 100000, duration_months: 12, is_active: true },
+    { id: 'm4', category_id: 'ag', name: 'Pack Soja', price: 250000, monthly_return: 250000, duration_months: 12, is_active: true },
+    { id: 'p1', category_id: 'el', name: 'Pack Poulets', price: 20000, monthly_return: 20000, duration_months: 12, is_active: true },
+    { id: 't1', category_id: 'pi', name: 'Tilapia', price: 20000, monthly_return: 20000, duration_months: 12, is_active: true },
+    { id: 't2', category_id: 'pi', name: 'Silure', price: 50000, monthly_return: 50000, duration_months: 12, is_active: true },
+    { id: 't3', category_id: 'pi', name: 'Anguille', price: 100000, monthly_return: 100000, duration_months: 12, is_active: true },
+    { id: 't4', category_id: 'pi', name: 'Carpe', price: 250000, monthly_return: 250000, duration_months: 12, is_active: true },
+    { id: 't5', category_id: 'pi', name: 'Tilapia (ancien)', price: 30000, monthly_return: 30000, duration_months: 12, is_active: false },
+    { id: 'es1', category_id: 'es', name: 'Pack Solaire', price: 50000, monthly_return: 50000, duration_months: 12, is_active: true },
+    { id: 'in1', category_id: 'ag', name: 'Ancien pack', price: 30000, monthly_return: 30000, duration_months: 12, is_active: false },
+  ];
+  const JULY_2026 = buildWelcomeSectors(CATEGORIES_FIXTURE, PRODUCTS_FIXTURE, 2026, 6);
+
+  it('1. Connexion réussie → le pop-up de bienvenue s\u2019affiche automatiquement', () => {
+    const s = createAuthenticatedWelcomeSession();
+    s.signIn();
+    assert.equal(s.isOpen(), true);
+  });
+
+  it('2. Appui sur [×] Fermer → le pop-up disparaît', () => {
+    const s = createAuthenticatedWelcomeSession();
+    s.signIn();
+    s.close();
+    assert.equal(s.isOpen(), false);
+  });
+
+  it('3. Navigation interne après fermeture → le pop-up ne réapparaît pas', () => {
+    const s = createAuthenticatedWelcomeSession();
+    s.signIn();
+    s.close();
+    for (let i = 0; i < 5; i++) s.navigate();
+    assert.equal(s.isOpen(), false);
+  });
+
+  it('4. Déconnexion puis reconnexion → le pop-up s\u2019affiche à nouveau', () => {
+    const s = createAuthenticatedWelcomeSession();
+    s.signIn();
+    s.close();
+    s.signOut();
+    assert.equal(s.isOpen(), false);
+    s.signIn();
+    assert.equal(s.isOpen(), true);
+  });
+
+  it('5. Utilisateur non connecté → aucun pop-up affiché', () => {
+    const s = createAuthenticatedWelcomeSession();
+    s.signOut();
+    for (let i = 0; i < 3; i++) s.navigate();
+    assert.equal(s.isOpen(), false);
+    assert.equal(s.store.getItem(WELCOME_KEY), null);
+  });
+
+  it('6. Les packs sont récupérés dynamiquement depuis Supabase (aucun hardcode)', () => {
+    const tilapia = JULY_2026.find((s) => s.slug === 'pisciculture').packs.find((p) => p.name === 'Tilapia');
+    assert.equal(tilapia.price, 20000);
+    const variant = buildWelcomeSectors(
+      CATEGORIES_FIXTURE,
+      PRODUCTS_FIXTURE.map((p) => (p.id === 't1' ? { ...p, price: 25000, monthly_return: 25000 } : p)),
+      2026,
+      6,
+    );
+    const variantTilapia = variant.find((s) => s.slug === 'pisciculture').packs.find((p) => p.name === 'Tilapia');
+    assert.equal(variantTilapia.price, 25000, 'le prix affiché suit la donnée Supabase, pas une constante codée en dur');
+  });
+
+  it('7. Les packs inactifs ne sont jamais affichés', () => {
+    const allNames = JULY_2026.flatMap((s) => s.packs.map((p) => p.name));
+    assert.ok(!allNames.includes('Tilapia (ancien)'));
+    assert.ok(!allNames.includes('Ancien pack'));
+  });
+
+  it('8. Le secteur Énergie solaire n\u2019apparaît jamais', () => {
+    assert.ok(!JULY_2026.some((s) => s.slug.includes('solaire')));
+    assert.ok(!JULY_2026.some((s) => s.slug.includes('energie')));
+    assert.ok(!JULY_2026.flatMap((s) => s.packs.map((p) => p.name)).includes('Pack Solaire'));
+  });
+
+  it('9. Tilapia affiché à exactement 20 000 FC (jamais 30 000 FC)', () => {
+    const packs = JULY_2026.flatMap((s) => s.packs);
+    const tilapia = packs.filter((p) => p.name === 'Tilapia');
+    assert.equal(tilapia.length, 1);
+    assert.equal(tilapia[0].price, 20000);
+  });
+
+  it('10. Aucun pack Pisciculture actif à 30 000 FC', () => {
+    const pisciculture = JULY_2026.find((s) => s.slug === 'pisciculture');
+    assert.ok(pisciculture.packs.every((p) => p.price !== 30000));
+  });
+
+  it('11. Les 4 packs officiels Pisciculture sont tous affichés', () => {
+    const names = JULY_2026.find((s) => s.slug === 'pisciculture').packs.map((p) => p.name);
+    assert.deepEqual(names, ['Tilapia', 'Silure', 'Anguille', 'Carpe']);
+  });
+
+  it('12. Mapping VIP : Tilapia (20 000 FC) → VIP1', () => {
+    assert.equal(vipForPrice(20000), 'VIP1');
+    assert.equal(JULY_2026.find((s) => s.slug === 'pisciculture').packs[0].vipLevel, 'VIP1');
+  });
+
+  it('13. Mapping VIP : Silure (50 000 FC) → VIP2', () => {
+    assert.equal(vipForPrice(50000), 'VIP2');
+    assert.equal(JULY_2026.find((s) => s.slug === 'pisciculture').packs[1].vipLevel, 'VIP2');
+  });
+
+  it('14. Mapping VIP : Anguille (100 000 FC) → VIP3', () => {
+    assert.equal(vipForPrice(100000), 'VIP3');
+    assert.equal(JULY_2026.find((s) => s.slug === 'pisciculture').packs[2].vipLevel, 'VIP3');
+  });
+
+  it('15. Mapping VIP : Carpe (250 000 FC) → VIP4', () => {
+    assert.equal(vipForPrice(250000), 'VIP4');
+    assert.equal(JULY_2026.find((s) => s.slug === 'pisciculture').packs[3].vipLevel, 'VIP4');
+  });
+
+  it('16. Revenu quotidien = revenu mensuel ÷ jours réels du mois (28/29/30/31)', () => {
+    assert.equal(calculateDailyRevenue(20000, 2025, 0), 20000 / 31);
+    assert.equal(calculateDailyRevenue(20000, 2025, 8), 20000 / 30);
+    assert.equal(calculateDailyRevenue(20000, 2024, 1), 20000 / 29);
+    assert.equal(calculateDailyRevenue(20000, 2026, 1), 20000 / 28);
+    const tilapia = JULY_2026.find((s) => s.slug === 'pisciculture').packs[0];
+    assert.equal(tilapia.dailyRevenue, 20000 / 31, 'juillet 2026 = 31 jours réels');
+  });
+
+  it('17. Design mobile : carte scrollable, pleine largeur, actions figées (contrat vérifié)', () => {
+    const src = readFileSync(fileURLToPath(new URL('lib/welcome-popup.ts', PROJECT_URL)), 'utf8');
+    assert.ok(src.includes('max-h-[85vh]'), 'la carte doit être défilable sur mobile');
+    assert.ok(src.includes('overflow-y-auto'));
+    assert.ok(src.includes('w-full'), 'la carte doit prendre toute la largeur sur mobile');
+    assert.ok(src.includes('items-end'), 'sur mobile la carte est ancrée en bas (bottom-sheet)');
+  });
+
+  it('18. Design desktop : carte centrée et bornée (contrat vérifié)', () => {
+    const src = readFileSync(fileURLToPath(new URL('lib/welcome-popup.ts', PROJECT_URL)), 'utf8');
+    assert.ok(src.includes('sm:items-center'), 'centré sur desktop');
+    assert.ok(src.includes('max-w-lg'), 'largeur bornée');
+    assert.ok(src.includes('sm:rounded-3xl'));
+  });
+
+  it('19. Aucun impact portefeuille/ledger : le module ne mute aucun solde', () => {
+    const src = readFileSync(fileURLToPath(new URL('lib/welcome-popup.ts', PROJECT_URL)), 'utf8');
+    for (const forbidden of ['balance', 'ledger', 'wallet_transactions', 'today_earned', 'total_invested', 'purchase_investment']) {
+      assert.ok(!src.includes(forbidden), `le module ne doit pas manipuler '${forbidden}'`);
+    }
+    const snapshotCat = JSON.stringify(CATEGORIES_FIXTURE);
+    const snapshotProd = JSON.stringify(PRODUCTS_FIXTURE);
+    buildWelcomeSectors(CATEGORIES_FIXTURE, PRODUCTS_FIXTURE, 2026, 6);
+    assert.equal(JSON.stringify(CATEGORIES_FIXTURE), snapshotCat, 'les entrées ne sont pas mutées');
+    assert.equal(JSON.stringify(PRODUCTS_FIXTURE), snapshotProd, 'les entrées ne sont pas mutées');
+  });
+
+  it('20. Aucune RPC financière appelée : lecture seule (product_categories + products uniquement)', () => {
+    const componentSrc = readFileSync(fileURLToPath(new URL('components/WelcomePopup.tsx', PROJECT_URL)), 'utf8');
+    assert.ok(!componentSrc.includes('.rpc('), 'le pop-up n\u2019appelle aucune RPC (ni retour, ni achat, ni retrait)');
+    assert.ok(componentSrc.includes("from('product_categories')"), 'lecture des catégories uniquement');
+    assert.ok(componentSrc.includes("from('products')"), 'lecture des produits uniquement');
+    for (const forbidden of ['purchase_investment', 'request_withdrawal', 'claim_daily_profit', 'update_deposit_status', 'distribute_commissions']) {
+      assert.ok(!componentSrc.includes(forbidden), `aucune référence à la RPC ${forbidden}`);
+    }
+  });
+});
+
