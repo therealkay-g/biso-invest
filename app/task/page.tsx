@@ -14,7 +14,6 @@ export default function TaskPage() {
   const [history, setHistory] = useState<ReferralTaskReward[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [claimingId, setClaimingId] = useState<string | null>(null)
 
   const loadData = async () => {
     try {
@@ -76,25 +75,6 @@ export default function TaskPage() {
       }
     } else {
       await copyToClipboard(invitationLink, 'Lien d\u2019invitation copié')
-    }
-  }
-
-  const handleClaim = async (taskId: string) => {
-    setClaimingId(taskId)
-    try {
-      const { data, error } = await supabase.rpc('claim_referral_task_reward', { p_task_id: taskId })
-      if (error) throw error
-
-      if (data?.already_claimed) {
-        toast.info('Cette récompense a déjà été réclamée.')
-      } else {
-        toast.success(`Récompense de ${Number(data?.reward_amount || 0).toLocaleString('fr-FR')} FC créditée !`)
-      }
-      await loadData()
-    } catch (err: any) {
-      toast.error(err.message || 'Erreur lors de la réclamation')
-    } finally {
-      setClaimingId(null)
     }
   }
 
@@ -233,13 +213,12 @@ export default function TaskPage() {
           <h3 className="font-bold text-gray-800 text-sm mb-3">Récompenses des tâches</h3>
           <div className="space-y-3">
             {(stats?.tasks || []).map((task: ReferralTask) => {
-              const canClaim = validInvites >= task.required_invites && !task.claimed
               const pct = Math.min((Math.min(validInvites, task.required_invites) / task.required_invites) * 100, 100)
               return (
                 <div
                   key={task.id}
                   className={`bg-white p-5 rounded-2xl border shadow-sm space-y-3 ${
-                    task.claimed ? 'border-emerald-200 bg-emerald-50/40' : canClaim ? 'border-biso-300 ring-2 ring-biso-500/15' : 'border-gray-100'
+                    task.claimed ? 'border-emerald-200 bg-emerald-50/40' : 'border-gray-100'
                   }`}
                 >
                   <div className="flex justify-between items-start">
@@ -250,17 +229,12 @@ export default function TaskPage() {
                     {task.claimed ? (
                       <span className="flex items-center space-x-1 text-[10px] font-black bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full uppercase">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Réclamé</span>
-                      </span>
-                    ) : canClaim ? (
-                      <span className="flex items-center space-x-1 text-[10px] font-black bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full uppercase">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Disponible</span>
+                        <span>Attribué</span>
                       </span>
                     ) : (
                       <span className="flex items-center space-x-1 text-[10px] font-black bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full uppercase">
                         <Lock className="w-3.5 h-3.5" />
-                        <span>Verrouillé</span>
+                        <span>En cours</span>
                       </span>
                     )}
                   </div>
@@ -277,19 +251,11 @@ export default function TaskPage() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleClaim(task.id)}
-                    disabled={!canClaim || claimingId === task.id}
-                    className={`w-full py-3 rounded-2xl text-xs font-black tracking-wider uppercase transition-all active:scale-98 ${
-                      task.claimed
-                        ? 'bg-emerald-100 text-emerald-600 cursor-default'
-                        : canClaim
-                          ? 'bg-gradient-to-r from-biso-700 to-biso-600 hover:from-biso-800 hover:to-biso-700 text-white shadow-md'
-                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    {claimingId === task.id ? 'Réclamation...' : task.claimed ? 'Réclamé' : 'Réclamer'}
-                  </button>
+                  <div className={`w-full py-3 rounded-2xl text-xs font-black tracking-wider uppercase text-center ${
+                    task.claimed ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    {task.claimed ? 'Créditée automatiquement' : 'Attribuée automatiquement dès validation'}
+                  </div>
                 </div>
               )
             })}
