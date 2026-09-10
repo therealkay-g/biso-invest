@@ -1,5 +1,5 @@
 -- Supprimer les secteurs non désirés et leurs packs
--- On garde uniquement: Agriculture, Élevage, Énergie solaire
+-- On garde uniquement: Agriculture, Élevage
 
 -- Supprimer les produits des secteurs à supprimer (avant la catégorie pour safety)
 DELETE FROM products WHERE category_id IN (
@@ -7,7 +7,8 @@ DELETE FROM products WHERE category_id IN (
     'commerce',
     'industrie-transformation',
     'transport-logistique',
-    'restauration'
+    'restauration',
+    'energie-solaire'
   )
 );
 
@@ -16,5 +17,6 @@ DELETE FROM product_categories WHERE slug IN (
   'commerce',
   'industrie-transformation',
   'transport-logistique',
-  'restauration'
+  'restauration',
+  'energie-solaire'
 );
