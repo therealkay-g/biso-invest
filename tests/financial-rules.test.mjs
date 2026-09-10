@@ -443,10 +443,254 @@ describe("11. Sécurité OTP et Résolution des Blockers de Production", () => {
     assert.throws(() => simulateVerifyOtp(record, secretCodeForTest), /invalide ou expiré/);
   });
 
-  it("Rejette tout code présenté au-delà de 10 minutes (expiration)", () => {
+it("Rejette tout code présenté au-delà de 10 minutes (expiration)", () => {
     const { record, secretCodeForTest } = simulateRequestOtp('0812345678');
     record.expires_at = Date.now() - 1000; // Simule expiration
     assert.throws(() => simulateVerifyOtp(record, secretCodeForTest), /invalide ou expiré/);
+  });
+});
+
+// ============================================================
+// SUITE 12 : Validation quotidienne du bénéfice (bouton VENDRE)
+// ============================================================
+
+// Miroir exact de la RPC claim_daily_profit()
+// claims : tableau partagé { user_id, investment_id, profit_date, amount, claimed_at }
+function todayKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function simulateClaimDailyProfit(userId, investments, claims, balance, today, getDaysFn) {
+  const daysInMonth = getDaysFn(today.getFullYear(), today.getMonth());
+  const todayStr = todayKey(today);
+  let total = 0;
+  let claimCount = 0;
+  const created = [];
+
+  for (const inv of investments) {
+    // 12. Isolation utilisateur : jamais les investissements d'un autre
+    if (inv.user_id !== userId) continue;
+    // 11. Uniquement les investissements actifs
+    if (inv.status !== 'ACTIVE') continue;
+    // 10. Encore dans la période (durée en mois), sinon « terminé »
+    const periodEnd = new Date(inv.created_at);
+    periodEnd.setMonth(periodEnd.getMonth() + (inv.duration_months || 12));
+    if (today.getTime() >= periodEnd.getTime()) continue;
+    // 2/3/5/9. Déjà réclamé aujourd'hui ? Aucun crédit possible
+    if (claims.some((c) => c.investment_id === inv.id && c.profit_date === todayStr)) continue;
+
+    const daily = Math.round((inv.monthly_return / daysInMonth) * 100) / 100;
+    const claim = { user_id: userId, investment_id: inv.id, profit_date: todayStr, amount: daily, claimed_at: new Date(today) };
+    claims.push(claim);
+    created.push(claim);
+    total = Math.round((total + daily) * 100) / 100;
+    claimCount += 1;
+  }
+
+  // Aucun bénéfice à créditer (déjà vendu aujourd'hui, expiré ou aucun)
+  if (claimCount === 0) {
+    return { success: true, claimed_amount: 0, already_claimed_today: true, new_balance: balance, transactions: 0, transaction: null, claims, created };
+  }
+
+  // Crédit atomique du wallet + UNE seule écriture ledger
+  const newBalance = Math.round((balance + total) * 100) / 100;
+  const transaction = { type: 'DAILY_PROFIT', amount: total, balance_before: balance, balance_after: newBalance, status: 'COMPLETED' };
+  return { success: true, claimed_amount: total, already_claimed_today: false, new_balance: newBalance, transactions: 1, transaction, claims, created };
+}
+
+function makeInvestment(overrides = {}) {
+  return {
+    id: 'inv-1',
+    user_id: 'user-1',
+    monthly_return: 30000,
+    created_at: new Date(2024, 0, 5),
+    duration_months: 12,
+    status: 'ACTIVE',
+    ...overrides,
+  };
+}
+
+describe("12. Validation quotidienne du bénéfice (bouton VENDRE)", () => {
+  it("1. Réclamation normale du jour (30 jours → 1 000 FC)", () => {
+    const claims = [];
+    const inv = makeInvestment();
+    const day = new Date(2024, 3, 1); // Avril 2024 = 30 jours
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day, getDaysInMonth);
+
+    assert.equal(res.success, true);
+    assert.equal(res.claimed_amount, 1000); // 30 000 / 30
+    assert.equal(res.new_balance, 51000);   // wallet avant/après
+    assert.equal(res.transactions, 1);      // une seule écriture ledger
+    assert.equal(claims.length, 1);
+  });
+
+  it("2. Deux clics le même jour → une seule transaction", () => {
+    const claims = [];
+    const inv = makeInvestment();
+    const day = new Date(2024, 3, 1);
+    const r1 = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day, getDaysInMonth);
+    const r2 = simulateClaimDailyProfit('user-1', [inv], claims, r1.new_balance, day, getDaysInMonth);
+
+    assert.equal(r1.claimed_amount, 1000);
+    assert.equal(r2.claimed_amount, 0);
+    assert.equal(r2.already_claimed_today, true);
+    assert.equal(claims.length, 1); // aucune réclamation en double
+  });
+
+  it("3. Appel RPC répété → pas de double crédit", () => {
+    const claims = [];
+    const inv = makeInvestment();
+    const day = new Date(2024, 3, 1);
+    const r1 = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day, getDaysInMonth);
+    const r3 = simulateClaimDailyProfit('user-1', [inv], claims, r1.new_balance, day, getDaysInMonth);
+
+    assert.equal(r3.claimed_amount, 0);
+    assert.equal(r3.transactions, 0);
+    assert.equal(r3.new_balance, 51000); // strictement inchangé
+  });
+
+  it("4. Jour non réclamé → bénéfice perdu (jamais reporté)", () => {
+    const claims = [];
+    const inv = makeInvestment();
+    const day1 = new Date(2024, 3, 1);
+    const day3 = new Date(2024, 3, 3);
+
+    const r1 = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day1, getDaysInMonth);
+    // Jour 2 : l'utilisateur ne clique pas -> rien
+    const r2 = simulateClaimDailyProfit('user-1', [inv], claims, r1.new_balance, day3, getDaysInMonth);
+
+    assert.equal(r1.claimed_amount, 1000);
+    assert.equal(r2.claimed_amount, 1000); // UNIQUEMENT le jour 3
+    assert.equal(r2.new_balance, 52000);   // le jour 2 (1 000 FC) manque définitivement
+    assert.deepEqual(claims.map((c) => c.profit_date), ['2024-04-01', '2024-04-03']);
+  });
+
+  it("5. Réclamation le lendemain → uniquement le bénéfice du lendemain", () => {
+    const claims = [];
+    const inv = makeInvestment({ monthly_return: 30000 });
+    const day1 = new Date(2024, 3, 1);
+    const day2 = new Date(2024, 3, 2);
+    const r1 = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day1, getDaysInMonth);
+    const r2 = simulateClaimDailyProfit('user-1', [inv], claims, r1.new_balance, day2, getDaysInMonth);
+
+    assert.equal(r1.claimed_amount, 1000);
+    assert.equal(r2.claimed_amount, 1000); // 30 000 / 30 pour le jour 2 uniquement
+    assert.equal(r2.transactions, 1);
+    assert.equal(r2.new_balance, 52000);
+  });
+
+  it("6. Février 28 jours (30 000 / 28 = 1 071,43 FC)", () => {
+    const claims = [];
+    const inv = makeInvestment();
+    const feb28 = new Date(2023, 1, 10); // 2023 non bissextile → 28 jours
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, 0, feb28, getDaysInMonth);
+    assert.equal(res.claimed_amount, 1071.43);
+  });
+
+  it("7. Février 29 jours (30 000 / 29 = 1 034,48 FC)", () => {
+    const claims = [];
+    const inv = makeInvestment();
+    const feb29 = new Date(2024, 1, 10); // 2024 bissextile → 29 jours
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, 0, feb29, getDaysInMonth);
+    assert.equal(res.claimed_amount, 1034.48);
+  });
+
+  it("8. Mois de 30 jours (30 000 / 30 = 1 000 FC)", () => {
+    const claims = [];
+    const inv = makeInvestment();
+    const day = new Date(2024, 3, 15);
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, 0, day, getDaysInMonth);
+    assert.equal(res.claimed_amount, 1000);
+  });
+
+  it("9. Mois de 31 jours (30 000 / 31 = 967,74 FC)", () => {
+    const claims = [];
+    const inv = makeInvestment();
+    const day = new Date(2024, 0, 15); // Janvier 2024 = 31 jours
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, 0, day, getDaysInMonth);
+    assert.equal(res.claimed_amount, 967.74);
+  });
+
+  it("10. Investissement arrivé à expiration → aucune vente possible", () => {
+    const claims = [];
+    const expired = makeInvestment({ id: 'exp', created_at: new Date(2023, 0, 1), duration_months: 12 });
+    const now = new Date(2024, 1, 15); // après le 01/01/2024 (fin de période)
+    const res = simulateClaimDailyProfit('user-1', [expired], claims, 5000, now, getDaysInMonth);
+
+    assert.equal(res.claimed_amount, 0);
+    assert.equal(res.already_claimed_today, true);
+    assert.equal(claims.length, 0);
+    assert.equal(res.new_balance, 5000);
+  });
+
+  it("11. Utilisateur sans investissement → 0 crédité, aucune écriture", () => {
+    const claims = [];
+    const day = new Date(2024, 3, 1);
+    const res = simulateClaimDailyProfit('user-1', [], claims, 1000, day, getDaysInMonth);
+
+    assert.equal(res.claimed_amount, 0);
+    assert.equal(res.transactions, 0);
+    assert.equal(res.new_balance, 1000);
+  });
+
+  it("12. Tentative d'accès aux données d'un autre utilisateur → bloquée", () => {
+    const claims = [];
+    const invA = makeInvestment({ id: 'inv-a', user_id: 'user-1', created_at: new Date(2024, 0, 5) });
+    const invB = makeInvestment({ id: 'inv-b', user_id: 'user-2', created_at: new Date(2024, 0, 5) });
+    const day = new Date(2024, 3, 1);
+
+    const res = simulateClaimDailyProfit('user-1', [invA, invB], claims, 50000, day, getDaysInMonth);
+
+    assert.equal(res.claimed_amount, 1000);     // uniquement l'investissement de user-1
+    assert.equal(claims.length, 1);
+    assert.equal(claims[0].investment_id, 'inv-a');
+    assert.equal(claims[0].user_id, 'user-1');
+    // L'investissement de user-2 n'a produit aucune réclamation au nom de user-1
+    assert.equal(claims.some((c) => c.investment_id === 'inv-b' && c.user_id === 'user-1'), false);
+  });
+
+  it("13. Vérification du wallet avant/après", () => {
+    const claims = [];
+    const inv = makeInvestment();
+    const balanceBefore = 25000;
+    const day = new Date(2024, 3, 1);
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, balanceBefore, day, getDaysInMonth);
+
+    assert.equal(res.transaction.balance_before, balanceBefore);
+    assert.equal(res.transaction.balance_after, balanceBefore + res.claimed_amount);
+    assert.equal(res.transaction.amount, res.claimed_amount);
+    assert.equal(res.transaction.status, 'COMPLETED');
+  });
+
+  it("14. Vérification de wallet_transactions (une écriture DAILY_PROFIT)", () => {
+    const claims = [];
+    const inv = makeInvestment({ monthly_return: 30000 });
+    const day = new Date(2024, 3, 1);
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, 100000, day, getDaysInMonth);
+
+    assert.equal(res.transactions, 1);
+    assert.equal(res.transaction.type, 'DAILY_PROFIT');
+    assert.equal(res.transaction.amount, 1000);
+    assert.equal(res.transaction.status, 'COMPLETED');
+  });
+
+  it("15. Historique complet des réclamations", () => {
+    const claims = [];
+    const inv = makeInvestment({ id: 'inv-hist', monthly_return: 30000 });
+    const day1 = new Date(2024, 3, 1);
+    const day2 = new Date(2024, 3, 2);
+    simulateClaimDailyProfit('user-1', [inv], claims, 50000, day1, getDaysInMonth);
+    simulateClaimDailyProfit('user-1', [inv], claims, 51000, day2, getDaysInMonth);
+
+    assert.equal(claims.length, 2);
+    for (const c of claims) {
+      assert.equal(c.user_id, 'user-1');
+      assert.equal(c.investment_id, 'inv-hist');
+      assert.equal(c.amount, 1000);
+      assert.ok(c.profit_date);
+      assert.ok(c.claimed_at instanceof Date);
+    }
+    assert.deepEqual(claims.map((c) => c.profit_date), ['2024-04-01', '2024-04-02']);
   });
 });
 

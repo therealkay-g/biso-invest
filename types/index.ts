@@ -32,10 +32,23 @@ export type TransactionType =
   | 'DEPOSIT'
   | 'INVESTMENT'
   | 'INVESTMENT_PAYMENT'
+  | 'DAILY_PROFIT'
   | 'WITHDRAWAL'
   | 'COMMISSION'
   | 'COUPON'
   | 'ADJUSTMENT'
+
+export interface ProfitClaim {
+  id: string
+  user_id: string
+  investment_id: string
+  cycle_id?: string
+  profit_date: string
+  amount: number
+  claimed_at: string
+  transaction_id?: string
+  created_at: string
+}
 
 export interface WalletTransaction {
   id: string

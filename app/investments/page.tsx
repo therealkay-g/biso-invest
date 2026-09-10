@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Investment } from '@/types'
+import { Investment, ProfitClaim } from '@/types'
 import Header from '@/components/Header'
 import { TableSkeleton } from '@/components/Skeleton'
 import { useToast } from '@/components/ToastProvider'
 import InvestmentCertificateModal from '@/components/InvestmentCertificateModal'
-import { Package, TrendingUp, CheckCircle2, AlertCircle, DollarSign, Award, Clock, ArrowRight } from 'lucide-react'
+import { Package, CheckCircle2, AlertCircle, Award, Clock, History, ArrowRight, HandCoins } from 'lucide-react'
 import Link from 'next/link'
 
 interface InvestmentCycle {
@@ -25,17 +25,14 @@ interface InvestmentCycle {
 
 export default function InvestmentsPage() {
   const [investments, setInvestments] = useState<(Investment & { cycles?: InvestmentCycle[] })[]>([])
+  const [claims, setClaims] = useState<ProfitClaim[]>([])
   const [loading, setLoading] = useState(true)
-  const [claimingId, setClaimingId] = useState<string | null>(null)
+  const [selling, setSelling] = useState(false)
   const [selectedCertInvestment, setSelectedCertInvestment] = useState<Investment | null>(null)
   const [userDisplayName, setUserDisplayName] = useState('Investisseur Biso')
   const toast = useToast()
 
-  useEffect(() => {
-    loadInvestments()
-  }, [])
-
-  async function loadInvestments() {
+  const loadInvestments = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -43,7 +40,6 @@ export default function InvestmentsPage() {
         return
       }
 
-      // Fetch profile
       const { data: prof } = await supabase.from('profiles').select('display_name, phone').eq('id', user.id).single()
       if (prof) {
         setUserDisplayName(prof.display_name || prof.phone)
@@ -66,36 +62,59 @@ export default function InvestmentsPage() {
         }))
         setInvestments(enriched)
       }
+
+      const { data: claimData } = await supabase
+        .from('profit_claims')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('profit_date', { ascending: false })
+        .limit(300)
+      setClaims(claimData || [])
     } catch (err) {
       console.error('Error loading investments:', err)
     } finally {
       setLoading(false)
     }
+  }, [])
+
+  useEffect(() => {
+    loadInvestments()
+  }, [loadInvestments])
+
+  const todayKey = () => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }
 
-  const handleClaim = async (investmentId: string, cycleId: string, availableAmount: number) => {
-    if (availableAmount <= 0) {
-      toast.error('Aucun bénéfice disponible à réclamer pour ce cycle.')
-      return
-    }
+  const isInvestmentFinished = (inv: Investment) => {
+    if (inv.status !== 'ACTIVE') return true
+    const end = new Date(inv.created_at)
+    end.setMonth(end.getMonth() + (inv.duration_months || 12))
+    return new Date() >= end
+  }
 
-    setClaimingId(cycleId)
+  const hasClaimedToday = (invId: string) => {
+    const today = todayKey()
+    return claims.some(c => c.investment_id === invId && c.profit_date === today)
+  }
 
+  const handleSell = async () => {
+    if (selling) return
+    setSelling(true)
     try {
-      const { data, error } = await supabase.rpc('claim_investment_profit', {
-        p_investment_id: investmentId,
-        p_cycle_id: cycleId,
-        p_amount: availableAmount
-      })
-
+      const { data, error } = await supabase.rpc('claim_daily_profit')
       if (error) throw error
 
-      toast.success(`Bénéfice de ${availableAmount.toLocaleString('fr-FR')} FC réclamé avec succès !`)
-      loadInvestments()
+      if (data?.claimed_amount > 0) {
+        toast.success(`Vente effectuée avec succès — Vous avez reçu : ${data.claimed_amount.toLocaleString('fr-FR')} FC`)
+      } else {
+        toast.info('Bénéfice du jour déjà réclamé. Revenez demain !')
+      }
+      await loadInvestments()
     } catch (err: any) {
-      toast.error(err.message || 'Erreur lors de la réclamation du bénéfice.')
+      toast.error(err.message || "Erreur lors de la vente du bénéfice du jour.")
     } finally {
-      setClaimingId(null)
+      setSelling(false)
     }
   }
 
@@ -112,13 +131,13 @@ export default function InvestmentsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-28">
-      <Header displayName="Mes Investissements" vipLevel="Rendements & Cycles" showBack={true} />
+      <Header displayName="Mes Investissements" vipLevel="Bénéfice du jour (VENDRE)" showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-6">
         <div className="flex justify-between items-center mb-2">
           <div>
             <h2 className="text-xl font-black text-gray-900">Mes Engagements Actifs</h2>
-            <p className="text-xs text-gray-500">Suivi en direct des versements et cycles de rentabilité.</p>
+            <p className="text-xs text-gray-500">Cliquez chaque jour sur VENDRE pour créditer votre bénéfice journalier.</p>
           </div>
           <span className="text-xs font-bold bg-biso-50 text-biso-700 px-3.5 py-1.5 rounded-full border border-biso-200">
             {investments.length} actif(s)
@@ -147,13 +166,15 @@ export default function InvestmentsPage() {
             {investments.map((inv) => {
               const capital = inv.total_amount
               const monthlyReturn = (inv.product?.monthly_return || 0) * inv.quantity
-              // Calcul avec jours réels du mois courant (pas /30 fixe)
               const now = new Date()
               const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
               const currentMonthName = now.toLocaleDateString('fr-FR', { month: 'long' })
               const dailyProfit = monthlyReturn / daysInCurrentMonth
 
-              // Calculate overall progress across 365 days
+              const finished = isInvestmentFinished(inv)
+              const claimedToday = hasClaimedToday(inv.id)
+              const invClaims = claims.filter(c => c.investment_id === inv.id).slice(0, 12)
+
               const createdDate = new Date(inv.created_at).getTime()
               const totalDurationMs = (inv.duration_months || 12) * 30 * 24 * 60 * 60 * 1000
               const elapsedMs = Math.max(0, Date.now() - createdDate)
@@ -202,6 +223,95 @@ export default function InvestmentsPage() {
                     </div>
                   </div>
 
+                  {/* Dominant : Bénéfice du jour */}
+                  <div
+                    className={`p-5 rounded-2xl border shadow-sm transition-all ${
+                      finished
+                        ? 'bg-gray-50 border-gray-200'
+                        : claimedToday
+                        ? 'bg-emerald-50/60 border-emerald-200'
+                        : 'bg-gradient-to-r from-biso-700 to-emerald-800 border-biso-800 text-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className={`text-[11px] font-bold uppercase tracking-wider ${finished ? 'text-gray-500' : claimedToday ? 'text-emerald-700' : 'text-emerald-300'}`}>
+                          Bénéfice du jour
+                        </p>
+                        <p className={`text-2xl font-black tabular-nums mt-1 ${finished ? 'text-gray-400' : claimedToday ? 'text-emerald-900' : 'text-white'}`}>
+                          +{dailyProfit.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC
+                        </p>
+                        <p className={`text-[10px] mt-0.5 ${finished ? 'text-gray-400' : claimedToday ? 'text-emerald-600' : 'text-emerald-200'}`}>
+                          {monthlyReturn.toLocaleString('fr-FR')} FC / mois répartis sur {daysInCurrentMonth} jours ({currentMonthName})
+                        </p>
+                      </div>
+
+                      {finished ? (
+                        <div className="text-right">
+                          <span className="inline-flex items-center space-x-1.5 text-xs font-black text-gray-500 bg-white border border-gray-300 px-4 py-3 rounded-2xl">
+                            <AlertCircle className="w-4 h-4" />
+                            <span>Investissement terminé</span>
+                          </span>
+                        </div>
+                      ) : claimedToday ? (
+                        <div className="text-right">
+                          <span className="inline-flex items-center space-x-1.5 text-xs font-black text-emerald-800 bg-white border border-emerald-300 px-4 py-3 rounded-2xl shadow-sm">
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Déjà vendu aujourd&apos;hui</span>
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="text-right">
+                          <span className="block text-[10px] font-bold text-emerald-200 mb-1.5">
+                            Votre bénéfice du jour est disponible
+                          </span>
+                          <button
+                            onClick={handleSell}
+                            disabled={selling}
+                            className="inline-flex items-center space-x-2 bg-white text-biso-800 font-black px-6 py-3 rounded-2xl text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                          >
+                            <HandCoins className="w-4 h-4" />
+                            <span>{selling ? 'Vente...' : 'VENDRE'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {!finished && (
+                    <p className={`text-[11px] font-semibold -mt-2 ${claimedToday ? 'text-emerald-700' : 'text-gray-500'}`}>
+                      {claimedToday
+                        ? 'Bénéfice du jour déjà réclamé. Un bénéfice non réclamé un jour est perdu et ne sera jamais reporté.'
+                        : 'Cliquez sur VENDRE pour créditer le bénéfice d\'aujourd\'hui. Un bénéfice non réclamé un jour est perdu et ne sera jamais reporté.'}
+                    </p>
+                  )}
+
+                  {/* Historique des réclamations */}
+                  {!finished && invClaims.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="font-black text-gray-800 text-xs uppercase tracking-wider flex items-center">
+                        <History className="w-3.5 h-3.5 mr-1.5 text-biso-600" /> Historique des bénéfices réclamés
+                      </h4>
+                      <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1">
+                        {invClaims.map((c) => (
+                          <div key={c.id} className="flex justify-between items-center bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2.5">
+                            <div>
+                              <p className="text-[11px] font-bold text-gray-700">
+                                {new Date(c.profit_date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                              </p>
+                              <p className="text-[9px] text-gray-400">
+                                Réclamé le {new Date(c.claimed_at).toLocaleString('fr-FR')}
+                              </p>
+                            </div>
+                            <span className="text-xs font-black text-emerald-700 tabular-nums">
+                              +{c.amount.toLocaleString('fr-FR')} FC
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Financial Overview Grid */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-biso-50/40 p-4 rounded-2xl text-xs border border-biso-100/60">
                     <div>
@@ -223,70 +333,29 @@ export default function InvestmentsPage() {
                     </div>
                   </div>
 
-                  {/* Cycles List */}
-                  <div className="space-y-3">
-                    <h4 className="font-black text-gray-800 text-xs uppercase tracking-wider">Suivi des Cycles Mensuels</h4>
+                  {/* Compact 12-cycle timeline */}
+                  {inv.cycles && inv.cycles.length > 0 && (
                     <div className="space-y-2">
-                      {inv.cycles?.map((cycle) => {
-                        const available = cycle.accumulated_profit - cycle.withdrawn_profit
-                        const startDate = new Date(cycle.cycle_start_date)
-                        const now = new Date()
-                        const diffTime = Math.abs(now.getTime() - startDate.getTime())
-                        const daysElapsed = Math.min(30, Math.floor(diffTime / (1000 * 60 * 60 * 24)))
-                        const daysRemaining = Math.max(0, 30 - daysElapsed)
-
-                        return (
+                      <h4 className="font-black text-gray-800 text-xs uppercase tracking-wider">Suivi des Cycles Mensuels</h4>
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                        {inv.cycles.map((cycle) => (
                           <div
                             key={cycle.id}
-                            className={`p-4 rounded-2xl border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition-all ${
+                            className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black border ${
                               cycle.status === 'ACTIVE'
-                                ? 'bg-emerald-50/30 border-emerald-200 shadow-sm'
-                                : 'bg-gray-50 border-gray-200 opacity-90'
+                                ? 'bg-biso-700 text-white border-biso-800 shadow-sm'
+                                : 'bg-emerald-100 text-emerald-700 border-emerald-200'
                             }`}
                           >
-                            <div className="space-y-1">
-                              <div className="flex items-center space-x-2">
-                                <span className="font-black text-xs bg-biso-700 text-white px-2.5 py-0.5 rounded-lg">
-                                  Cycle {cycle.cycle_number}
-                                </span>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                                  cycle.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-700'
-                                }`}>
-                                  {cycle.status}
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-gray-500">
-                                Du {new Date(cycle.cycle_start_date).toLocaleDateString('fr-FR')} au {new Date(cycle.cycle_end_date).toLocaleDateString('fr-FR')}
-                                {cycle.status === 'ACTIVE' && ` • Reste ${daysRemaining} j`}
-                              </p>
-                              <p className="text-xs font-bold text-gray-800 tabular-nums">
-                                Généré : {cycle.accumulated_profit.toLocaleString('fr-FR')} FC
-                                {cycle.withdrawn_profit > 0 && ` (Réclamé : ${cycle.withdrawn_profit.toLocaleString('fr-FR')} FC)`}
-                              </p>
-                            </div>
-
-                            <div className="flex items-center space-x-2 w-full sm:w-auto justify-between sm:justify-end">
-                              <div className="text-left sm:text-right">
-                                <span className="text-[10px] text-gray-400 block">Disponible</span>
-                                <span className="text-xs font-black text-emerald-700 tabular-nums">
-                                  {available.toLocaleString('fr-FR')} FC
-                                </span>
-                              </div>
-                              {available > 0 && cycle.status === 'ACTIVE' && (
-                                <button
-                                  onClick={() => handleClaim(inv.id, cycle.id, available)}
-                                  disabled={claimingId === cycle.id}
-                                  className="bg-biso-600 hover:bg-biso-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs shadow-xs transition-all active:scale-95 disabled:opacity-50"
-                                >
-                                  {claimingId === cycle.id ? 'Transfert...' : 'Réclamer'}
-                                </button>
-                              )}
-                            </div>
+                            {cycle.cycle_number}
                           </div>
-                        )
-                      })}
+                        ))}
+                        <div className="shrink-0 text-[10px] text-gray-400 font-semibold ml-1">
+                          {inv.cycles.filter(c => c.status === 'ACTIVE').length} cycle(s) actif(s)
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )
             })}
