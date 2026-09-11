@@ -128,6 +128,10 @@ function WalletContent() {
       toast.error('Le montant minimum de recharge est de 1 000 FC.')
       return
     }
+    if (!depositProofPreview) {
+      toast.error('La capture d\u2019écran du SMS Mobile Money est obligatoire.')
+      return
+    }
 
     setSubmittingDeposit(true)
 
@@ -386,7 +390,7 @@ function WalletContent() {
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                  Capture d'écran du SMS Mobile Money <span className="text-gray-400 font-normal">(Optionnel mais accélère la validation)</span>
+                  Capture d'écran du SMS Mobile Money <span className="text-gray-400 font-normal">(Obligatoire)</span>
                 </label>
                 {depositProofPreview ? (
                   <div className="relative border border-gray-200 rounded-2xl p-2 bg-gray-50 inline-block">
