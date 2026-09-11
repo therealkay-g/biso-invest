@@ -26,7 +26,6 @@ function WalletContent() {
   // Deposit form state
   const [depositNetwork, setDepositNetwork] = useState<'Airtel Money' | 'Orange Money' | 'M-Pesa'>('Airtel Money')
   const [depositAmount, setDepositAmount] = useState('')
-  const [depositRef, setDepositRef] = useState('')
   const [depositProofPreview, setDepositProofPreview] = useState<string | null>(null)
   const [submittingDeposit, setSubmittingDeposit] = useState(false)
 
@@ -129,10 +128,6 @@ function WalletContent() {
       toast.error('Le montant minimum de recharge est de 1 000 FC.')
       return
     }
-    if (!depositRef.trim()) {
-      toast.error('Veuillez saisir la référence de transaction SMS Mobile Money.')
-      return
-    }
 
     setSubmittingDeposit(true)
 
@@ -144,7 +139,7 @@ function WalletContent() {
         user_id: user.id,
         amount: amountNum,
         network: depositNetwork,
-        reference: depositRef.trim(),
+        reference: `DEP-${Date.now()}`,
         proof_url: depositProofPreview || null,
         status: 'EN_ATTENTE'
       })
@@ -153,7 +148,6 @@ function WalletContent() {
 
       toast.success('Demande de recharge soumise avec succès ! En attente de validation administrative.')
       setDepositAmount('')
-      setDepositRef('')
       setDepositProofPreview(null)
       setActiveTab('overview')
     } catch (err: any) {
@@ -390,19 +384,6 @@ function WalletContent() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1.5">Référence de Transaction SMS</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: PP260315.1432.B78921"
-                  value={depositRef}
-                  onChange={(e) => setDepositRef(e.target.value)}
-                  className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono focus:bg-white focus:border-biso-500 focus:outline-hidden"
-                />
-              </div>
-
-              {/* Upload Proof Screenshot */}
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5">
                   Capture d'écran du SMS Mobile Money <span className="text-gray-400 font-normal">(Optionnel mais accélère la validation)</span>
