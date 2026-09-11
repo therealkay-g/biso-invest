@@ -49,7 +49,7 @@ export default function TaskPage() {
   }, [])
 
   const invitationLink = profile
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/register?recommendCode=${profile.referral_code}`
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/register?recommendCode=${profile.referral_code}`
     : ''
 
   const copyToClipboard = async (text: string, message: string) => {
