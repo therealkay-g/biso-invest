@@ -22,18 +22,29 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined)
 
+const EXIT_MS = 200
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [exiting, setExiting] = useState<string[]>([])
 
   const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
+    setExiting((prev) => {
+      if (prev.includes(id)) return prev
+      return [...prev, id]
+    })
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+      setExiting((prev) => prev.filter((x) => x !== id))
+    }, EXIT_MS)
   }, [])
 
-  const addToast = useCallback((message: string, type: ToastType, duration = 3500) => {
+  const addToast = useCallback((message: string, type: ToastType, duration = 2500) => {
     const id = Math.random().toString(36).substring(2, 9)
     const newToast: Toast = { id, message, type, duration }
 
     setToasts((prev) => [...prev, newToast])
+    setExiting((prev) => prev.filter((x) => x !== id))
 
     if (duration > 0) {
       setTimeout(() => {
@@ -55,11 +66,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((t) => {
           const isSuccess = t.type === 'success'
           const isError = t.type === 'error'
+          const isExiting = exiting.includes(t.id)
 
           return (
             <div
               key={t.id}
-              className={`pointer-events-auto flex items-start space-x-3 p-4 rounded-2xl shadow-xl border backdrop-blur-md transition-all duration-300 transform translate-y-0 animate-in fade-in slide-in-from-top-3 ${
+              className={`pointer-events-auto flex items-start space-x-3 p-4 rounded-2xl shadow-xl border backdrop-blur-md ${
+                isExiting ? 'toast-out' : 'toast-in'
+              } ${
                 isSuccess
                   ? 'bg-emerald-900/95 text-white border-emerald-500/30'
                   : isError
@@ -78,6 +92,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               <button
                 onClick={() => removeToast(t.id)}
                 className="shrink-0 text-white/60 hover:text-white transition-colors"
+                aria-label="Fermer"
               >
                 <X className="w-4 h-4" />
               </button>

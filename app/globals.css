@@ -16,6 +16,16 @@
     --radius-sm: 10px;
     --radius-md: 14px;
     --radius-lg: 20px;
+
+    /* Design tokens d'animation */
+    --biso-duration-fast: 150ms;
+    --biso-duration-normal: 250ms;
+    --biso-duration-medium: 350ms;
+    --biso-duration-slow: 500ms;
+
+    --biso-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+    --biso-ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
+    --biso-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   * {
@@ -87,47 +97,47 @@
   }
 
   .animate-fade-in {
-    animation: fadeIn 0.4s ease-out both;
+    animation: fadeIn var(--biso-duration-medium) var(--biso-ease-standard) both;
   }
 
   .animate-slide-up {
-    animation: slideUp 0.35s ease-out both;
+    animation: slideUp var(--biso-duration-medium) var(--biso-ease-standard) both;
   }
 
   .animate-scale-in {
-    animation: scaleIn 0.25s ease-out both;
+    animation: scaleIn var(--biso-duration-normal) var(--biso-ease-standard) both;
   }
 
   /* Transition d'entrée de page : fade + translateY léger et rapide */
   .page-enter {
-    animation: pageEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: pageEnter var(--biso-duration-normal) var(--biso-ease-standard) both;
   }
 
   /* Animations des modales : overlay + panneau */
   .modal-overlay {
-    animation: modalOverlay 0.24s ease-out both;
+    animation: modalOverlay var(--biso-duration-normal) var(--biso-ease-standard) both;
   }
 
   .modal-panel {
-    animation: modalPanel 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: modalPanel var(--biso-duration-normal) var(--biso-ease-standard) both;
   }
 
-  /* Glow subtil du palier VIP actuel (pas de clignotement) */
+  /* Glow subtil du palier VIP actuel : scale + glow "one-shot" (pas d'infini) */
   .vip-current {
-    animation: vipGlow 3.2s ease-in-out infinite;
+    animation: vipGlow 2s var(--biso-ease-soft) both;
   }
 
   /* Micro-interaction : léger scale au hover (desktop) et au touch */
   .pressable {
-    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform var(--biso-duration-fast) var(--biso-ease-standard), box-shadow var(--biso-duration-fast) var(--biso-ease-standard);
   }
   @media (hover: hover) {
     .pressable:hover {
-      transform: scale(1.02);
+      transform: scale(1.015) translateY(-2px);
     }
   }
   .pressable:active {
-    transform: scale(0.98);
+    transform: scale(0.985);
   }
 
   /* Icône interactive qui réagit au toucher */
@@ -146,6 +156,91 @@
     border-top-color: transparent;
     border-radius: 9999px;
     animation: spin 0.7s linear infinite;
+  }
+
+  /* Conteneur bouton pour l'effet ripple (cercle qui s'étend) */
+  .btn-ripple {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .btn-ripple:active {
+    transform: scale(0.97);
+  }
+  .ripple-ink {
+    position: absolute;
+    border-radius: 9999px;
+    transform: scale(0);
+    background: currentColor;
+    opacity: 0.25;
+    pointer-events: none;
+    animation: bisoRipple 0.45s var(--biso-ease-standard) forwards;
+  }
+
+  /* Entrée / sortie des toasts */
+  .toast-in {
+    animation: toastIn var(--biso-duration-normal) var(--biso-ease-standard) both;
+  }
+  .toast-out {
+    animation: toastOut 0.2s ease-in both;
+  }
+
+  /* Check "pop" après une action réussie */
+  .check-pop {
+    animation: checkPop 0.35s var(--biso-ease-spring) both;
+  }
+
+  /* Pulse du solde quand il change */
+  .balance-pulse {
+    display: inline-block;
+    animation: balancePulse 0.3s var(--biso-ease-soft) both;
+  }
+
+  /* Shimmer sur les squelettes */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+    animation: shimmerMove 1.2s ease-in-out infinite;
+  }
+
+  /* Indicateur de l'onglet actif de la navigation basse */
+  .nav-indicator {
+    transform-origin: center;
+    animation: navIndicator 0.25s var(--biso-ease-standard) both;
+  }
+  .nav-icon {
+    transition: transform var(--biso-duration-fast) var(--biso-ease-spring);
+  }
+  .nav-icon-active {
+    transform: translateY(-3px) scale(1.08);
+  }
+  .nav-label {
+    transition: opacity var(--biso-duration-normal) var(--biso-ease-standard), transform var(--biso-duration-normal) var(--biso-ease-standard);
+  }
+  .nav-label-active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .nav-label-inactive {
+    opacity: 0.55;
+    transform: translateY(3px);
+  }
+
+  /* Particule de confettis (CSS uniquement) */
+  .confetti-fragment {
+    position: absolute;
+    top: -16px;
+    width: 8px;
+    height: 12px;
+    border-radius: 2px;
+    animation: confettiFall 1.2s var(--biso-ease-standard) forwards;
   }
 }
 
@@ -190,12 +285,53 @@
 }
 
 @keyframes vipGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-  50% { box-shadow: 0 0 22px -4px rgba(16, 185, 129, 0.35); }
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  50% { transform: scale(1.015); box-shadow: 0 0 22px -4px rgba(16, 185, 129, 0.35); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes bisoRipple {
+  to { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-8px); }
+}
+
+@keyframes checkPop {
+  0% { opacity: 0; transform: scale(0.6) rotate(-8deg); }
+  55% { opacity: 1; transform: scale(1.1) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes balancePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shimmerMove {
+  to { transform: translateX(100%); }
+}
+
+@keyframes navIndicator {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes confettiFall {
+  0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+  100% { transform: translate(var(--confetti-x), var(--confetti-y)) rotate(var(--confetti-rot)) scale(0.7); opacity: 0; }
 }
 
 /* Accessibilité : respect de la réduction des animations */

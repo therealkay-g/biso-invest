@@ -7,14 +7,27 @@ interface RevealProps {
   delay?: number
   duration?: number
   className?: string
+  axis?: 'y' | 'x'
+  from?: number
+  fromLeft?: boolean
 }
 
 /**
- * Apparition progressive au scroll : opacity 0→1 + translateY 15px→0.
- * Le stagger se fait via la prop `delay` (60–90ms par carte).
+ * Apparition progressive au scroll : opacity 0→1 + translate → 0.
+ * - axis "y" (défaut) : arrive par le bas (translateY +from).
+ * - axis "x" : arrive par la droite (fromLeft=false) ou la gauche (fromLeft=true).
+ * Le stagger se fait via la prop `delay` (60ms par carte).
  * Respecte prefers-reduced-motion (apparition instantanée).
  */
-export default function Reveal({ children, delay = 0, duration = 400, className = '' }: RevealProps) {
+export default function Reveal({
+  children,
+  delay = 0,
+  duration = 300,
+  className = '',
+  axis = 'y',
+  from = 12,
+  fromLeft = false,
+}: RevealProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
   const reducedRef = useRef(false)
@@ -45,17 +58,22 @@ export default function Reveal({ children, delay = 0, duration = 400, className 
     return () => observer.disconnect()
   }, [])
 
+  const hiddenTransform =
+    axis === 'x'
+      ? `translateX(${fromLeft ? -from : from}px)`
+      : `translateY(${from}px)`
+
   return (
     <div
       ref={ref}
       className={className}
       style={{
         opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(15px)',
+        transform: visible ? 'translate(0, 0)' : hiddenTransform,
         transitionProperty: 'opacity, transform',
         transitionDuration: reducedRef.current ? '0ms' : `${duration}ms`,
         transitionDelay: reducedRef.current ? '0ms' : `${delay}ms`,
-        transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
         willChange: visible ? 'auto' : 'opacity, transform',
       }}
     >

@@ -7,6 +7,8 @@ import Header from '@/components/Header'
 import { TableSkeleton } from '@/components/Skeleton'
 import Reveal from '@/components/Reveal'
 import ProgressBar from '@/components/ProgressBar'
+import PullToRefresh from '@/components/PullToRefresh'
+import { RippleButton } from '@/components/RippleButton'
 import { useToast } from '@/components/ToastProvider'
 import InvestmentCertificateModal from '@/components/InvestmentCertificateModal'
 import { Package, CheckCircle2, AlertCircle, Award, Clock, History, HandCoins, ArrowRight, Sprout, Beef, Fish } from 'lucide-react'
@@ -146,6 +148,7 @@ export default function InvestmentsPage() {
     <div className="min-h-screen bg-gray-50 pb-28 page-enter">
       <Header displayName="Mes Investissements" vipLevel="Bénéfice du jour (VENDRE)" showBack={true} />
 
+      <PullToRefresh onRefresh={() => window.location.reload()}>
       <div className="p-4 max-w-4xl mx-auto space-y-6">
         <div className="flex justify-between items-center mb-2 animate-fade-in">
           <div>
@@ -194,7 +197,7 @@ export default function InvestmentsPage() {
               const progressPercent = Math.min(100, Math.round((elapsedMs / totalDurationMs) * 100))
 
               return (
-                <Reveal key={inv.id} delay={index * 80}>
+                <Reveal key={inv.id} delay={index * 60}>
                   <div className="card p-6 space-y-5">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
@@ -267,7 +270,7 @@ export default function InvestmentsPage() {
                             <span>Terminé</span>
                           </span>
                         ) : (claimedToday || sellSuccess[inv.id]) ? (
-                          <span className="inline-flex items-center space-x-1.5 text-xs font-black text-emerald-800 bg-white border border-emerald-300 px-4 py-3 rounded-2xl shadow-sm animate-scale-in">
+                          <span className="inline-flex items-center space-x-1.5 text-xs font-black text-emerald-800 bg-white border border-emerald-300 px-4 py-3 rounded-2xl shadow-sm check-pop">
                             <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
                             <span>{sellSuccess[inv.id] ? 'Bénéfice vendu' : 'Déjà vendu aujourd\u2019hui'}</span>
                           </span>
@@ -276,7 +279,7 @@ export default function InvestmentsPage() {
                             <span className="block text-[10px] font-bold text-emerald-200 mb-1.5 text-right">
                               Disponible
                             </span>
-                            <button
+                            <RippleButton
                               onClick={() => handleSell(inv.id)}
                               disabled={!!sellLoading}
                               className="inline-flex items-center space-x-2 bg-white text-emerald-900 font-black px-6 py-3 min-h-[44px] rounded-2xl text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50 w-full justify-center"
@@ -292,7 +295,7 @@ export default function InvestmentsPage() {
                                   <span>VENDRE</span>
                                 </>
                               )}
-                            </button>
+                            </RippleButton>
                           </>
                         )}
                       </div>
@@ -315,19 +318,21 @@ export default function InvestmentsPage() {
                       </h4>
                       <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1">
                         {invClaims.map((c) => (
-                          <div key={c.id} className="flex justify-between items-center bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2.5">
-                            <div>
-                              <p className="text-[11px] font-bold text-gray-700">
-                                {new Date(c.profit_date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
-                              </p>
-                              <p className="text-[9px] text-gray-400">
-                                Réclamé le {new Date(c.claimed_at).toLocaleString('fr-FR')}
-                              </p>
+                          <Reveal key={c.id} axis="x" from={8}>
+                            <div className="flex justify-between items-center bg-gray-50 border border-gray-100 rounded-xl px-3.5 py-2.5">
+                              <div>
+                                <p className="text-[11px] font-bold text-gray-700">
+                                  {new Date(c.profit_date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                                </p>
+                                <p className="text-[9px] text-gray-400">
+                                  Réclamé le {new Date(c.claimed_at).toLocaleString('fr-FR')}
+                                </p>
+                              </div>
+                              <span className="text-xs font-black text-emerald-700 tabular-nums">
+                                +{c.amount.toLocaleString('fr-FR')} FC
+                              </span>
                             </div>
-                            <span className="text-xs font-black text-emerald-700 tabular-nums">
-                              +{c.amount.toLocaleString('fr-FR')} FC
-                            </span>
-                          </div>
+                          </Reveal>
                         ))}
                       </div>
                     </div>
@@ -383,6 +388,7 @@ export default function InvestmentsPage() {
           </div>
         )}
       </div>
+      </PullToRefresh>
 
       {/* Modale certificat officiel */}
       {selectedCertInvestment && (

@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { Wallet as WalletIcon, ArrowUpRight, Plus, Eye, EyeOff, ShieldCheck } from 'lucide-react'
-import Link from 'next/link'
 import AnimatedNumber from './AnimatedNumber'
+import { RippleLink } from './RippleButton'
 import { USD_TO_FC } from '../utils/constants'
 
 interface WalletCardProps {
@@ -81,7 +81,7 @@ export default function WalletCard({
         {/* Balance */}
         <div>
           <span className="text-[11px] uppercase tracking-wider text-emerald-100/70 font-semibold">Solde disponible</span>
-          <div className="flex items-baseline space-x-2 mt-0.5">
+          <div className="flex items-baseline space-x-2 mt-0.5 balance-pulse">
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight tabular-nums text-white">
               {showBalance ? (
                 <AnimatedNumber
@@ -146,20 +146,20 @@ export default function WalletCard({
 
         {/* CTA */}
         <div className="grid grid-cols-2 gap-3 pt-1">
-          <Link
+          <RippleLink
             href="/wallet?tab=deposit"
             className="inline-flex items-center justify-center space-x-2 bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black py-3.5 px-4 rounded-2xl text-xs tracking-wide shadow-lg shadow-emerald-950/40 transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" aria-hidden="true" />
             <span>RECHARGER</span>
-          </Link>
-          <Link
+          </RippleLink>
+          <RippleLink
             href="/wallet?tab=withdraw"
             className="inline-flex items-center justify-center space-x-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold py-3.5 px-4 rounded-2xl text-xs tracking-wide transition-all backdrop-blur-sm active:scale-95"
           >
             <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
             <span>RETIRER</span>
-          </Link>
+          </RippleLink>
         </div>
       </div>
     </div>

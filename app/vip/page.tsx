@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase/client'
 import { VipLevel, Profile, Wallet } from '@/types'
 import Header from '@/components/Header'
 import Reveal from '@/components/Reveal'
+import ProgressBar from '@/components/ProgressBar'
+import Confetti from '@/components/Confetti'
 import { Crown, Lock, CheckCircle2, Sparkles, TrendingUp, Gem, Award } from 'lucide-react'
 
 const TIER_STYLES: Record<string, { ring: string; badge: string; crown: string; glow: string; label: string }> = {
@@ -50,6 +52,16 @@ export default function VipPage() {
   const [wallet, setWallet] = useState<Wallet | null>(null)
   const [vipLevels, setVipLevels] = useState<VipLevel[]>([])
   const [loading, setLoading] = useState(true)
+  const [showConfetti, setShowConfetti] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !profile?.current_vip) return
+    const stored = localStorage.getItem('biso_confetti_vip')
+    if (stored && stored !== profile.current_vip) {
+      setShowConfetti(true)
+    }
+    localStorage.setItem('biso_confetti_vip', profile.current_vip)
+  }, [profile?.current_vip])
 
   useEffect(() => {
     async function loadVip() {
@@ -166,9 +178,12 @@ export default function VipPage() {
               })}
             </div>
             <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-amber-300 to-amber-500 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min((Math.min(currentTotalInvested, 250000) / 250000) * 100, 100)}%` }}
+              <ProgressBar
+                value={Math.min(currentTotalInvested, 250000)}
+                max={250000}
+                duration={700}
+                className="h-1.5 bg-white/10"
+                barClassName="h-full bg-gradient-to-r from-amber-300 to-amber-500"
               />
             </div>
           </div>
@@ -192,7 +207,7 @@ export default function VipPage() {
               const isNext = !isUnlocked && !isCurrent
 
               return (
-                <Reveal key={vip.id} delay={vIdx * 70}>
+                <Reveal key={vip.id} delay={vIdx * 60} axis="x" from={8} fromLeft>
                 <div
                   className={`relative overflow-hidden bg-white rounded-3xl border p-4 shadow-sm transition-all ${
                     isCurrent ? `${style.ring} ring-2 ring-offset-1 vip-current` : style.ring
@@ -280,6 +295,8 @@ export default function VipPage() {
           </p>
         </div>
       </div>
+
+      {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
     </div>
   )
 }

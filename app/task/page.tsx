@@ -6,6 +6,8 @@ import { Profile, ReferralTask, ReferralTaskStats, ReferralTaskReward } from '@/
 import Header from '@/components/Header'
 import Reveal from '@/components/Reveal'
 import ProgressBar from '@/components/ProgressBar'
+import PullToRefresh from '@/components/PullToRefresh'
+import Confetti from '@/components/Confetti'
 import { useToast } from '@/components/ToastProvider'
 import { Sparkles, Users, Share2, Gift, Award, CheckCircle2, Lock, History, Copy, ChevronDown, ChevronUp } from 'lucide-react'
 
@@ -16,6 +18,9 @@ export default function TaskPage() {
   const [history, setHistory] = useState<ReferralTaskReward[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [showConfetti, setShowConfetti] = useState(false)
+
+  const CONFETTI_KEY = 'biso_confetti_task_rewards'
 
   const loadData = async () => {
     try {
@@ -31,6 +36,19 @@ export default function TaskPage() {
       const { data: sData, error: sError } = await supabase.rpc('get_referral_task_data')
       if (!sError) {
         setStats(sData as ReferralTaskStats)
+
+        if (typeof window !== 'undefined' && sData?.tasks) {
+          const tasks = sData.tasks as ReferralTask[]
+          const stored: string[] = JSON.parse(localStorage.getItem(CONFETTI_KEY) || '[]')
+          const newly = tasks.filter(t => t.claimed && !stored.includes(t.id))
+          if (newly.length > 0) {
+            localStorage.setItem(
+              CONFETTI_KEY,
+              JSON.stringify(tasks.filter(t => t.claimed).map(t => t.id))
+            )
+            setShowConfetti(true)
+          }
+        }
       }
 
       const { data: hData } = await supabase
@@ -103,6 +121,7 @@ export default function TaskPage() {
     <div className="min-h-screen bg-gray-50 pb-28 page-enter">
       <Header displayName="Tâche" vipLevel={profile?.current_vip || 'VIP0'} showBack={true} />
 
+      <PullToRefresh onRefresh={() => window.location.reload()}>
       <div className="p-4 max-w-4xl mx-auto space-y-6">
         {/* Hero — Invitez et gagnez */}
         <div className="relative overflow-hidden bg-gradient-to-br from-emerald-800 via-emerald-700 to-emerald-900 text-white rounded-3xl p-6 shadow-xl border border-emerald-500/30 space-y-5 animate-fade-in">
@@ -202,7 +221,7 @@ export default function TaskPage() {
           <div className="space-y-2.5">
             {(stats?.tasks || []).map((task: ReferralTask, tIdx) => {
               return (
-                <Reveal key={task.id} delay={tIdx * 70}>
+                <Reveal key={task.id} delay={tIdx * 60}>
                 <div
                   className={`card-sm p-4 flex items-center justify-between gap-4 ${
                     task.claimed ? 'bg-emerald-50/40 border-emerald-200' : ''
@@ -211,7 +230,7 @@ export default function TaskPage() {
                   <div className="flex items-center space-x-3 min-w-0">
                     <span className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
                       task.claimed
-                        ? 'bg-emerald-100 text-emerald-700 animate-scale-in'
+                        ? 'bg-emerald-100 text-emerald-700 check-pop'
                         : 'bg-gray-100 text-gray-500'
                     }`}>
                       {task.claimed ? (
@@ -235,7 +254,7 @@ export default function TaskPage() {
                       {Math.min(validInvites, task.required_invites)}/{task.required_invites}
                     </p>
                     {task.claimed ? (
-                      <span className="inline-flex items-center space-x-1 text-[10px] font-black bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full animate-scale-in">
+                      <span className="inline-flex items-center space-x-1 text-[10px] font-black bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full check-pop">
                         <Award className="w-3 h-3" aria-hidden="true" />
                         <span>Attribué</span>
                       </span>
@@ -332,6 +351,9 @@ export default function TaskPage() {
           )}
         </div>
       </div>
+      </PullToRefresh>
+
+      {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
     </div>
   )
 }

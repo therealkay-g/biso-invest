@@ -70,7 +70,7 @@ export default function InvestPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[0, 1, 2].map(i => <div key={i} className="h-24 bg-gray-200 rounded-3xl animate-pulse" />)}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <ProductSkeleton />
             <ProductSkeleton />
           </div>
@@ -157,7 +157,7 @@ export default function InvestPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {filteredProducts.map((product, pIdx) => (
-                <Reveal key={product.id} delay={pIdx * 70}>
+                <Reveal key={product.id} delay={pIdx * 60}>
                   <ProductCard product={product} />
                 </Reveal>
               ))}

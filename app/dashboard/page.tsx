@@ -5,6 +5,8 @@ import Header from '@/components/Header'
 import WalletCard from '@/components/WalletCard'
 import ProductCard from '@/components/ProductCard'
 import Reveal from '@/components/Reveal'
+import PullToRefresh from '@/components/PullToRefresh'
+import { RippleButton } from '@/components/RippleButton'
 import { WalletSkeleton, ProductSkeleton } from '@/components/Skeleton'
 import { supabase } from '@/lib/supabase/client'
 import { Product, Profile, Wallet, Investment, Announcement, ProfitClaim, ProductCategory } from '@/types'
@@ -244,7 +246,8 @@ export default function DashboardPage() {
         adminRole={adminRole || 'ADMIN'}
       />
 
-      <main className="max-w-4xl mx-auto px-4 pt-5 space-y-6 pb-24">
+      <PullToRefresh onRefresh={() => window.location.reload()}>
+        <main className="max-w-4xl mx-auto px-4 pt-5 space-y-6 pb-24">
         {/* Salutation */}
         <div className="animate-fade-in">
           <h1 className="text-2xl font-black text-gray-900">
@@ -314,7 +317,7 @@ export default function DashboardPage() {
             { href: '/investments', label: 'Mes gains', icon: TrendingUp, bg: 'bg-emerald-50 text-emerald-700' },
             { href: '/vip', label: 'VIP', icon: Shield, bg: 'bg-gray-100 text-gray-700' },
           ].map(({ href, label, icon: Icon, bg }, qi) => (
-            <Reveal key={href} delay={qi * 70}>
+            <Reveal key={href} delay={qi * 60}>
               <Link
                 href={href}
                 className="card-sm p-3 flex flex-col items-center justify-center text-center space-y-1.5 hover:border-emerald-300 transition-all active:scale-95"
@@ -365,7 +368,7 @@ export default function DashboardPage() {
               const SectorIcon = (category && SECTOR_ICONS[category.name])?.icon || Sprout
 
               return (
-                <Reveal key={inv.id} delay={index * 80}>
+                <Reveal key={inv.id} delay={index * 60}>
                   <div className="card p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center space-x-3 min-w-0">
@@ -408,7 +411,7 @@ export default function DashboardPage() {
                         <span>Investissement terminé</span>
                       </span>
                     ) : (claimedToday || sellSuccess[inv.id]) ? (
-                      <span className="inline-flex items-center space-x-1.5 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-3 rounded-2xl animate-scale-in">
+                      <span className="inline-flex items-center space-x-1.5 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-3 rounded-2xl check-pop">
                         <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
                         <span>{sellSuccess[inv.id] ? 'Bénéfice vendu' : 'Déjà vendu aujourd\u2019hui'}</span>
                       </span>
@@ -417,7 +420,7 @@ export default function DashboardPage() {
                         <span className="text-[10px] text-gray-500 font-semibold hidden sm:block">
                           Votre bénéfice du jour est disponible
                         </span>
-                        <button
+                        <RippleButton
                           onClick={() => handleSell(inv.id)}
                           disabled={!!sellLoading}
                           className="inline-flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black px-6 py-3 min-h-[44px] rounded-2xl text-xs uppercase tracking-widest shadow-md shadow-emerald-950/10 active:scale-95 transition-all disabled:opacity-50 flex-1 sm:flex-none"
@@ -433,7 +436,7 @@ export default function DashboardPage() {
                               <span>VENDRE</span>
                             </>
                           )}
-                        </button>
+                        </RippleButton>
                       </>
                     )}
                   </div>
@@ -467,13 +470,14 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
             {popularProducts.map((product, pIdx) => (
-              <Reveal key={product.id} delay={pIdx * 70}>
+              <Reveal key={product.id} delay={pIdx * 60}>
                 <ProductCard product={product} />
               </Reveal>
             ))}
           </div>
         </section>
       </main>
+      </PullToRefresh>
     </div>
   )
 }

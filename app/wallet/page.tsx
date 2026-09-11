@@ -7,6 +7,8 @@ import { Wallet, WalletTransaction, PaymentAccount, WithdrawalAccount } from '@/
 import Header from '@/components/Header'
 import WalletCard from '@/components/WalletCard'
 import CopyButton from '@/components/CopyButton'
+import Reveal from '@/components/Reveal'
+import { RippleButton } from '@/components/RippleButton'
 import { WalletSkeleton, TableSkeleton } from '@/components/Skeleton'
 import { useToast } from '@/components/ToastProvider'
 import { Wallet as WalletIcon, Plus, ArrowUpRight, History, CheckCircle2, AlertCircle, Upload, X, Lock, KeyRound, Minus } from 'lucide-react'
@@ -422,13 +424,13 @@ function WalletContent() {
                 )}
               </div>
 
-              <button
+              <RippleButton
                 type="submit"
                 disabled={submittingDeposit}
                 className="w-full btn-primary text-xs uppercase tracking-wider shadow-md"
               >
                 {submittingDeposit ? 'Envoi en cours...' : 'ENVOYER LA DEMANDE'}
-              </button>
+              </RippleButton>
             </form>
           </div>
         )}
@@ -524,21 +526,23 @@ function WalletContent() {
                 <p className="text-xs text-gray-400 py-6 text-center">Aucune transaction dans l&apos;historique.</p>
               ) : (
                 transactions.map((tx) => (
-                  <div key={tx.id} className="flex justify-between items-center p-3.5 bg-gray-50 rounded-xl border border-gray-100">
-                    <div className="min-w-0">
-                      <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                        {tx.type}
-                      </span>
-                      <p className="text-xs font-bold text-gray-900 mt-1 truncate">{tx.description}</p>
-                      <p className="text-[10px] text-gray-400">{new Date(tx.created_at).toLocaleString('fr-FR')}</p>
+                  <Reveal key={tx.id} axis="x" from={8}>
+                    <div className="flex justify-between items-center p-3.5 bg-gray-50 rounded-xl border border-gray-100">
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                          {tx.type}
+                        </span>
+                        <p className="text-xs font-bold text-gray-900 mt-1 truncate">{tx.description}</p>
+                        <p className="text-[10px] text-gray-400">{new Date(tx.created_at).toLocaleString('fr-FR')}</p>
+                      </div>
+                      <div className="text-right shrink-0 ml-3">
+                        <p className={`text-sm font-black tabular-nums ${tx.amount > 0 ? 'text-emerald-600' : 'text-gray-900'}`}>
+                          {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString('fr-FR')} FC
+                        </p>
+                        <span className="text-[10px] text-gray-400 font-mono">Ref: {tx.reference}</span>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0 ml-3">
-                      <p className={`text-sm font-black tabular-nums ${tx.amount > 0 ? 'text-emerald-600' : 'text-gray-900'}`}>
-                        {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString('fr-FR')} FC
-                      </p>
-                      <span className="text-[10px] text-gray-400 font-mono">Ref: {tx.reference}</span>
-                    </div>
-                  </div>
+                  </Reveal>
                 ))
               )}
             </div>
@@ -606,14 +610,14 @@ function WalletContent() {
               >
                 Annuler
               </button>
-              <button
+              <RippleButton
                 type="button"
                 onClick={handleConfirmPinAndWithdraw}
                 disabled={submittingWithdraw || pinDigits.some(d => d === '')}
                 className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl text-xs uppercase tracking-wider shadow-md disabled:opacity-40 min-h-[44px]"
               >
                 {submittingWithdraw ? 'Validation...' : 'Valider'}
-              </button>
+              </RippleButton>
             </div>
           </div>
         </div>

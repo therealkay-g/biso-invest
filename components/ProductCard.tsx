@@ -1,9 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import { TrendingUp, Clock, Award } from 'lucide-react'
 import { Product } from '@/types'
 import { getVipTierForPrice } from '@/utils/constants'
+import { RippleLink } from './RippleButton'
 
 interface ProductCardProps {
   product: Product
@@ -21,14 +21,14 @@ export default function ProductCard({ product }: ProductCardProps) {
   const vipTier = getVipTierForPrice(product.price)
 
   return (
-    <div className="card pressable overflow-hidden flex flex-col justify-between animate-fade-in">
+    <div className="card pressable overflow-hidden flex flex-col justify-between animate-fade-in group">
       <div className="p-3.5 pb-2 flex-1">
         {/* Ligne 1 : image mini + nom + VIP */}
         <div className="flex items-center gap-3">
           <img
             src={product.image_url || '/images/logo.png'}
             alt={product.name}
-            className="w-12 h-12 rounded-xl object-cover shrink-0 bg-emerald-50 border border-gray-100"
+            className="w-12 h-12 rounded-xl object-cover shrink-0 bg-emerald-50 border border-gray-100 transition-transform duration-250 group-hover:scale-[1.04]"
             loading="lazy"
             onError={(e) => {
               ;(e.target as HTMLImageElement).src = '/images/logo.png'
@@ -66,12 +66,12 @@ export default function ProductCard({ product }: ProductCardProps) {
 
       {/* Bouton INVESTIR compact */}
       <div className="px-3.5 pb-3.5">
-        <Link
+        <RippleLink
           href={`/invest/${product.id}`}
           className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-2.5 text-xs inline-flex items-center justify-center uppercase tracking-wider transition-all active:scale-95 min-h-[40px]"
         >
           INVESTIR
-        </Link>
+        </RippleLink>
       </div>
     </div>
   )

@@ -54,7 +54,7 @@ export default function ProgressBar({
         style={{
           width: `${width}%`,
           transitionDuration: `${duration}ms`,
-          transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+          transitionTimingFunction: 'var(--biso-ease-standard)',
         }}
       />
     </div>

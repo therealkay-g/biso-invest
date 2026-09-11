@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase/client'
 import { Product, Wallet } from '@/types'
 import { ProductSkeleton } from '@/components/Skeleton'
 import { useToast } from '@/components/ToastProvider'
+import Parallax from '@/components/Parallax'
+import { RippleButton } from '@/components/RippleButton'
 import { ArrowLeft, ShieldCheck, CheckCircle2, TrendingUp, Clock, Award, Wallet as WalletIcon, Minus, Plus, Lock, HandCoins } from 'lucide-react'
 import { getVipTierForPrice } from '@/utils/constants'
 import Link from 'next/link'
@@ -145,12 +147,14 @@ export default function ProductDetailPage() {
       <div className="max-w-2xl mx-auto p-4 space-y-5">
         {/* Héro du pack */}
         <div className="card overflow-hidden animate-fade-in">
-          <div className="h-40 w-full relative">
-            <img
-              src={product.image_url || 'https://images.unsplash.com/photo-1551754655-cd9e3fb8c371?auto=format&fit=crop&w=600&q=80'}
-              alt={product.name}
-              className="w-full h-full object-cover"
-            />
+          <div className="h-40 w-full relative overflow-hidden">
+            <Parallax max={5} className="absolute inset-0">
+              <img
+                src={product.image_url || 'https://images.unsplash.com/photo-1551754655-cd9e3fb8c371?auto=format&fit=crop&w=600&q=80'}
+                alt={product.name}
+                className="w-full h-full object-cover"
+              />
+            </Parallax>
             <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/70 via-transparent to-transparent" />
             {vipTier && (
               <span className={`absolute top-3 left-3 ${vipTier.colorClass} font-extrabold text-xs px-3 py-1.5 rounded-full shadow-md inline-flex items-center space-x-1.5`}>
@@ -305,12 +309,12 @@ export default function ProductDetailPage() {
             <span className="text-[11px] text-gray-400 font-semibold uppercase">Total investissement</span>
             <p className="text-lg font-black text-gray-900 tabular-nums truncate">{totalCost.toLocaleString('fr-FR')} FC</p>
           </div>
-          <button
+          <RippleButton
             onClick={() => setShowConfirm(true)}
             className="btn-primary px-6 text-xs uppercase tracking-widest shrink-0 w-auto"
           >
             INVESTIR
-          </button>
+          </RippleButton>
         </div>
       </div>
 
@@ -359,14 +363,14 @@ export default function ProductDetailPage() {
               >
                 Annuler
               </button>
-              <button
+              <RippleButton
                 type="button"
                 onClick={handlePurchase}
                 disabled={purchasing || (wallet ? wallet.balance < totalCost : false)}
                 className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl text-xs uppercase tracking-wider shadow-md active:scale-95 disabled:opacity-40 min-h-[44px]"
               >
                 {purchasing ? 'Achat...' : 'Confirmer'}
-              </button>
+              </RippleButton>
             </div>
           </div>
         </div>

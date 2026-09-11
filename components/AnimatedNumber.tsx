@@ -36,6 +36,9 @@ export default function AnimatedNumber({ value, duration = 700, format, classNam
       const elapsed = ts - start
       const progress = Math.min(elapsed / duration, 1)
       const eased = 1 - Math.pow(1 - progress, 3)
+      const increment = Math.max(Math.round(Math.abs(value - from) / 100), 1)
+      const next = from + (value - from) * eased
+      setDisplay(Math.round(next / increment) * increment)
       setDisplay(from + (value - from) * eased)
       if (progress < 1) {
         raf = requestAnimationFrame(step)

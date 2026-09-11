@@ -4,9 +4,7 @@ import React from 'react'
 
 export function Skeleton({ className = '' }: { className?: string }) {
   return (
-    <div
-      className={`animate-pulse bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded-xl ${className}`}
-    />
+    <div className={`shimmer bg-gray-200 rounded-xl ${className}`} />
   )
 }
 
