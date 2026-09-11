@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase/client'
 import { Profile, ReferralTask, ReferralTaskStats, ReferralTaskReward } from '@/types'
 import Header from '@/components/Header'
 import { useToast } from '@/components/ToastProvider'
-import { Sparkles, Users, Share2, Gift, Award, CheckCircle2, Lock, History, Copy, ArrowRight } from 'lucide-react'
+import { Sparkles, Users, Share2, Gift, Award, CheckCircle2, Lock, History, Copy, ChevronDown, ChevronUp } from 'lucide-react'
 
 export default function TaskPage() {
   const toast = useToast()
@@ -81,9 +81,9 @@ export default function TaskPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 pb-24">
-        <Header displayName="Mes Tâches" vipLevel="Chargement..." showBack={true} />
+        <Header displayName="Tâches" vipLevel="Chargement..." showBack={true} />
         <div className="p-4 max-w-4xl mx-auto space-y-6">
-          <div className="h-52 bg-biso-100 rounded-3xl animate-pulse" />
+          <div className="h-60 bg-emerald-100 rounded-3xl animate-pulse" />
           <div className="h-32 bg-gray-200 rounded-2xl animate-pulse" />
           <div className="grid grid-cols-2 gap-3">
             <div className="h-28 bg-gray-200 rounded-2xl animate-pulse" />
@@ -102,191 +102,203 @@ export default function TaskPage() {
       <Header displayName="Tâche" vipLevel={profile?.current_vip || 'VIP0'} showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-6">
-        {/* Grande carte violette — Mon équipe */}
-        <div className="bg-gradient-to-br from-biso-700 via-biso-800 to-biso-950 text-white rounded-3xl p-6 shadow-2xl border border-biso-500/30 space-y-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-amber-300" />
-              </div>
+        {/* Hero — Invitez et gagnez */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-emerald-800 via-emerald-700 to-emerald-900 text-white rounded-3xl p-6 shadow-xl border border-emerald-500/30 space-y-5 animate-fade-in">
+          <div className="absolute -right-8 -top-8 w-32 h-32 bg-amber-400/15 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -left-8 -bottom-8 w-28 h-28 bg-white/5 rounded-full blur-xl pointer-events-none" />
+
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center space-x-2.5">
+              <span className="w-10 h-10 rounded-2xl bg-amber-400/20 border border-amber-400/25 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-amber-300" aria-hidden="true" />
+              </span>
               <div>
-                <h3 className="text-sm font-black uppercase tracking-wider">Mon équipe</h3>
-                <p className="text-[10px] text-biso-200">Invite, investissez, gagnez ensemble.</p>
+                <h2 className="text-sm font-black uppercase tracking-wider">Invitez vos amis</h2>
+                <p className="text-[10px] text-emerald-100">Et gagnez des récompenses importantes.</p>
               </div>
             </div>
-            <span className="bg-biso-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+            <span className="bg-white/15 border border-white/20 text-white px-3 py-1.5 rounded-full text-[11px] font-bold tabular-nums">
               {validInvites} membre{validInvites > 1 ? 's' : ''} valide{validInvites > 1 ? 's' : ''}
             </span>
           </div>
 
-          <div>
-            <span className="text-[11px] uppercase text-biso-300 font-bold block mb-1">Votre lien personnel d&apos;invitation</span>
-            <div className="flex items-center justify-between bg-white/5 border border-white/10 p-3 rounded-2xl backdrop-blur-sm space-x-2">
-              <span className="text-[11px] text-biso-200 truncate font-mono">{invitationLink}</span>
+          <div className="relative space-y-2.5">
+            <span className="text-[11px] uppercase text-emerald-200 font-bold block">Votre lien d&apos;invitation</span>
+            <div className="flex items-center justify-between bg-white/10 border border-white/15 p-3 rounded-2xl backdrop-blur-sm space-x-2">
+              <span className="text-[11px] text-emerald-100 truncate font-mono">{invitationLink}</span>
               <button
                 onClick={() => copyToClipboard(invitationLink, 'Lien d\u2019invitation copié')}
                 className="shrink-0 text-amber-300 hover:text-amber-200 transition-colors"
                 aria-label="Copier le lien"
               >
-                <Copy className="w-4 h-4" />
+                <Copy className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-2">
+          <div className="relative grid grid-cols-2 gap-2">
             <button
               onClick={shareLink}
-              className="w-full bg-white text-biso-800 hover:bg-biso-50 font-black py-3.5 rounded-2xl text-xs tracking-wider uppercase shadow-md transition-all active:scale-98 flex items-center justify-center space-x-2"
+              className="w-full bg-white text-emerald-800 hover:bg-emerald-50 font-black py-3.5 rounded-2xl text-[11px] tracking-wider uppercase shadow-md transition-all active:scale-95 inline-flex items-center justify-center space-x-1.5"
             >
-              <Share2 className="w-4 h-4" />
-              <span>Copier et partager le lien</span>
+              <Share2 className="w-4 h-4" aria-hidden="true" />
+              <span>Partager le lien</span>
             </button>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => copyToClipboard(profile?.referral_code || '', 'Code d\u2019invitation copié')}
-                className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-3 rounded-2xl text-[11px] tracking-wider uppercase transition-all active:scale-98 flex items-center justify-center space-x-1.5"
-              >
-                <Gift className="w-3.5 h-3.5" />
-                <span>Copier le code</span>
-              </button>
-              <button
-                onClick={shareLink}
-                className="bg-amber-400 hover:bg-amber-300 text-biso-950 font-bold py-3 rounded-2xl text-[11px] tracking-wider uppercase shadow-md transition-all active:scale-98 flex items-center justify-center space-x-1.5"
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span>Inviter des amis</span>
-              </button>
+            <button
+              onClick={() => copyToClipboard(profile?.referral_code || '', 'Code d\u2019invitation copié')}
+              className="w-full bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold py-3.5 rounded-2xl text-[11px] tracking-wider uppercase shadow-md transition-all active:scale-95 inline-flex items-center justify-center space-x-1.5"
+            >
+              <Gift className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>Copier le code</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Statistiques */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 animate-fade-in">
+          {[
+            { label: 'Mon équipe', value: stats?.total_team || 0, color: 'text-gray-900' },
+            { label: 'Valides', value: validInvites, color: 'text-emerald-700' },
+            { label: 'En attente', value: stats?.pending_invites || 0, color: 'text-amber-600' },
+            { label: 'Récompenses (FC)', value: (stats?.total_rewards || 0).toLocaleString('fr-FR'), color: 'text-emerald-600' },
+          ].map((s) => (
+            <div key={s.label} className="card-sm p-3.5 text-center space-y-1">
+              <p className={`text-xl font-black tabular-nums ${s.color}`}>{s.value}</p>
+              <p className="text-[10px] text-gray-400 font-semibold">{s.label}</p>
             </div>
-          </div>
+          ))}
         </div>
 
-        {/* Statistiques de l'équipe */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center space-y-1">
-            <p className="text-xl font-black text-gray-900 tabular-nums">{stats?.total_team || 0}</p>
-            <p className="text-[10px] text-gray-400 font-semibold">Mon équipe</p>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-emerald-100 shadow-sm text-center space-y-1">
-            <p className="text-xl font-black text-emerald-600 tabular-nums">{validInvites}</p>
-            <p className="text-[10px] text-gray-400 font-semibold">Invitations valides</p>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center space-y-1">
-            <p className="text-xl font-black text-amber-600 tabular-nums">{stats?.pending_invites || 0}</p>
-            <p className="text-[10px] text-gray-400 font-semibold">En attente</p>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-biso-100 shadow-sm text-center space-y-1">
-            <p className="text-xl font-black text-biso-700 tabular-nums">{(stats?.total_rewards || 0).toLocaleString('fr-FR')}</p>
-            <p className="text-[10px] text-gray-400 font-semibold">Total récompenses</p>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm text-center space-y-1 col-span-2 sm:col-span-1">
-            <p className="text-xl font-black text-purple-600 tabular-nums">
-              {nextReward ? `${nextReward.required_invites.toLocaleString('fr-FR')} inv.` : '—'}
-            </p>
-            <p className="text-[10px] text-gray-400 font-semibold">Prochaine récompense</p>
-          </div>
-        </div>
-
-        {/* Progression vers la prochaine récompense */}
+        {/* Progression vers prochaine récompense */}
         {nextReward && (
-          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+          <div className="card p-5 space-y-3 animate-fade-in">
             <div className="flex justify-between items-center">
               <span className="text-xs font-bold text-gray-700">Prochaine récompense</span>
-              <span className="text-xs font-black text-biso-700">
+              <span className="text-xs font-black text-emerald-700">
                 {validInvites} / {nextReward.required_invites.toLocaleString('fr-FR')}
               </span>
             </div>
-            <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-biso-600 to-biso-400 rounded-full transition-all"
+                className="h-full bg-gradient-to-r from-emerald-600 to-amber-400 rounded-full transition-all duration-500"
                 style={{ width: `${Math.min((validInvites / nextReward.required_invites) * 100, 100)}%` }}
               />
             </div>
             <p className="text-[11px] text-gray-500">
-              Encore {Math.max(nextReward.required_invites - validInvites, 0)} invitation(s) valide(s) pour gagner{' '}
+              Encore {Math.max(nextReward.required_invites - validInvites, 0)} invitation{Math.max(nextReward.required_invites - validInvites, 0) > 1 ? 's' : ''} valide{Math.max(nextReward.required_invites - validInvites, 0) > 1 ? 's' : ''} pour gagner{' '}
               <strong className="text-gray-800">{nextReward.reward_amount.toLocaleString('fr-FR')} FC</strong>.
             </p>
           </div>
         )}
 
-        {/* Cartes de récompenses */}
-        <div>
-          <h3 className="font-bold text-gray-800 text-sm mb-3">Récompenses des tâches</h3>
-          <div className="space-y-3">
+        {/* Tous les paliers de récompenses */}
+        <section className="space-y-3">
+          <h2 className="font-black text-gray-900 text-sm uppercase tracking-wider">Paliers de récompenses</h2>
+          <div className="space-y-2.5">
             {(stats?.tasks || []).map((task: ReferralTask) => {
               const pct = Math.min((Math.min(validInvites, task.required_invites) / task.required_invites) * 100, 100)
               return (
                 <div
                   key={task.id}
-                  className={`bg-white p-5 rounded-2xl border shadow-sm space-y-3 ${
-                    task.claimed ? 'border-emerald-200 bg-emerald-50/40' : 'border-gray-100'
+                  className={`card-sm p-4 flex items-center justify-between gap-4 ${
+                    task.claimed ? 'bg-emerald-50/40 border-emerald-200' : ''
                   }`}
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-sm font-black text-gray-900">{task.required_invites} invitation{task.required_invites > 1 ? 's' : ''} valide{task.required_invites > 1 ? 's' : ''}</p>
-                      <p className="text-xs text-biso-700 font-semibold mt-0.5">Récompense : {task.reward_amount.toLocaleString('fr-FR')} FC</p>
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <span className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
+                      task.claimed
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {task.claimed ? (
+                        <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
+                      ) : (
+                        <Lock className="w-5 h-5" aria-hidden="true" />
+                      )}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-gray-900">
+                        {task.required_invites} invitation{task.required_invites > 1 ? 's' : ''} valide{task.required_invites > 1 ? 's' : ''}
+                      </p>
+                      <p className="text-[11px] font-semibold text-emerald-700 mt-0.5 tabular-nums">
+                        Récompense : {task.reward_amount.toLocaleString('fr-FR')} FC
+                      </p>
                     </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <p className="text-[10px] text-gray-500 font-bold tabular-nums mb-1">
+                      {Math.min(validInvites, task.required_invites)}/{task.required_invites}
+                    </p>
                     {task.claimed ? (
-                      <span className="flex items-center space-x-1 text-[10px] font-black bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full uppercase">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span className="inline-flex items-center space-x-1 text-[10px] font-black bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">
+                        <Award className="w-3 h-3" aria-hidden="true" />
                         <span>Attribué</span>
                       </span>
                     ) : (
-                      <span className="flex items-center space-x-1 text-[10px] font-black bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full uppercase">
-                        <Lock className="w-3.5 h-3.5" />
-                        <span>En cours</span>
-                      </span>
+                      <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-emerald-600 to-amber-400 rounded-full transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
                     )}
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-[10px] text-gray-500 mb-1">
-                      <span>Progression</span>
-                      <span className="font-bold tabular-nums">
-                        {Math.min(validInvites, task.required_invites)} / {task.required_invites}
-                      </span>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-biso-600 to-biso-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-
-                  <div className={`w-full py-3 rounded-2xl text-xs font-black tracking-wider uppercase text-center ${
-                    task.claimed ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'
-                  }`}>
-                    {task.claimed ? 'Créditée automatiquement' : 'Attribuée automatiquement dès validation'}
                   </div>
                 </div>
               )
             })}
             {(stats?.tasks || []).length === 0 && (
-              <p className="text-xs text-gray-400 text-center py-6 bg-white rounded-2xl border border-gray-100">
-                Aucune tâche disponible pour le moment.
-              </p>
+              <div className="card p-6 text-center">
+                <p className="text-xs text-gray-400">Aucune tâche disponible pour le moment.</p>
+              </div>
             )}
           </div>
+        </section>
+
+        {/* How it works */}
+        <div className="card p-5 space-y-4 animate-fade-in">
+          <h3 className="font-black text-gray-900 text-sm">Comment ça fonctionne ?</h3>
+          <ol className="space-y-3">
+            {[
+              { title: 'Partagez votre lien', text: 'Envoyez votre lien d\'invitation à vos amis via WhatsApp, SMS ou réseaux sociaux.' },
+              { title: 'Votre ami s\'inscrit', text: 'Il crée un compte en utilisant votre code ou lien de parrainage.' },
+              { title: 'Il investit', text: 'Votre ami souscrit un pack d\'investissement dans l\'une de nos 3 catégories.' },
+              { title: 'Vous gagnez !', text: 'Dès que son investissement est validé, votre récompense est créditée automatiquement.' },
+            ].map((step, i) => (
+              <li key={i} className="flex space-x-3">
+                <span className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-700 font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
+                  {i + 1}
+                </span>
+                <div>
+                  <p className="text-xs font-bold text-gray-900">{step.title}</p>
+                  <p className="text-[11px] text-gray-500 leading-relaxed">{step.text}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
 
-        {/* Revenus des tâches d'invitation */}
-        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm space-y-3">
+        {/* Historique des récompenses */}
+        <div className="card p-5 space-y-4">
           <div className="flex justify-between items-center">
-            <div>
-              <p className="text-xs text-gray-500 font-semibold">Revenus des tâches d&apos;invitation (CDF)</p>
-              <p className="text-2xl font-black text-biso-700 mt-0.5 tabular-nums">
-                {(stats?.total_rewards || 0).toLocaleString('fr-FR')} FC
-              </p>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Award className="w-6 h-6" />
+            <div className="flex items-center space-x-2">
+              <Award className="w-5 h-5 text-amber-600" aria-hidden="true" />
+              <div>
+                <p className="text-xs text-gray-500 font-semibold">Revenus des tâches d&apos;invitation</p>
+                <p className="text-2xl font-black text-emerald-700 mt-0.5 tabular-nums">
+                  {(stats?.total_rewards || 0).toLocaleString('fr-FR')} FC
+                </p>
+              </div>
             </div>
           </div>
+
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="w-full bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-800 font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition-all flex items-center justify-center space-x-2"
+            className="w-full bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-800 font-bold py-3 rounded-2xl text-xs uppercase tracking-wider transition-all flex items-center justify-center space-x-2 min-h-[44px]"
           >
-            <History className="w-4 h-4" />
+            <History className="w-4 h-4" aria-hidden="true" />
             <span>Voir l&apos;historique</span>
-            <ArrowRight className={`w-3.5 h-3.5 transition-transform ${showHistory ? 'rotate-90' : ''}`} />
+            {showHistory ? <ChevronUp className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" />}
           </button>
 
           {showHistory && (
@@ -299,7 +311,7 @@ export default function TaskPage() {
               {history.map((r) => (
                 <div key={r.id} className="flex justify-between items-center p-3.5 bg-gray-50 rounded-2xl border border-gray-100">
                   <div>
-                    <span className="text-[10px] font-black bg-purple-100 text-purple-700 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                    <span className="text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-md uppercase tracking-wider">
                       Tâche {r.required_invites} invitation{r.required_invites > 1 ? 's' : ''}
                     </span>
                     <p className="text-[11px] text-gray-500 mt-1">{new Date(r.claimed_at).toLocaleString('fr-FR')}</p>

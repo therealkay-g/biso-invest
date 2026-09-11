@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react'
 import { Wallet as WalletIcon, ArrowUpRight, Plus, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { USD_TO_FC } from '../utils/constants'
 
 interface WalletCardProps {
@@ -11,6 +10,7 @@ interface WalletCardProps {
   totalInvested: number
   totalEarned: number
   todayEarned: number
+  totalWithdrawn?: number
   userName?: string
   vipLevel?: string
 }
@@ -20,7 +20,8 @@ export default function WalletCard({
   totalInvested,
   totalEarned,
   todayEarned,
-  userName = 'MEMBRE PRIVILÈGE',
+  totalWithdrawn = 0,
+  userName = 'Membre BISO',
   vipLevel = 'VIP0'
 }: WalletCardProps) {
   const [showBalance, setShowBalance] = useState(true)
@@ -38,7 +39,6 @@ export default function WalletCard({
     localStorage.setItem('biso_hide_balance', (!nextState).toString())
   }
 
-  // Taux indicatif de conversion (1 USD = 2400 CDF)
   const usdBalance = (balance / USD_TO_FC).toFixed(2)
 
   const formatAmount = (val: number, unit = 'FC') => {
@@ -47,115 +47,100 @@ export default function WalletCard({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-950 via-zinc-900 to-emerald-950 text-white shadow-2xl border border-emerald-500/20 p-6 transition-all">
-      {/* Glossy & Metallic Ambient Glow */}
-      <div className="absolute -right-12 -top-12 w-48 h-48 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute -left-12 -bottom-12 w-44 h-44 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 text-white shadow-xl border border-emerald-400/20 transition-all animate-slide-up">
+      {/* Décor organique premium */}
+      <div className="absolute -right-16 -top-16 w-56 h-56 bg-emerald-400/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -left-12 -bottom-16 w-48 h-48 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '22px 22px' }} />
 
-      <div className="relative z-10 flex flex-col justify-between space-y-5">
-        {/* Top bar: Brand, VIP badge & Eye toggle */}
+      <div className="relative z-10 p-6 flex flex-col space-y-5">
+        {/* Top bar */}
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-2.5">
-            <Image
-              src="/images/logo.png"
-              alt="BISO INVEST"
-              width={34}
-              height={34}
-              className="rounded-xl shadow-md border border-emerald-500/30 object-cover"
-            />
+            <span className="w-9 h-9 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center backdrop-blur-sm">
+              <WalletIcon className="w-4.5 h-4.5 text-emerald-200" aria-hidden="true" />
+            </span>
             <div>
-              <span className="text-xs font-black tracking-widest text-zinc-200 uppercase">BISO BLACK CARD</span>
+              <span className="text-[10px] font-black tracking-widest text-emerald-200/90 uppercase">{userName}</span>
               <div className="flex items-center space-x-1.5">
-                <span className="text-[10px] text-emerald-400 font-semibold flex items-center">
-                  <ShieldCheck className="w-3 h-3 mr-0.5 inline" /> Garanti
-                </span>
-                <span className="text-[9px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.2 rounded-md border border-amber-500/30">
+                <span className="text-[10px] bg-amber-400/20 text-amber-300 font-bold px-1.5 py-0.5 rounded-md border border-amber-400/25">
                   {vipLevel}
+                </span>
+                <span className="text-[9px] text-emerald-300/80 font-semibold flex items-center">
+                  <ShieldCheck className="w-3 h-3 mr-0.5 inline" aria-hidden="true" /> Garanti
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={toggleVisibility}
-              aria-label={showBalance ? 'Masquer le solde' : 'Afficher le solde'}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/15 text-zinc-300 hover:text-white transition-all active:scale-95 border border-white/10 backdrop-blur-sm"
-            >
-              {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-            <span className="text-[11px] bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full font-bold border border-emerald-500/30">
-              CDF
-            </span>
-          </div>
+          <button
+            onClick={toggleVisibility}
+            aria-label={showBalance ? 'Masquer le solde' : 'Afficher le solde'}
+            className="p-2 rounded-xl bg-white/10 hover:bg-white/15 text-emerald-100 transition-all active:scale-95 border border-white/10 backdrop-blur-sm"
+          >
+            {showBalance ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
+          </button>
         </div>
 
-        {/* EMV Chip & Contactless Visuals */}
-        <div className="flex items-center justify-between py-1">
-          <div className="w-11 h-8 rounded-lg bg-gradient-to-tr from-amber-300 via-amber-200 to-amber-400 border border-amber-500/50 shadow-inner flex items-center justify-around px-1">
-            <div className="w-full h-4 border border-amber-600/40 rounded-xs flex flex-col justify-between py-0.5">
-              <div className="w-full h-px bg-amber-600/50"></div>
-              <div className="w-full h-px bg-amber-600/50"></div>
-            </div>
-          </div>
-          <span className="font-mono text-zinc-400 text-xs tracking-widest">
-            •••• •••• •••• 5042
-          </span>
-        </div>
-
-        {/* Balance Display with Tabular Nums and USD conversion */}
+        {/* Balance */}
         <div>
-          <span className="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold">Solde Disponible</span>
+          <span className="text-[11px] uppercase tracking-wider text-emerald-100/70 font-semibold">Solde disponible</span>
           <div className="flex items-baseline space-x-2 mt-0.5">
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight tabular-nums text-white">
               {formatAmount(balance, '')}
-              {showBalance && <span className="text-xl font-medium text-emerald-400 ml-1">FC</span>}
+              {showBalance && <span className="text-xl font-bold text-emerald-300 ml-1">FC</span>}
             </h2>
           </div>
           {showBalance && (
-            <p className="text-xs text-zinc-400 mt-0.5 tabular-nums">
+            <p className="text-xs text-emerald-200/70 mt-0.5 tabular-nums">
               ≈ <span className="text-amber-300 font-semibold">{usdBalance} $</span> USD
-              <span className="text-[10px] text-zinc-500 ml-2">(1 $ ≈ 2400 FC)</span>
+              <span className="text-[10px] text-emerald-300/50 ml-2">(1 $ ≈ {USD_TO_FC} FC)</span>
             </p>
           )}
         </div>
 
-        {/* Financial Sub-Metrics Grid */}
-        <div className="grid grid-cols-3 gap-2 py-3 border-t border-zinc-800 text-center">
+        {/* Sub-metrics */}
+        <div className="grid grid-cols-3 gap-2 pt-4 border-t border-white/10">
           <div>
-            <p className="text-[10px] uppercase text-zinc-400 font-medium">Investi</p>
-            <p className="text-xs sm:text-sm font-bold text-zinc-200 tabular-nums">
+            <p className="text-[10px] uppercase text-emerald-200/60 font-medium">Investissement</p>
+            <p className="text-xs sm:text-sm font-bold text-white tabular-nums mt-0.5">
               {formatAmount(totalInvested)}
             </p>
           </div>
-          <div className="border-x border-zinc-800">
-            <p className="text-[10px] uppercase text-zinc-400 font-medium">Revenus Total</p>
-            <p className="text-xs sm:text-sm font-bold text-emerald-400 tabular-nums">
-              {formatAmount(totalEarned)}
+          <div className="border-x border-white/10 px-2">
+            <p className="text-[10px] uppercase text-emerald-200/60 font-medium">Revenus du jour</p>
+            <p className="text-xs sm:text-sm font-bold text-amber-300 tabular-nums mt-0.5">
+              {showBalance ? `+${todayEarned.toLocaleString('fr-FR')} FC` : '••••••'}
             </p>
           </div>
-          <div>
-            <p className="text-[10px] uppercase text-zinc-400 font-medium">Aujourd'hui</p>
-            <p className="text-xs sm:text-sm font-bold text-emerald-300 tabular-nums">
-              {showBalance ? `+${todayEarned.toLocaleString('fr-FR')} FC` : '••••••'}
+          <div className="text-right">
+            <p className="text-[10px] uppercase text-emerald-200/60 font-medium">Total gagné</p>
+            <p className="text-xs sm:text-sm font-bold text-emerald-300 tabular-nums mt-0.5">
+              {formatAmount(totalEarned)}
             </p>
           </div>
         </div>
 
-        {/* Quick Action Buttons */}
+        {totalWithdrawn > 0 && (
+          <p className="text-[10px] text-emerald-200/50 -mt-2">
+            Retraits effectués : <strong className="text-emerald-100">{formatAmount(totalWithdrawn)}</strong>
+          </p>
+        )}
+
+        {/* CTA */}
         <div className="grid grid-cols-2 gap-3 pt-1">
           <Link
             href="/wallet?tab=deposit"
-            className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold py-3 px-4 rounded-2xl flex items-center justify-center space-x-2 shadow-lg shadow-emerald-950 transition-all active:scale-95 text-xs tracking-wide"
+            className="inline-flex items-center justify-center space-x-2 bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black py-3.5 px-4 rounded-2xl text-xs tracking-wide shadow-lg shadow-emerald-950/40 transition-all active:scale-95"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4" aria-hidden="true" />
             <span>RECHARGER</span>
           </Link>
           <Link
             href="/wallet?tab=withdraw"
-            className="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold py-3 px-4 rounded-2xl flex items-center justify-center space-x-2 transition-all backdrop-blur-sm active:scale-95 text-xs tracking-wide shadow-md"
+            className="inline-flex items-center justify-center space-x-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold py-3.5 px-4 rounded-2xl text-xs tracking-wide transition-all backdrop-blur-sm active:scale-95"
           >
-            <ArrowUpRight className="w-4 h-4" />
+            <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
             <span>RETIRER</span>
           </Link>
         </div>

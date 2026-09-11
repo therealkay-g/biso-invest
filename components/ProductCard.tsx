@@ -1,8 +1,7 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, ShieldCheck, Clock, Award } from 'lucide-react'
+import { ArrowRight, Clock, Award, CalendarDays, TrendingUp } from 'lucide-react'
 import { Product } from '@/types'
 import { getVipTierForPrice } from '@/utils/constants'
 
@@ -14,49 +13,51 @@ export default function ProductCard({ product }: ProductCardProps) {
   const vipTier = getVipTierForPrice(product.price)
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+    <div className="card overflow-hidden flex flex-col justify-between transition-all hover:shadow-md hover:-translate-y-0.5 duration-300 animate-fade-in">
       <div>
-        <div className="relative h-40 w-full bg-gray-100">
+        <div className="relative h-36 w-full bg-emerald-50">
           <img
             src={product.image_url || '/images/logo.png'}
             alt={product.name}
             className="w-full h-full object-cover"
+            loading="lazy"
             onError={(e) => {
               (e.target as HTMLImageElement).src = '/images/logo.png'
             }}
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/60 via-transparent to-transparent pointer-events-none" />
           {vipTier && (
-            <div className={`absolute top-3 left-3 ${vipTier.colorClass} shadow-md text-[11px] font-extrabold px-2.5 py-1 rounded-full flex items-center space-x-1 tracking-wider`}>
-              <Award className="w-3.5 h-3.5" />
+            <span className={`absolute top-3 left-3 ${vipTier.colorClass} text-[11px] font-extrabold px-2.5 py-1 rounded-full inline-flex items-center space-x-1 tracking-wider shadow-sm`}>
+              <Award className="w-3 h-3" aria-hidden="true" />
               <span>{vipTier.level}</span>
-            </div>
+            </span>
           )}
-          <div className="absolute top-3 right-3 bg-biso-900/80 backdrop-blur-sm text-white text-[11px] font-semibold px-2.5 py-1 rounded-full">
-            {product.duration_months} mois
-          </div>
+          <span className="absolute top-3 right-3 bg-emerald-950/80 backdrop-blur-sm text-white text-[11px] font-bold px-2.5 py-1 rounded-full inline-flex items-center space-x-1">
+            <Clock className="w-3 h-3" aria-hidden="true" />
+            <span>{product.duration_months} mois</span>
+          </span>
         </div>
 
         <div className="p-4">
           {vipTier && (
-            <span className="text-[11px] font-bold text-biso-600 uppercase tracking-wide block mb-1">
+            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide block mb-1">
               {vipTier.name}
             </span>
           )}
-          <h3 className="font-bold text-gray-800 text-base mb-1">{product.name}</h3>
-          <p className="text-xs text-gray-500 line-clamp-2 mb-3">{product.description}</p>
+          <h3 className="font-bold text-gray-900 text-base mb-0.5">{product.name}</h3>
+          <p className="text-xs text-gray-500 line-clamp-2 mb-3 min-h-[2rem]">{product.description}</p>
 
-          <div className="space-y-1.5 bg-gray-50 p-3 rounded-xl mb-3">
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500">Investissement :</span>
-              <span className="font-bold text-gray-900">{product.price.toLocaleString('fr-FR')} FC</span>
+          <div className="grid grid-cols-2 gap-2 bg-gray-50 p-3 rounded-xl">
+            <div>
+              <span className="block text-[10px] text-gray-500">Montant</span>
+              <span className="font-black text-gray-900 text-sm tabular-nums">{product.price.toLocaleString('fr-FR')} FC</span>
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500">Versement mensuel prévu :</span>
-              <span className="font-bold text-biso-600">{product.monthly_return.toLocaleString('fr-FR')} FC</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500">Total prévu :</span>
-              <span className="font-bold text-emerald-700">{product.total_returns.toLocaleString('fr-FR')} FC</span>
+            <div className="text-right">
+              <span className="block text-[10px] text-gray-500">Revenu mensuel prévu</span>
+              <span className="font-black text-emerald-700 text-sm tabular-nums inline-flex items-center justify-end">
+                <TrendingUp className="w-3.5 h-3.5 mr-0.5" aria-hidden="true" />
+                {product.monthly_return.toLocaleString('fr-FR')} FC
+              </span>
             </div>
           </div>
         </div>
@@ -65,10 +66,10 @@ export default function ProductCard({ product }: ProductCardProps) {
       <div className="p-4 pt-0">
         <Link
           href={`/invest/${product.id}`}
-          className="w-full bg-biso-600 hover:bg-biso-700 text-white font-semibold py-2.5 px-4 rounded-xl text-center text-sm flex items-center justify-center space-x-2 transition-all shadow-sm"
+          className="w-full btn-primary inline-flex items-center justify-center space-x-2 text-sm"
         >
           <span>INVESTIR</span>
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-4 h-4" aria-hidden="true" />
         </Link>
       </div>
     </div>

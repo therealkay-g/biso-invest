@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Package, Headphones, Users, User } from 'lucide-react'
+import { Home, TrendingUp, Gift, User } from 'lucide-react'
 
 export default function BottomNavigation() {
   const pathname = usePathname()
@@ -14,14 +14,13 @@ export default function BottomNavigation() {
 
   const navItems = [
     { href: '/dashboard', label: 'Accueil', icon: Home },
-    { href: '/invest', label: 'Investir', icon: Package },
-    { href: '/service', label: 'Service', icon: Headphones },
-    { href: '/task', label: 'Tâche', icon: Users },
+    { href: '/invest', label: 'Investir', icon: TrendingUp },
+    { href: '/task', label: 'Tâche', icon: Gift },
     { href: '/profile', label: 'Moi', icon: User },
   ]
 
   return (
-    <nav aria-label="Navigation principale" className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 px-4 py-2 flex justify-around items-center shadow-lg">
+    <nav aria-label="Navigation principale" className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 z-50 px-2 pb-2 pt-1.5 flex justify-around items-stretch" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
       {navItems.map((item) => {
         const Icon = item.icon
         const isActive = pathname === item.href
@@ -29,12 +28,18 @@ export default function BottomNavigation() {
           <Link
             key={item.href}
             href={item.href}
-            className={`flex flex-col items-center py-1 px-3 rounded-xl transition-colors ${
-              isActive ? 'text-biso-600 font-semibold' : 'text-gray-500 hover:text-gray-800'
+            aria-current={isActive ? 'page' : undefined}
+            className={`relative flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 rounded-2xl transition-all ${
+              isActive ? 'text-emerald-700' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
-            <Icon className={`w-6 h-6 mb-1 ${isActive ? 'text-biso-600' : 'text-gray-500'}`} />
-            <span className="text-xs">{item.label}</span>
+            {isActive && (
+              <span className="absolute -top-1.5 w-8 h-1 rounded-full bg-emerald-500 animate-scale-in" />
+            )}
+            <span className={`w-10 h-8 rounded-xl flex items-center justify-center transition-colors ${isActive ? 'bg-emerald-50' : ''}`}>
+              <Icon className={`w-[22px] h-[22px] ${isActive ? 'text-emerald-600' : ''}`} strokeWidth={isActive ? 2.4 : 2} aria-hidden="true" />
+            </span>
+            <span className={`text-[10px] font-bold ${isActive ? 'text-emerald-700' : 'text-gray-400'}`}>{item.label}</span>
           </Link>
         )
       })}

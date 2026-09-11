@@ -7,7 +7,7 @@ import Header from '@/components/Header'
 import { TableSkeleton } from '@/components/Skeleton'
 import { useToast } from '@/components/ToastProvider'
 import InvestmentCertificateModal from '@/components/InvestmentCertificateModal'
-import { Package, CheckCircle2, AlertCircle, Award, Clock, History, ArrowRight, HandCoins } from 'lucide-react'
+import { Package, CheckCircle2, AlertCircle, Award, Clock, History, HandCoins, ArrowRight, Sprout, Beef, Fish } from 'lucide-react'
 import Link from 'next/link'
 
 interface InvestmentCycle {
@@ -134,31 +134,31 @@ export default function InvestmentsPage() {
       <Header displayName="Mes Investissements" vipLevel="Bénéfice du jour (VENDRE)" showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-6">
-        <div className="flex justify-between items-center mb-2">
+        <div className="flex justify-between items-center mb-2 animate-fade-in">
           <div>
-            <h2 className="text-xl font-black text-gray-900">Mes Engagements Actifs</h2>
-            <p className="text-xs text-gray-500">Cliquez chaque jour sur VENDRE pour créditer votre bénéfice journalier.</p>
+            <h2 className="text-xl font-black text-gray-900">Mes engagements actifs</h2>
+            <p className="text-xs text-gray-500">Vendez chaque jour votre bénéfice journalier.</p>
           </div>
-          <span className="text-xs font-bold bg-biso-50 text-biso-700 px-3.5 py-1.5 rounded-full border border-biso-200">
-            {investments.length} actif(s)
+          <span className="text-xs font-bold bg-emerald-50 text-emerald-700 px-3.5 py-1.5 rounded-full border border-emerald-100">
+            {investments.length} actif{investments.length > 1 ? 's' : ''}
           </span>
         </div>
 
         {investments.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-3xl border border-gray-100 shadow-xs space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-biso-50 text-biso-600 flex items-center justify-center mx-auto">
-              <Package className="w-8 h-8" />
+          <div className="card p-8 text-center space-y-4 animate-fade-in">
+            <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+              <Package className="w-8 h-8" aria-hidden="true" />
             </div>
             <div className="space-y-1">
-              <p className="text-base font-bold text-gray-900">Vous n'avez pas encore d'investissements actifs</p>
-              <p className="text-xs text-gray-400">Rejoignez l'économie réelle congolaise dès 20 000 FC.</p>
+              <p className="text-base font-bold text-gray-900">Aucun investissement actif</p>
+              <p className="text-xs text-gray-400">Rejoignez l&apos;économie réelle congolaise dès 20 000 FC.</p>
             </div>
             <Link
               href="/invest"
-              className="inline-flex items-center space-x-2 bg-biso-600 hover:bg-biso-700 text-white font-bold px-6 py-3 rounded-2xl text-xs uppercase tracking-wider shadow-md transition-all active:scale-95"
+              className="inline-flex items-center space-x-2 btn-primary text-xs px-6"
             >
               <span>Découvrir les packs</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </Link>
           </div>
         ) : (
@@ -181,7 +181,7 @@ export default function InvestmentsPage() {
               const progressPercent = Math.min(100, Math.round((elapsedMs / totalDurationMs) * 100))
 
               return (
-                <div key={inv.id} className="bg-white rounded-3xl border border-gray-100 shadow-xs p-6 space-y-5">
+                <div key={inv.id} className="card p-6 space-y-5 animate-slide-up">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
                       <div className="flex items-center space-x-2">
@@ -196,10 +196,10 @@ export default function InvestmentsPage() {
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => setSelectedCertInvestment(inv)}
-                        className="bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold px-3 py-1.5 rounded-xl border border-amber-200/80 flex items-center space-x-1.5 transition-all active:scale-95 shadow-sm"
+                        className="inline-flex items-center space-x-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-xl border border-amber-200/80 transition-all active:scale-95 shadow-sm"
                       >
-                        <Award className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Certificat Officiel</span>
+                        <Award className="w-3.5 h-3.5 text-amber-600" aria-hidden="true" />
+                        <span>Certificat</span>
                       </button>
                       <span className="text-xs font-black bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 tabular-nums">
                         {capital.toLocaleString('fr-FR')} FC
@@ -207,74 +207,72 @@ export default function InvestmentsPage() {
                     </div>
                   </div>
 
-                  {/* Visual Progress Bar */}
-                  <div className="space-y-1.5 bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
+                  {/* Progression */}
+                  <div className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
                     <div className="flex justify-between text-xs font-bold">
                       <span className="text-gray-600 flex items-center">
-                        <Clock className="w-3.5 h-3.5 mr-1 text-biso-600" /> Progression du contrat ({inv.duration_months} mois)
+                        <Clock className="w-3.5 h-3.5 mr-1 text-emerald-600" aria-hidden="true" /> Contrat ({inv.duration_months} mois)
                       </span>
-                      <span className="text-biso-700 tabular-nums">{progressPercent}%</span>
+                      <span className="text-emerald-700 tabular-nums">{progressPercent}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div className="w-full bg-gray-200 rounded-full h-2 mt-2 overflow-hidden">
                       <div
                         style={{ width: `${progressPercent}%` }}
-                        className="bg-gradient-to-r from-biso-600 to-emerald-400 h-2 rounded-full transition-all duration-500"
+                        className="bg-gradient-to-r from-emerald-600 to-emerald-400 h-2 rounded-full transition-all duration-500"
                       />
                     </div>
                   </div>
 
-                  {/* Dominant : Bénéfice du jour */}
+                  {/* Bénéfice du jour — dominant */}
                   <div
                     className={`p-5 rounded-2xl border shadow-sm transition-all ${
                       finished
                         ? 'bg-gray-50 border-gray-200'
                         : claimedToday
                         ? 'bg-emerald-50/60 border-emerald-200'
-                        : 'bg-gradient-to-r from-biso-700 to-emerald-800 border-biso-800 text-white'
+                        : 'bg-gradient-to-r from-emerald-800 to-emerald-950 border-emerald-900 text-white'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className={`text-[11px] font-bold uppercase tracking-wider ${finished ? 'text-gray-500' : claimedToday ? 'text-emerald-700' : 'text-emerald-300'}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className={`text-[11px] font-bold uppercase tracking-wider ${finished ? 'text-gray-500' : claimedToday ? 'text-emerald-700' : 'text-emerald-200'}`}>
                           Bénéfice du jour
                         </p>
                         <p className={`text-2xl font-black tabular-nums mt-1 ${finished ? 'text-gray-400' : claimedToday ? 'text-emerald-900' : 'text-white'}`}>
                           +{dailyProfit.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC
                         </p>
                         <p className={`text-[10px] mt-0.5 ${finished ? 'text-gray-400' : claimedToday ? 'text-emerald-600' : 'text-emerald-200'}`}>
-                          {monthlyReturn.toLocaleString('fr-FR')} FC / mois répartis sur {daysInCurrentMonth} jours ({currentMonthName})
+                          {monthlyReturn.toLocaleString('fr-FR')} FC / mois sur {daysInCurrentMonth} jours ({currentMonthName})
                         </p>
                       </div>
 
-                      {finished ? (
-                        <div className="text-right">
+                      <div className="shrink-0">
+                        {finished ? (
                           <span className="inline-flex items-center space-x-1.5 text-xs font-black text-gray-500 bg-white border border-gray-300 px-4 py-3 rounded-2xl">
-                            <AlertCircle className="w-4 h-4" />
-                            <span>Investissement terminé</span>
+                            <AlertCircle className="w-4 h-4" aria-hidden="true" />
+                            <span>Terminé</span>
                           </span>
-                        </div>
-                      ) : claimedToday ? (
-                        <div className="text-right">
+                        ) : claimedToday ? (
                           <span className="inline-flex items-center space-x-1.5 text-xs font-black text-emerald-800 bg-white border border-emerald-300 px-4 py-3 rounded-2xl shadow-sm">
-                            <CheckCircle2 className="w-4 h-4" />
+                            <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
                             <span>Déjà vendu aujourd&apos;hui</span>
                           </span>
-                        </div>
-                      ) : (
-                        <div className="text-right">
-                          <span className="block text-[10px] font-bold text-emerald-200 mb-1.5">
-                            Votre bénéfice du jour est disponible
-                          </span>
-                          <button
-                            onClick={handleSell}
-                            disabled={selling}
-                            className="inline-flex items-center space-x-2 bg-white text-biso-800 font-black px-6 py-3 rounded-2xl text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50"
-                          >
-                            <HandCoins className="w-4 h-4" />
-                            <span>{selling ? 'Vente...' : 'VENDRE'}</span>
-                          </button>
-                        </div>
-                      )}
+                        ) : (
+                          <>
+                            <span className="block text-[10px] font-bold text-emerald-200 mb-1.5 text-right">
+                              Disponible
+                            </span>
+                            <button
+                              onClick={handleSell}
+                              disabled={selling}
+                              className="inline-flex items-center space-x-2 bg-white text-emerald-900 font-black px-6 py-3 min-h-[44px] rounded-2xl text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50 w-full justify-center"
+                            >
+                              <HandCoins className="w-4 h-4" aria-hidden="true" />
+                              <span>{selling ? 'Vente...' : 'VENDRE'}</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -282,7 +280,7 @@ export default function InvestmentsPage() {
                     <p className={`text-[11px] font-semibold -mt-2 ${claimedToday ? 'text-emerald-700' : 'text-gray-500'}`}>
                       {claimedToday
                         ? 'Bénéfice du jour déjà réclamé. Un bénéfice non réclamé un jour est perdu et ne sera jamais reporté.'
-                        : 'Cliquez sur VENDRE pour créditer le bénéfice d\'aujourd\'hui. Un bénéfice non réclamé un jour est perdu et ne sera jamais reporté.'}
+                        : 'Cliquez sur VENDRE pour créditer le bénéfice d\'aujourd\'hui. Un bénéfice non réclamé un jour est perdu.'}
                     </p>
                   )}
 
@@ -290,7 +288,7 @@ export default function InvestmentsPage() {
                   {!finished && invClaims.length > 0 && (
                     <div className="space-y-2">
                       <h4 className="font-black text-gray-800 text-xs uppercase tracking-wider flex items-center">
-                        <History className="w-3.5 h-3.5 mr-1.5 text-biso-600" /> Historique des bénéfices réclamés
+                        <History className="w-3.5 h-3.5 mr-1.5 text-emerald-600" aria-hidden="true" /> Historique des bénéfices réclamés
                       </h4>
                       <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1">
                         {invClaims.map((c) => (
@@ -312,46 +310,45 @@ export default function InvestmentsPage() {
                     </div>
                   )}
 
-                  {/* Financial Overview Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-biso-50/40 p-4 rounded-2xl text-xs border border-biso-100/60">
-                    <div>
-                      <span className="text-gray-500 text-[11px]">Bénéfice Journalier :</span>
-                      <p className="font-black text-biso-700 tabular-nums mt-0.5">
-                        +{dailyProfit.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC / j
+                  {/* Stats compactes */}
+                  <div className="grid grid-cols-3 gap-2 bg-gray-50 p-3 rounded-xl text-[11px] border border-gray-100">
+                    <div className="text-center">
+                      <p className="text-gray-400 font-semibold">Bénéfice / jour</p>
+                      <p className="font-black text-emerald-700 tabular-nums mt-0.5">
+                        +{dailyProfit.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC
                       </p>
-                      <p className="text-[9px] text-biso-400 mt-0.5">{daysInCurrentMonth} j. en {currentMonthName}</p>
                     </div>
-                    <div>
-                      <span className="text-gray-500 text-[11px]">Rente Mensuelle :</span>
+                    <div className="text-center border-x border-gray-200">
+                      <p className="text-gray-400 font-semibold">Rente / mois</p>
                       <p className="font-black text-emerald-800 tabular-nums mt-0.5">
-                        +{monthlyReturn.toLocaleString('fr-FR')} FC / mois
+                        +{monthlyReturn.toLocaleString('fr-FR')} FC
                       </p>
                     </div>
-                    <div>
-                      <span className="text-gray-500 text-[11px]">Durée Contractuelle :</span>
-                      <p className="font-bold text-gray-800 mt-0.5">{inv.duration_months} mois (12 cycles)</p>
+                    <div className="text-center">
+                      <p className="text-gray-400 font-semibold">Durée</p>
+                      <p className="font-bold text-gray-800 mt-0.5">{inv.duration_months} mois</p>
                     </div>
                   </div>
 
-                  {/* Compact 12-cycle timeline */}
+                  {/* Cycle timeline */}
                   {inv.cycles && inv.cycles.length > 0 && (
                     <div className="space-y-2">
-                      <h4 className="font-black text-gray-800 text-xs uppercase tracking-wider">Suivi des Cycles Mensuels</h4>
-                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                      <h4 className="font-black text-gray-800 text-xs uppercase tracking-wider">Suivi des cycles mensuels</h4>
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                         {inv.cycles.map((cycle) => (
                           <div
                             key={cycle.id}
                             className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black border ${
                               cycle.status === 'ACTIVE'
-                                ? 'bg-biso-700 text-white border-biso-800 shadow-sm'
-                                : 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                ? 'bg-emerald-700 text-white border-emerald-800 shadow-sm'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             }`}
                           >
                             {cycle.cycle_number}
                           </div>
                         ))}
                         <div className="shrink-0 text-[10px] text-gray-400 font-semibold ml-1">
-                          {inv.cycles.filter(c => c.status === 'ACTIVE').length} cycle(s) actif(s)
+                          {inv.cycles.filter(c => c.status === 'ACTIVE').length} cycle{inv.cycles.filter(c => c.status === 'ACTIVE').length > 1 ? 's' : ''} actif{inv.cycles.filter(c => c.status === 'ACTIVE').length > 1 ? 's' : ''}
                         </div>
                       </div>
                     </div>
@@ -363,7 +360,7 @@ export default function InvestmentsPage() {
         )}
       </div>
 
-      {/* Official Certificate Modal */}
+      {/* Modale certificat officiel */}
       {selectedCertInvestment && (
         <InvestmentCertificateModal
           investment={selectedCertInvestment}
