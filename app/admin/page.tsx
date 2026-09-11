@@ -33,6 +33,9 @@ export default function AdminPage() {
   const [rejectionReason, setRejectionReason] = useState('')
   const [targetDepositId, setTargetDepositId] = useState<string | null>(null)
 
+  // Proof preview state
+  const [previewProof, setPreviewProof] = useState<string | null>(null)
+
   // Withdrawal management state
   const [targetWithdrawalId, setTargetWithdrawalId] = useState<string | null>(null)
   const [withdrawalAction, setWithdrawalAction] = useState<'approve' | 'reject' | null>(null)
@@ -462,6 +465,18 @@ export default function AdminPage() {
                   <div>
                     <p className="text-xs font-bold text-gray-900">{dep.profile?.phone || 'Utilisateur'} • {dep.amount.toLocaleString('fr-FR')} FC ({dep.network})</p>
                     <p className="text-[10px] text-gray-500">Ref: {dep.reference} • {new Date(dep.created_at).toLocaleString('fr-FR')}</p>
+                    {dep.proof_url ? (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewProof(dep.proof_url!)}
+                        className="mt-2 block rounded-lg border border-gray-200 overflow-hidden bg-white transition hover:ring-2 hover:ring-biso-300"
+                        aria-label={`Voir la capture de ${dep.reference}`}
+                      >
+                        <img src={dep.proof_url} alt={`Capture ${dep.reference}`} className="h-16 w-auto object-contain" />
+                      </button>
+                    ) : (
+                      <p className="text-[10px] text-gray-400 mt-1">Aucune capture fournie</p>
+                    )}
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
@@ -512,6 +527,32 @@ export default function AdminPage() {
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
+                </div>
+              </div>
+            )}
+
+            {previewProof && (
+              <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4" onClick={() => setPreviewProof(null)}>
+                <div className="bg-white rounded-2xl p-3 max-w-lg w-full space-y-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-gray-900 text-sm">Capture de preuve de dépôt</h4>
+                    <button
+                      onClick={() => setPreviewProof(null)}
+                      className="text-gray-500 hover:text-gray-700"
+                      aria-label="Fermer la visionneuse"
+                    >
+                      <XCircle className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <img src={previewProof} alt="Capture de preuve de dépôt" className="w-full h-auto rounded-xl object-contain max-h-[70vh]" />
+                  <a
+                    href={previewProof}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="block w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold py-2 rounded-xl"
+                  >
+                    Ouvrir dans un nouvel onglet
+                  </a>
                 </div>
               </div>
             )}
