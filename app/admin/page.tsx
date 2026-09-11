@@ -52,7 +52,6 @@ export default function AdminPage() {
   // Withdrawal management state
   const [targetWithdrawalId, setTargetWithdrawalId] = useState<string | null>(null)
   const [withdrawalAction, setWithdrawalAction] = useState<'approve' | 'reject' | null>(null)
-  const [withdrawalPaymentRef, setWithdrawalPaymentRef] = useState('')
   const [withdrawalRejectReason, setWithdrawalRejectReason] = useState('')
 
   // Payment number edit state
@@ -247,15 +246,10 @@ export default function AdminPage() {
   }
 
   const handleApproveWithdrawal = async (withdrawalId: string) => {
-    if (!withdrawalPaymentRef.trim()) {
-      toast.error('Veuillez saisir la référence de paiement Mobile Money réelle.')
-      return
-    }
-
     try {
       const { data, error: rpcError } = await supabase.rpc('approve_withdrawal', {
         p_withdrawal_id: withdrawalId,
-        p_payment_reference: withdrawalPaymentRef.trim()
+        p_payment_reference: `MM-${Date.now()}`
       })
       if (rpcError) throw rpcError
 
@@ -263,7 +257,6 @@ export default function AdminPage() {
       toast.success(`Retrait validé ! Montant net versé : ${result?.net_amount?.toLocaleString('fr-FR') || '—'} FC`)
       setTargetWithdrawalId(null)
       setWithdrawalAction(null)
-      setWithdrawalPaymentRef('')
 
       const { data: witData } = await supabase.from('withdrawals').select('*, profile:profiles(*)').order('created_at', { ascending: false })
       setWithdrawals(witData || [])
@@ -657,7 +650,7 @@ export default function AdminPage() {
                     {isPending && targetWithdrawalId !== wit.id && (
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => { setTargetWithdrawalId(wit.id); setWithdrawalAction('approve'); setWithdrawalPaymentRef(''); }}
+                          onClick={() => { setTargetWithdrawalId(wit.id); setWithdrawalAction('approve'); }}
                           className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl transition-colors"
                         >
                           ✓ Valider le paiement
@@ -671,17 +664,11 @@ export default function AdminPage() {
                       </div>
                     )}
 
-                    {/* Modale inline : Valider avec référence */}
+                    {/* Modale inline : Valider le retrait */}
                     {targetWithdrawalId === wit.id && withdrawalAction === 'approve' && (
                       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-2">
-                        <p className="text-xs font-bold text-emerald-800">Référence Mobile Money du paiement effectué :</p>
-                        <input
-                          type="text"
-                          placeholder="Ex: PP260315.1432.B78921"
-                          value={withdrawalPaymentRef}
-                          onChange={(e) => setWithdrawalPaymentRef(e.target.value)}
-                          className="w-full p-2.5 border border-emerald-200 rounded-xl text-xs font-mono bg-white focus:outline-none focus:border-emerald-500"
-                        />
+                        <p className="text-xs font-bold text-emerald-800">Confirmer le paiement de {wit.amount?.toLocaleString('fr-FR') || '—'} FC ?</p>
+                        <p className="text-[10px] text-emerald-600">Une référence unique sera générée automatiquement pour le suivi.</p>
                         <div className="flex space-x-2">
                           <button onClick={() => { setTargetWithdrawalId(null); setWithdrawalAction(null); }} className="flex-1 bg-gray-100 py-2 rounded-xl text-xs font-semibold">
                             Annuler
