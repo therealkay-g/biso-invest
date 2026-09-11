@@ -29,6 +29,19 @@ export default function AdminPage() {
   const [pageDeposits, setPageDeposits] = useState(1)
   const [pageWithdrawals, setPageWithdrawals] = useState(1)
 
+  // Onglets du panneau admin (clé technique → libellé français)
+  const ADMIN_TABS = [
+    { key: 'dashboard', label: 'Tableau de bord' },
+    { key: 'users', label: 'Utilisateurs' },
+    { key: 'deposits', label: 'Recharges' },
+    { key: 'withdrawals', label: 'Retraits' },
+    { key: 'products', label: 'Produits' },
+    { key: 'vip', label: 'VIP' },
+    { key: 'tasks', label: 'Tâches' },
+    { key: 'payments', label: 'Paiements' },
+    { key: 'logs', label: 'Journaux' },
+  ]
+
   // Rejection reason state
   const [rejectionReason, setRejectionReason] = useState('')
   const [targetDepositId, setTargetDepositId] = useState<string | null>(null)
@@ -347,15 +360,15 @@ export default function AdminPage() {
       <div className="p-4 max-w-7xl mx-auto space-y-6">
         {/* Admin Navigation */}
         <div className="flex space-x-2 overflow-x-auto bg-white p-2 rounded-2xl border border-gray-100 shadow-xs">
-          {['dashboard', 'users', 'deposits', 'withdrawals', 'products', 'vip', 'tasks', 'payments', 'logs'].map((tab) => (
+          {ADMIN_TABS.map(({ key: tabKey, label }) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+              key={tabKey}
+              onClick={() => setActiveTab(tabKey)}
               className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase whitespace-nowrap transition-all ${
-                activeTab === tab ? 'bg-biso-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'
+                activeTab === tabKey ? 'bg-biso-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
-              {tab}
+              {label}
             </button>
           ))}
         </div>
