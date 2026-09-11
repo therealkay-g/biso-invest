@@ -1,5 +1,19 @@
 export type UserStatus = 'ACTIVE' | 'BLOCKED' | 'SUSPENDED'
 
+export type KycStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+
+export interface KycProfile {
+  id: string
+  user_id: string
+  id_type: string
+  id_number: string
+  document_url: string
+  status: KycStatus
+  rejection_reason?: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Profile {
   id: string
   phone: string

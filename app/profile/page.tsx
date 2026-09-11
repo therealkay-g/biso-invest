@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import { Profile, WithdrawalAccount } from '@/types'
+import { Profile, WithdrawalAccount, KycProfile, KycStatus } from '@/types'
 import Header from '@/components/Header'
 import { useToast } from '@/components/ToastProvider'
 import {
   Shield, LogOut, Phone, Plus, ChevronRight, Wallet, TrendingUp,
-  BadgeCheck, Users, Info, Crown, CircleDollarSign, Copy, X
+  BadgeCheck, Users, Info, Crown, CircleDollarSign, Copy, X, FileCheck, Upload
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -17,6 +17,7 @@ export default function ProfilePage() {
   const toast = useToast()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [withdrawalAccounts, setWithdrawalAccounts] = useState<WithdrawalAccount[]>([])
+  const [kycProfile, setKycProfile] = useState<KycProfile | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -25,6 +26,13 @@ export default function ProfilePage() {
   const [network, setNetwork] = useState<'Airtel Money' | 'Orange Money' | 'M-Pesa'>('Airtel Money')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [accountName, setAccountName] = useState('')
+
+  // KYC upload state
+  const [showKycForm, setShowKycForm] = useState(false)
+  const [kycIdType, setKycIdType] = useState('PASSPORT')
+  const [kycIdNumber, setKycIdNumber] = useState('')
+  const [kycFile, setKycFile] = useState<File | null>(null)
+  const [uploadingKyc, setUploadingKyc] = useState(false)
 
   useEffect(() => {
     async function loadProfile() {
@@ -37,6 +45,9 @@ export default function ProfilePage() {
 
         const { data: pData } = await supabase.from('profiles').select('*').eq('id', user.id).single()
         setProfile(pData)
+
+        const { data: kycData } = await supabase.from('kyc_profiles').select('*').eq('user_id', user.id).maybeSingle()
+        setKycProfile(kycData)
 
         const { data: waData } = await supabase.from('withdrawal_accounts').select('*').eq('user_id', user.id)
         setWithdrawalAccounts(waData || [])
@@ -111,6 +122,54 @@ export default function ProfilePage() {
       toast.success('Code d\u2019invitation copié')
     } catch {
       toast.error('Impossible de copier')
+    }
+  }
+
+  const handleKycUpload = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!kycFile) {
+      toast.error('Veuillez sélectionner un document')
+      return
+    }
+
+    setUploadingKyc(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Non authentifié')
+
+      const fileExt = kycFile.name.split('.').pop()
+      const fileName = `kyc/${user.id}/${Date.now()}.${fileExt}`
+      const { error: uploadError } = await supabase.storage
+        .from('kyc-docs')
+        .upload(fileName, kycFile)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('kyc-docs')
+        .getPublicUrl(fileName)
+
+      const { error: kycError } = await supabase.from('kyc_profiles').upsert({
+        user_id: user.id,
+        id_type: kycIdType,
+        id_number: kycIdNumber,
+        document_url: publicUrl,
+        status: 'PENDING',
+        updated_at: new Date().toISOString(),
+      })
+
+      if (kycError) throw kycError
+
+      toast.success('Document d’identité soumis avec succès. En attente de validation.')
+      setShowKycForm(false)
+
+      const { data: kycData } = await supabase.from('kyc_profiles').select('*').eq('user_id', user.id).maybeSingle()
+      setKycProfile(kycData)
+    } catch (err: any) {
+      console.error('Error uploading KYC:', err)
+      toast.error(err?.message || 'Erreur lors de la soumission du KYC')
+    } finally {
+      setUploadingKyc(false)
     }
   }
 
@@ -226,6 +285,102 @@ export default function ProfilePage() {
                 className="btn-primary w-full"
               >
                 Ajouter le compte
+              </button>
+            </form>
+          )}
+        </div>
+
+        {/* Vérification d'identité (KYC) */}
+        <div className="card p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2.5">
+              <span className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                <FileCheck className="w-5 h-5" aria-hidden="true" />
+              </span>
+              <h3 className="font-black text-gray-900 text-sm">Vérification d'identité</h3>
+            </div>
+            {!kycProfile && (
+              <button
+                onClick={() => setShowKycForm(true)}
+                className="inline-flex items-center space-x-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2 rounded-xl text-[10px] uppercase tracking-wider transition-all min-h-[36px]"
+              >
+                <Upload className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Vérifier</span>
+              </button>
+            )}
+          </div>
+
+          <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className={`w-2 h-2 rounded-full ${
+                kycProfile?.status === 'APPROVED' ? 'bg-emerald-500' :
+                kycProfile?.status === 'REJECTED' ? 'bg-red-500' : 'bg-amber-500'
+              }`} />
+              <span className="text-xs font-bold text-gray-700">
+                Statut : {kycProfile?.status === 'APPROVED' ? 'Vérifié' :
+                           kycProfile?.status === 'REJECTED' ? 'Refusé' :
+                           kycProfile ? 'En attente' : 'Non initié'}
+              </span>
+            </div>
+            {kycProfile?.status === 'REJECTED' && (
+              <button
+                onClick={() => setShowKycForm(true)}
+                className="text-xs font-bold text-red-600 hover:underline"
+              >
+                Réessayer
+              </button>
+            )}
+          </div>
+
+          {showKycForm && (
+            <form onSubmit={handleKycUpload} className="space-y-3 pt-3 border-t border-gray-100 animate-fade-in">
+              <div className="grid grid-cols-1 gap-3">
+                <select
+                  value={kycIdType}
+                  onChange={(e) => setKycIdType(e.target.value)}
+                  className="input-field"
+                  aria-label="Type de document"
+                >
+                  <option value="PASSPORT">Passeport</option>
+                  <option value="NATIONAL_ID">Carte Nationale d'Identité</option>
+                  <option value="DRIVERS_LICENSE">Permis de conduire</option>
+                </select>
+                <input
+                  type="text"
+                  required
+                  placeholder="Numéro du document"
+                  value={kycIdNumber}
+                  onChange={(e) => setKycIdNumber(e.target.value)}
+                  className="input-field"
+                />
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 ml-1">Photo du document</label>
+                  <input
+                    type="file"
+                    required
+                    accept="image/*,application/pdf"
+                    onChange={(e) => setKycFile(e.target.files?.[0] || null)}
+                    className="w-full text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={uploadingKyc}
+                className="btn-primary w-full flex items-center justify-center space-x-2"
+              >
+                {uploadingKyc ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                ) : (
+                  <span>Soumettre la vérification</span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowKycForm(false)}
+                className="w-full text-xs text-gray-400 font-bold py-2 hover:text-gray-600 transition-colors"
+              >
+                Annuler
               </button>
             </form>
           )}
