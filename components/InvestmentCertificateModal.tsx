@@ -24,9 +24,9 @@ export default function InvestmentCertificateModal({ investment, userName = 'Inv
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto modal-overlay">
       {/* Container with screen / print styling */}
-      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 relative shadow-2xl border border-gray-100 my-8">
+      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 relative shadow-2xl border border-gray-100 my-8 modal-panel">
         {/* Controls - Hidden on print */}
         <div className="flex justify-between items-center pb-4 border-b border-gray-100 print:hidden">
           <div className="flex items-center space-x-2">

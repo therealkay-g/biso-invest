@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { VipLevel, Profile, Wallet } from '@/types'
 import Header from '@/components/Header'
+import Reveal from '@/components/Reveal'
 import { Crown, Lock, CheckCircle2, Sparkles, TrendingUp, Gem, Award } from 'lucide-react'
 
 const TIER_STYLES: Record<string, { ring: string; badge: string; crown: string; glow: string; label: string }> = {
@@ -109,7 +110,7 @@ export default function VipPage() {
   const currentTotalInvested = wallet?.total_invested || 0
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28">
+    <div className="min-h-screen bg-gray-50 pb-28 page-enter">
       <Header displayName="Niveaux VIP" vipLevel={profile?.current_vip || 'VIP0'} showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-5">
@@ -184,17 +185,17 @@ export default function VipPage() {
           </div>
 
           <div className="space-y-2.5">
-            {activeVipLevels.map((vip) => {
+            {activeVipLevels.map((vip, vIdx) => {
               const style = TIER_STYLES[vip.level_name] || TIER_STYLES.VIP0
               const isCurrent = profile?.current_vip === vip.level_name
               const isUnlocked = currentTotalInvested >= vip.min_investment
               const isNext = !isUnlocked && !isCurrent
 
               return (
+                <Reveal key={vip.id} delay={vIdx * 70}>
                 <div
-                  key={vip.id}
                   className={`relative overflow-hidden bg-white rounded-3xl border p-4 shadow-sm transition-all ${
-                    isCurrent ? `${style.ring} ring-2 ring-offset-1` : style.ring
+                    isCurrent ? `${style.ring} ring-2 ring-offset-1 vip-current` : style.ring
                   }`}
                 >
                   <div className={`absolute inset-0 bg-gradient-to-br ${style.glow} pointer-events-none`} />
@@ -258,6 +259,7 @@ export default function VipPage() {
                     </div>
                   </div>
                 </div>
+                </Reveal>
               )
             })}
           </div>

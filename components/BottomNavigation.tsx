@@ -37,7 +37,7 @@ export default function BottomNavigation() {
               <span className="absolute -top-1.5 w-8 h-1 rounded-full bg-emerald-500 animate-scale-in" />
             )}
             <span className={`w-10 h-8 rounded-xl flex items-center justify-center transition-colors ${isActive ? 'bg-emerald-50' : ''}`}>
-              <Icon className={`w-[22px] h-[22px] ${isActive ? 'text-emerald-600' : ''}`} strokeWidth={isActive ? 2.4 : 2} aria-hidden="true" />
+              <Icon className={`w-[22px] h-[22px] tap-icon ${isActive ? 'text-emerald-600' : ''}`} strokeWidth={isActive ? 2.4 : 2} aria-hidden="true" />
             </span>
             <span className={`text-[10px] font-bold ${isActive ? 'text-emerald-700' : 'text-gray-400'}`}>{item.label}</span>
           </Link>

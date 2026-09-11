@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, ReferralTask, ReferralTaskStats, ReferralTaskReward } from '@/types'
 import Header from '@/components/Header'
+import Reveal from '@/components/Reveal'
+import ProgressBar from '@/components/ProgressBar'
 import { useToast } from '@/components/ToastProvider'
 import { Sparkles, Users, Share2, Gift, Award, CheckCircle2, Lock, History, Copy, ChevronDown, ChevronUp } from 'lucide-react'
 
@@ -98,7 +100,7 @@ export default function TaskPage() {
   const nextReward = stats?.next_reward
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28">
+    <div className="min-h-screen bg-gray-50 pb-28 page-enter">
       <Header displayName="Tâche" vipLevel={profile?.current_vip || 'VIP0'} showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-6">
@@ -171,35 +173,37 @@ export default function TaskPage() {
 
         {/* Progression vers prochaine récompense */}
         {nextReward && (
-          <div className="card p-5 space-y-3 animate-fade-in">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-gray-700">Prochaine récompense</span>
-              <span className="text-xs font-black text-emerald-700">
-                {validInvites} / {nextReward.required_invites.toLocaleString('fr-FR')}
-              </span>
-            </div>
-            <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-600 to-amber-400 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min((validInvites / nextReward.required_invites) * 100, 100)}%` }}
+          <Reveal delay={80}>
+            <div className="card p-5 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-gray-700">Prochaine récompense</span>
+                <span className="text-xs font-black text-emerald-700">
+                  {validInvites} / {nextReward.required_invites.toLocaleString('fr-FR')}
+                </span>
+              </div>
+              <ProgressBar
+                value={validInvites}
+                max={nextReward.required_invites}
+                className="h-3"
+                duration={700}
+                barClassName="bg-gradient-to-r from-emerald-600 to-amber-400"
               />
+              <p className="text-[11px] text-gray-500">
+                Encore {Math.max(nextReward.required_invites - validInvites, 0)} invitation{Math.max(nextReward.required_invites - validInvites, 0) > 1 ? 's' : ''} valide{Math.max(nextReward.required_invites - validInvites, 0) > 1 ? 's' : ''} pour gagner{' '}
+                <strong className="text-gray-800">{nextReward.reward_amount.toLocaleString('fr-FR')} FC</strong>.
+              </p>
             </div>
-            <p className="text-[11px] text-gray-500">
-              Encore {Math.max(nextReward.required_invites - validInvites, 0)} invitation{Math.max(nextReward.required_invites - validInvites, 0) > 1 ? 's' : ''} valide{Math.max(nextReward.required_invites - validInvites, 0) > 1 ? 's' : ''} pour gagner{' '}
-              <strong className="text-gray-800">{nextReward.reward_amount.toLocaleString('fr-FR')} FC</strong>.
-            </p>
-          </div>
+          </Reveal>
         )}
 
         {/* Tous les paliers de récompenses */}
         <section className="space-y-3">
           <h2 className="font-black text-gray-900 text-sm uppercase tracking-wider">Paliers de récompenses</h2>
           <div className="space-y-2.5">
-            {(stats?.tasks || []).map((task: ReferralTask) => {
-              const pct = Math.min((Math.min(validInvites, task.required_invites) / task.required_invites) * 100, 100)
+            {(stats?.tasks || []).map((task: ReferralTask, tIdx) => {
               return (
+                <Reveal key={task.id} delay={tIdx * 70}>
                 <div
-                  key={task.id}
                   className={`card-sm p-4 flex items-center justify-between gap-4 ${
                     task.claimed ? 'bg-emerald-50/40 border-emerald-200' : ''
                   }`}
@@ -207,7 +211,7 @@ export default function TaskPage() {
                   <div className="flex items-center space-x-3 min-w-0">
                     <span className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
                       task.claimed
-                        ? 'bg-emerald-100 text-emerald-700'
+                        ? 'bg-emerald-100 text-emerald-700 animate-scale-in'
                         : 'bg-gray-100 text-gray-500'
                     }`}>
                       {task.claimed ? (
@@ -231,20 +235,23 @@ export default function TaskPage() {
                       {Math.min(validInvites, task.required_invites)}/{task.required_invites}
                     </p>
                     {task.claimed ? (
-                      <span className="inline-flex items-center space-x-1 text-[10px] font-black bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">
+                      <span className="inline-flex items-center space-x-1 text-[10px] font-black bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full animate-scale-in">
                         <Award className="w-3 h-3" aria-hidden="true" />
                         <span>Attribué</span>
                       </span>
                     ) : (
-                      <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-emerald-600 to-amber-400 rounded-full transition-all"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
+                      <ProgressBar
+                        value={validInvites}
+                        max={task.required_invites}
+                        className="w-20 h-1.5"
+                        delay={Math.min(tIdx * 80, 400)}
+                        duration={600}
+                        barClassName="bg-gradient-to-r from-emerald-600 to-amber-400"
+                      />
                     )}
                   </div>
                 </div>
+                </Reveal>
               )
             })}
             {(stats?.tasks || []).length === 0 && (

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import WalletCard from '@/components/WalletCard'
 import ProductCard from '@/components/ProductCard'
+import Reveal from '@/components/Reveal'
 import { WalletSkeleton, ProductSkeleton } from '@/components/Skeleton'
 import { supabase } from '@/lib/supabase/client'
 import { Product, Profile, Wallet, Investment, Announcement, ProfitClaim, ProductCategory } from '@/types'
@@ -29,7 +30,8 @@ export default function DashboardPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [adminRole, setAdminRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selling, setSelling] = useState(false)
+  const [sellLoading, setSellLoading] = useState<string | null>(null)
+  const [sellSuccess, setSellSuccess] = useState<Record<string, boolean>>({})
   const toast = useToast()
 
   const loadDashboard = async () => {
@@ -177,9 +179,9 @@ export default function DashboardPage() {
     return claims.some(c => c.investment_id === invId && c.profit_date === today)
   }
 
-  const handleSell = async () => {
-    if (selling) return
-    setSelling(true)
+  const handleSell = async (invId: string) => {
+    if (sellLoading) return
+    setSellLoading(invId)
     try {
       const { data, error } = await supabase.rpc('claim_daily_profit')
       if (error) throw error
@@ -190,10 +192,20 @@ export default function DashboardPage() {
         toast.info('Bénéfice du jour déjà réclamé. Revenez demain !')
       }
       await loadDashboard()
+      if (data?.claimed_amount > 0) {
+        setSellSuccess((s) => ({ ...s, [invId]: true }))
+        setTimeout(() => {
+          setSellSuccess((s) => {
+            const next = { ...s }
+            delete next[invId]
+            return next
+          })
+        }, 1400)
+      }
     } catch (err: any) {
       toast.error(err.message || "Erreur lors de la vente du bénéfice du jour.")
     } finally {
-      setSelling(false)
+      setSellLoading(null)
     }
   }
 
@@ -223,7 +235,7 @@ export default function DashboardPage() {
   const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-8">
+    <div className="min-h-screen bg-gray-50 pb-8 page-enter">
       <Header
         displayName={greetingName}
         vipLevel={profile?.current_vip || 'VIP0'}
@@ -295,23 +307,24 @@ export default function DashboardPage() {
         />
 
         {/* Quick actions */}
-        <div className="grid grid-cols-4 gap-3 animate-fade-in">
+        <div className="grid grid-cols-4 gap-3">
           {[
             { href: '/invest', label: 'Investir', icon: Package, bg: 'bg-emerald-50 text-emerald-600' },
             { href: '/task', label: 'Tâches', icon: Users, bg: 'bg-amber-50 text-amber-600' },
             { href: '/investments', label: 'Mes gains', icon: TrendingUp, bg: 'bg-emerald-50 text-emerald-700' },
             { href: '/vip', label: 'VIP', icon: Shield, bg: 'bg-gray-100 text-gray-700' },
-          ].map(({ href, label, icon: Icon, bg }) => (
-            <Link
-              key={href}
-              href={href}
-              className="card-sm p-3 flex flex-col items-center justify-center text-center space-y-1.5 hover:border-emerald-300 transition-all active:scale-95"
-            >
-              <span className={`w-10 h-10 rounded-2xl ${bg} flex items-center justify-center`}>
-                <Icon className="w-5 h-5" aria-hidden="true" />
-              </span>
-              <span className="text-[10px] font-bold text-gray-700">{label}</span>
-            </Link>
+          ].map(({ href, label, icon: Icon, bg }, qi) => (
+            <Reveal key={href} delay={qi * 70}>
+              <Link
+                href={href}
+                className="card-sm p-3 flex flex-col items-center justify-center text-center space-y-1.5 hover:border-emerald-300 transition-all active:scale-95"
+              >
+                <span className={`w-10 h-10 rounded-2xl ${bg} flex items-center justify-center`}>
+                  <Icon className="w-5 h-5 tap-icon" aria-hidden="true" />
+                </span>
+                <span className="text-[10px] font-bold text-gray-700">{label}</span>
+              </Link>
+            </Reveal>
           ))}
         </div>
 
@@ -352,7 +365,8 @@ export default function DashboardPage() {
               const SectorIcon = (category && SECTOR_ICONS[category.name])?.icon || Sprout
 
               return (
-                <div key={inv.id} className="card p-4 space-y-3 animate-slide-up">
+                <Reveal key={inv.id} delay={index * 80}>
+                  <div className="card p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center space-x-3 min-w-0">
                       <span className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
@@ -393,10 +407,10 @@ export default function DashboardPage() {
                         <AlertCircle className="w-4 h-4" aria-hidden="true" />
                         <span>Investissement terminé</span>
                       </span>
-                    ) : claimedToday ? (
-                      <span className="inline-flex items-center space-x-1.5 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-3 rounded-2xl">
+                    ) : (claimedToday || sellSuccess[inv.id]) ? (
+                      <span className="inline-flex items-center space-x-1.5 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-4 py-3 rounded-2xl animate-scale-in">
                         <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
-                        <span>Déjà vendu aujourd&apos;hui</span>
+                        <span>{sellSuccess[inv.id] ? 'Bénéfice vendu' : 'Déjà vendu aujourd\u2019hui'}</span>
                       </span>
                     ) : (
                       <>
@@ -404,12 +418,21 @@ export default function DashboardPage() {
                           Votre bénéfice du jour est disponible
                         </span>
                         <button
-                          onClick={handleSell}
-                          disabled={selling}
+                          onClick={() => handleSell(inv.id)}
+                          disabled={!!sellLoading}
                           className="inline-flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black px-6 py-3 min-h-[44px] rounded-2xl text-xs uppercase tracking-widest shadow-md shadow-emerald-950/10 active:scale-95 transition-all disabled:opacity-50 flex-1 sm:flex-none"
                         >
-                          <HandCoins className="w-4 h-4" aria-hidden="true" />
-                          <span>{selling ? 'Vente...' : 'VENDRE'}</span>
+                          {sellLoading === inv.id ? (
+                            <>
+                              <span className="spinner" aria-hidden="true" />
+                              <span>Traitement...</span>
+                            </>
+                          ) : (
+                            <>
+                              <HandCoins className="w-4 h-4" aria-hidden="true" />
+                              <span>VENDRE</span>
+                            </>
+                          )}
                         </button>
                       </>
                     )}
@@ -422,7 +445,8 @@ export default function DashboardPage() {
                     <CalendarCheck className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
                     Voir l&apos;historique de mes bénéfices
                   </Link>
-                </div>
+                  </div>
+                </Reveal>
               )
             })
           )}
@@ -441,9 +465,11 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {popularProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {popularProducts.map((product, pIdx) => (
+              <Reveal key={product.id} delay={pIdx * 70}>
+                <ProductCard product={product} />
+              </Reveal>
             ))}
           </div>
         </section>

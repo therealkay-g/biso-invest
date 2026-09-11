@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client'
 import { ProductCategory, Product } from '@/types'
 import ProductCard from '@/components/ProductCard'
 import Header from '@/components/Header'
+import Reveal from '@/components/Reveal'
 import { ProductSkeleton } from '@/components/Skeleton'
 import { ALLOWED_PACK_PRICES } from '@/utils/constants'
 import { Sprout, Beef, Fish, LayoutGrid } from 'lucide-react'
@@ -79,7 +80,7 @@ export default function InvestPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-gray-50 pb-24 page-enter">
       <Header displayName="Investir" vipLevel="Packs VIP1 - VIP4" showBack={false} />
 
       <main className="p-4 max-w-4xl mx-auto space-y-6">
@@ -154,9 +155,11 @@ export default function InvestPage() {
               <p className="text-xs text-gray-500">Revenez bientôt, de nouvelles opportunités arrivent.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {filteredProducts.map((product, pIdx) => (
+                <Reveal key={product.id} delay={pIdx * 70}>
+                  <ProductCard product={product} />
+                </Reveal>
               ))}
             </div>
           )}

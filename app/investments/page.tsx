@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase/client'
 import { Investment, ProfitClaim } from '@/types'
 import Header from '@/components/Header'
 import { TableSkeleton } from '@/components/Skeleton'
+import Reveal from '@/components/Reveal'
+import ProgressBar from '@/components/ProgressBar'
 import { useToast } from '@/components/ToastProvider'
 import InvestmentCertificateModal from '@/components/InvestmentCertificateModal'
 import { Package, CheckCircle2, AlertCircle, Award, Clock, History, HandCoins, ArrowRight, Sprout, Beef, Fish } from 'lucide-react'
@@ -27,7 +29,8 @@ export default function InvestmentsPage() {
   const [investments, setInvestments] = useState<(Investment & { cycles?: InvestmentCycle[] })[]>([])
   const [claims, setClaims] = useState<ProfitClaim[]>([])
   const [loading, setLoading] = useState(true)
-  const [selling, setSelling] = useState(false)
+  const [sellLoading, setSellLoading] = useState<string | null>(null)
+  const [sellSuccess, setSellSuccess] = useState<Record<string, boolean>>({})
   const [selectedCertInvestment, setSelectedCertInvestment] = useState<Investment | null>(null)
   const [userDisplayName, setUserDisplayName] = useState('Investisseur Biso')
   const toast = useToast()
@@ -98,9 +101,9 @@ export default function InvestmentsPage() {
     return claims.some(c => c.investment_id === invId && c.profit_date === today)
   }
 
-  const handleSell = async () => {
-    if (selling) return
-    setSelling(true)
+  const handleSell = async (invId: string) => {
+    if (sellLoading) return
+    setSellLoading(invId)
     try {
       const { data, error } = await supabase.rpc('claim_daily_profit')
       if (error) throw error
@@ -111,10 +114,20 @@ export default function InvestmentsPage() {
         toast.info('Bénéfice du jour déjà réclamé. Revenez demain !')
       }
       await loadInvestments()
+      if (data?.claimed_amount > 0) {
+        setSellSuccess((s) => ({ ...s, [invId]: true }))
+        setTimeout(() => {
+          setSellSuccess((s) => {
+            const next = { ...s }
+            delete next[invId]
+            return next
+          })
+        }, 1400)
+      }
     } catch (err: any) {
       toast.error(err.message || "Erreur lors de la vente du bénéfice du jour.")
     } finally {
-      setSelling(false)
+      setSellLoading(null)
     }
   }
 
@@ -130,7 +143,7 @@ export default function InvestmentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28">
+    <div className="min-h-screen bg-gray-50 pb-28 page-enter">
       <Header displayName="Mes Investissements" vipLevel="Bénéfice du jour (VENDRE)" showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-6">
@@ -163,7 +176,7 @@ export default function InvestmentsPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {investments.map((inv) => {
+            {investments.map((inv, index) => {
               const capital = inv.total_amount
               const monthlyReturn = (inv.product?.monthly_return || 0) * inv.quantity
               const now = new Date()
@@ -181,7 +194,8 @@ export default function InvestmentsPage() {
               const progressPercent = Math.min(100, Math.round((elapsedMs / totalDurationMs) * 100))
 
               return (
-                <div key={inv.id} className="card p-6 space-y-5 animate-slide-up">
+                <Reveal key={inv.id} delay={index * 80}>
+                  <div className="card p-6 space-y-5">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
                       <div className="flex items-center space-x-2">
@@ -216,9 +230,9 @@ export default function InvestmentsPage() {
                       <span className="text-emerald-700 tabular-nums">{progressPercent}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 mt-2 overflow-hidden">
-                      <div
-                        style={{ width: `${progressPercent}%` }}
-                        className="bg-gradient-to-r from-emerald-600 to-emerald-400 h-2 rounded-full transition-all duration-500"
+                      <ProgressBar
+                        value={progressPercent}
+                        barClassName="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full"
                       />
                     </div>
                   </div>
@@ -252,10 +266,10 @@ export default function InvestmentsPage() {
                             <AlertCircle className="w-4 h-4" aria-hidden="true" />
                             <span>Terminé</span>
                           </span>
-                        ) : claimedToday ? (
-                          <span className="inline-flex items-center space-x-1.5 text-xs font-black text-emerald-800 bg-white border border-emerald-300 px-4 py-3 rounded-2xl shadow-sm">
+                        ) : (claimedToday || sellSuccess[inv.id]) ? (
+                          <span className="inline-flex items-center space-x-1.5 text-xs font-black text-emerald-800 bg-white border border-emerald-300 px-4 py-3 rounded-2xl shadow-sm animate-scale-in">
                             <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
-                            <span>Déjà vendu aujourd&apos;hui</span>
+                            <span>{sellSuccess[inv.id] ? 'Bénéfice vendu' : 'Déjà vendu aujourd\u2019hui'}</span>
                           </span>
                         ) : (
                           <>
@@ -263,12 +277,21 @@ export default function InvestmentsPage() {
                               Disponible
                             </span>
                             <button
-                              onClick={handleSell}
-                              disabled={selling}
+                              onClick={() => handleSell(inv.id)}
+                              disabled={!!sellLoading}
                               className="inline-flex items-center space-x-2 bg-white text-emerald-900 font-black px-6 py-3 min-h-[44px] rounded-2xl text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all disabled:opacity-50 w-full justify-center"
                             >
-                              <HandCoins className="w-4 h-4" aria-hidden="true" />
-                              <span>{selling ? 'Vente...' : 'VENDRE'}</span>
+                              {sellLoading === inv.id ? (
+                                <>
+                                  <span className="spinner text-emerald-900" aria-hidden="true" />
+                                  <span>Traitement...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <HandCoins className="w-4 h-4" aria-hidden="true" />
+                                  <span>VENDRE</span>
+                                </>
+                              )}
                             </button>
                           </>
                         )}
@@ -353,7 +376,8 @@ export default function InvestmentsPage() {
                       </div>
                     </div>
                   )}
-                </div>
+                  </div>
+                </Reveal>
               )
             })}
           </div>

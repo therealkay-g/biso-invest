@@ -252,7 +252,7 @@ function WalletContent() {
   const activePaymentAccount = paymentAccounts.find(p => p.network === depositNetwork)
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-gray-50 pb-24 page-enter">
       <Header displayName="Portefeuille" vipLevel="BISO Wallet" showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-5">
@@ -548,9 +548,9 @@ function WalletContent() {
 
       {/* Modale PIN de sécurité */}
       {showPinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-5 shadow-2xl border border-gray-100 text-center animate-scale-in">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm modal-overlay">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-5 shadow-2xl border border-gray-100 text-center modal-panel">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-sm tap-icon">
               <Lock className="w-6 h-6" aria-hidden="true" />
             </div>
             <div>

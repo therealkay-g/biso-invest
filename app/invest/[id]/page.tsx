@@ -132,7 +132,7 @@ export default function ProductDetailPage() {
   const vipTier = getVipTierForPrice(product.price)
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32">
+    <div className="min-h-screen bg-gray-50 pb-32 page-enter">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 p-4 flex items-center justify-between sticky top-0 z-40">
         <Link href="/invest" className="p-2 rounded-full hover:bg-gray-100" aria-label="Retour">
@@ -145,7 +145,7 @@ export default function ProductDetailPage() {
       <div className="max-w-2xl mx-auto p-4 space-y-5">
         {/* Héro du pack */}
         <div className="card overflow-hidden animate-fade-in">
-          <div className="h-48 w-full relative">
+          <div className="h-40 w-full relative">
             <img
               src={product.image_url || 'https://images.unsplash.com/photo-1551754655-cd9e3fb8c371?auto=format&fit=crop&w=600&q=80'}
               alt={product.name}
@@ -316,9 +316,9 @@ export default function ProductDetailPage() {
 
       {/* Modale de confirmation */}
       {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-5 shadow-2xl border border-gray-100 text-center animate-scale-in">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm modal-overlay">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-5 shadow-2xl border border-gray-100 text-center modal-panel">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-sm tap-icon">
               <ShieldCheck className="w-7 h-7" aria-hidden="true" />
             </div>
             <div>

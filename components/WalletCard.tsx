@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Wallet as WalletIcon, ArrowUpRight, Plus, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
+import AnimatedNumber from './AnimatedNumber'
 import { USD_TO_FC } from '../utils/constants'
 
 interface WalletCardProps {
@@ -39,12 +40,7 @@ export default function WalletCard({
     localStorage.setItem('biso_hide_balance', (!nextState).toString())
   }
 
-  const usdBalance = (balance / USD_TO_FC).toFixed(2)
-
-  const formatAmount = (val: number, unit = 'FC') => {
-    if (!showBalance) return '••••••'
-    return `${val.toLocaleString('fr-FR', { minimumFractionDigits: 0 })} ${unit}`
-  }
+  const usdValue = balance / USD_TO_FC
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 text-white shadow-xl border border-emerald-400/20 transition-all animate-slide-up">
@@ -87,13 +83,24 @@ export default function WalletCard({
           <span className="text-[11px] uppercase tracking-wider text-emerald-100/70 font-semibold">Solde disponible</span>
           <div className="flex items-baseline space-x-2 mt-0.5">
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight tabular-nums text-white">
-              {formatAmount(balance, '')}
+              {showBalance ? (
+                <AnimatedNumber
+                  value={balance}
+                  format={(v) => `${Math.round(v).toLocaleString('fr-FR')}`}
+                />
+              ) : '••••••'}
               {showBalance && <span className="text-xl font-bold text-emerald-300 ml-1">FC</span>}
             </h2>
           </div>
           {showBalance && (
             <p className="text-xs text-emerald-200/70 mt-0.5 tabular-nums">
-              ≈ <span className="text-amber-300 font-semibold">{usdBalance} $</span> USD
+              ≈ <span className="text-amber-300 font-semibold">
+                <AnimatedNumber
+                  value={usdValue}
+                  duration={800}
+                  format={(v) => `${v.toFixed(2)}`}
+                /> $
+              </span> USD
               <span className="text-[10px] text-emerald-300/50 ml-2">(1 $ ≈ {USD_TO_FC} FC)</span>
             </p>
           )}
@@ -104,26 +111,36 @@ export default function WalletCard({
           <div>
             <p className="text-[10px] uppercase text-emerald-200/60 font-medium">Investissement</p>
             <p className="text-xs sm:text-sm font-bold text-white tabular-nums mt-0.5">
-              {formatAmount(totalInvested)}
+              {showBalance ? (
+                <AnimatedNumber value={totalInvested} format={(v) => `${Math.round(v).toLocaleString('fr-FR')} FC`} />
+              ) : '••••••'}
             </p>
           </div>
           <div className="border-x border-white/10 px-2">
             <p className="text-[10px] uppercase text-emerald-200/60 font-medium">Revenus du jour</p>
             <p className="text-xs sm:text-sm font-bold text-amber-300 tabular-nums mt-0.5">
-              {showBalance ? `+${todayEarned.toLocaleString('fr-FR')} FC` : '••••••'}
+              {showBalance ? (
+                <AnimatedNumber value={todayEarned} duration={500} format={(v) => `+${Math.round(v).toLocaleString('fr-FR')} FC`} />
+              ) : '••••••'}
             </p>
           </div>
           <div className="text-right">
             <p className="text-[10px] uppercase text-emerald-200/60 font-medium">Total gagné</p>
             <p className="text-xs sm:text-sm font-bold text-emerald-300 tabular-nums mt-0.5">
-              {formatAmount(totalEarned)}
+              {showBalance ? (
+                <AnimatedNumber value={totalEarned} duration={800} format={(v) => `${Math.round(v).toLocaleString('fr-FR')} FC`} />
+              ) : '••••••'}
             </p>
           </div>
         </div>
 
         {totalWithdrawn > 0 && (
           <p className="text-[10px] text-emerald-200/50 -mt-2">
-            Retraits effectués : <strong className="text-emerald-100">{formatAmount(totalWithdrawn)}</strong>
+            Retraits effectués : <strong className="text-emerald-100">
+              {showBalance ? (
+                <AnimatedNumber value={totalWithdrawn} duration={600} format={(v) => `${Math.round(v).toLocaleString('fr-FR')} FC`} />
+              ) : '••••••'}
+            </strong>
           </p>
         )}
 
