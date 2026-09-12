@@ -71,11 +71,6 @@ export default function AdminPage() {
   useEffect(() => {
     async function loadAdminData() {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          router.push('/auth/login')
-          return
-        }
 
 
 
@@ -122,13 +117,23 @@ export default function AdminPage() {
 
   // Animation effect for tab content
   useEffect(() => {
+    // Animate tab container
     anime({
       targets: '.tab-content-item',
       opacity: [0, 1],
       translateY: [10, 0],
-      delay: anime.stagger(40),
       easing: 'easeOutExpo',
       duration: 600
+    })
+
+    // Stagger animate stat cards
+    anime({
+      targets: '.admin-stat-card',
+      opacity: [0, 1],
+      translateY: [20, 0],
+      delay: anime.stagger(100),
+      easing: 'easeOutExpo',
+      duration: 800
     })
   }, [activeTab])
 
@@ -405,19 +410,19 @@ export default function AdminPage() {
         {activeTab === 'dashboard' && (
           <div className="tab-content-item space-y-6">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs">
+              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs admin-stat-card">
                 <span className="text-xs text-gray-500">Total Utilisateurs</span>
                 <p className="text-2xl font-extrabold text-gray-900 mt-1">{users.length}</p>
               </div>
-              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs">
+              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs admin-stat-card">
                 <span className="text-xs text-gray-500">Recharges en attente</span>
                 <p className="text-2xl font-extrabold text-amber-600 mt-1">{pendingDeposits.length}</p>
               </div>
-              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs">
+              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs admin-stat-card">
                 <span className="text-xs text-gray-500">Retraits en attente</span>
                 <p className="text-2xl font-extrabold text-amber-600 mt-1">{pendingWithdrawals.length}</p>
               </div>
-              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs">
+              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs admin-stat-card">
                 <span className="text-xs text-gray-500">Produits Actifs</span>
                 <p className="text-2xl font-extrabold text-biso-600 mt-1">{products.length}</p>
               </div>
