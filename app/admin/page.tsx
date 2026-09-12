@@ -376,8 +376,8 @@ export default function AdminPage() {
     return matchesStatus
   })
 
-  const pendingDeposits = filteredDeposits.filter(d => d.status === 'EN_ATTENTE')
-  const pendingWithdrawals = filteredWithdrawals.filter(w => w.status === 'EN_ATTENTE')
+  const pendingDeposits = filteredDeposits.filter(d => d.status === 'EN_ATTENTE');
+  const pendingWithdrawals = filteredWithdrawals.filter(w => w.status === 'EN_ATTENTE');
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
