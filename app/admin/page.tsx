@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Deposit, Withdrawal, Product, VipLevel, PaymentAccount, AdminLog, AdminTaskOverviewRow, KycProfile } from '@/types'
 import { useToast } from '@/components/ToastProvider'
 import { Shield, Users, DollarSign, Package, CheckCircle2, XCircle, AlertCircle, Settings, Download, ChevronLeft, ChevronRight, History, FileCheck } from 'lucide-react'
+import anime from 'animejs'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -118,6 +119,18 @@ export default function AdminPage() {
 
     loadAdminData()
   }, [router, toast])
+
+  // Animation effect for tab content
+  useEffect(() => {
+    anime({
+      targets: '.tab-content-item',
+      opacity: [0, 1],
+      translateY: [10, 0],
+      delay: anime.stagger(40),
+      easing: 'easeOutExpo',
+      duration: 600
+    })
+  }, [activeTab])
 
   const downloadCsv = (filename: string, headers: string[], rows: (string | number)[][]) => {
     const csvContent = [
@@ -390,7 +403,7 @@ export default function AdminPage() {
         </div>
 
         {activeTab === 'dashboard' && (
-          <div className="space-y-6">
+          <div className="tab-content-item space-y-6">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs">
                 <span className="text-xs text-gray-500">Total Utilisateurs</span>
@@ -514,7 +527,7 @@ export default function AdminPage() {
         )}
 
         {activeTab === 'users' && (
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-4">
+          <div className="tab-content-item bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex items-center space-x-2">
                 <h3 className="font-bold text-gray-800 text-sm">Gestion des Utilisateurs ({users.length})</h3>
@@ -587,7 +600,7 @@ export default function AdminPage() {
         )}
 
         {activeTab === 'deposits' && (
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-4">
+          <div className="tab-content-item bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="flex items-center space-x-2">
                 <h3 className="font-bold text-gray-800 text-sm">Gestion des Recharges ({deposits.length})</h3>
@@ -631,6 +644,107 @@ export default function AdminPage() {
                         aria-label={`Voir la capture de ${dep.reference}`}
                       >
                         <img src={dep.proof_url} alt={`Capture ${dep.reference}`} className="h-16 w-auto object-contain" />
+                      </button>
+                    ) : (
+                      <p className="text-[10px] text-gray-400 mt-1">Aucune capture fournie</p>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                      dep.status === 'VALIDEE' ? 'bg-emerald-50 text-emerald-700' : dep.status === 'REFUSEE' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      {dep.status}
+                    </span>
+                    {dep.status === 'EN_ATTENTE' && (
+                      <div className="flex space-x-1">
+                        <button
+                          onClick={() => handleValidateDeposit(dep)}
+                          className="bg-biso-600 text-white p-2 rounded-lg text-xs font-semibold hover:bg-biso-700"
+                        >
+                          Valider
+                        </button>
+                        <button
+                          onClick={() => setTargetDepositId(dep.id)}
+                          className="bg-red-500 text-white p-2 rounded-lg text-xs font-semibold hover:bg-red-600"
+                        >
+                          Refuser
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {filteredDeposits.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-6">Aucune recharge trouvée.</p>
+              )}
+            </div>
+            {/* Pagination Controls */}
+            {filteredDeposits.length > PAGE_SIZE && (
+              <div className="flex justify-between items-center pt-3 border-t border-gray-100 text-xs text-gray-500">
+                <span>Page {pageDeposits} sur {Math.ceil(filteredDeposits.length / PAGE_SIZE)} ({filteredDeposits.length} dépôts)</span>
+                <div className="flex space-x-1">
+                  <button
+                    onClick={() => setPageDeposits(p => Math.max(1, p - 1))}
+                    disabled={pageDeposits === 1}
+                    className="p-1.5 border rounded-lg hover:bg-gray-50 disabled:opacity-40"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setPageDeposits(p => Math.min(Math.ceil(filteredDeposits.length / PAGE_SIZE), p + 1))}
+                    disabled={pageDeposits >= Math.ceil(filteredDeposits.length / PAGE_SIZE)}
+                    className="p-1.5 border rounded-lg hover:bg-gray-50 disabled:opacity-40"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+            {previewProof && (
+              <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4" onClick={() => setPreviewProof(null)}>
+                <div className="bg-white rounded-2xl p-3 max-w-lg w-full space-y-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-gray-900 text-sm">Capture de preuve de dépôt</h4>
+                    <button
+                      onClick={() => setPreviewProof(null)}
+                      className="text-gray-500 hover:text-gray-700"
+                      aria-label="Fermer la visionneuse"
+                    >
+                      <XCircle className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <img src={previewProof} alt="Capture de preuve de dépôt" className="w-full h-auto rounded-xl object-contain max-h-[70vh]" />
+                  <a
+                    href={previewProof}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="block w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold py-2 rounded-xl"
+                  >
+                    Ouvrir dans un nouvel onglet
+                  </a>
+                </div>
+              </div>
+            )}
+            {targetDepositId && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white p-6 rounded-2xl max-w-sm w-full space-y-4">
+                  <h4 className="font-bold text-gray-900 text-sm">Motif du refus</h4>
+                  <textarea
+                    rows={3}
+                    placeholder="Saisissez le motif obligatoire..."
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="w-full p-3 bg-gray-50 border rounded-xl text-xs"
+                  ></textarea>
+                  <div className="flex space-x-2">
+                    <button onClick={() => setTargetDepositId(null)} className="flex-1 bg-gray-100 py-2 rounded-xl text-xs">Annuler</button>
+                    <button onClick={() => handleRefuseDeposit(targetDepositId)} className="flex-1 bg-red-500 text-white py-2 rounded-xl text-xs font-semibold">Confirmer Refus</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}img src={dep.proof_url} alt={`Capture ${dep.reference}`} className="h-16 w-auto object-contain" />
                       </button>
                     ) : (
                       <p className="text-[10px] text-gray-400 mt-1">Aucune capture fournie</p>

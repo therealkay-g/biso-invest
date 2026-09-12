@@ -12,6 +12,8 @@
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.39.8",
+    "@types/animejs": "^3.1.13",
+    "animejs": "^4.5.0",
     "clsx": "^2.1.0",
     "lucide-react": "^0.359.0",
     "next": "14.2.3",

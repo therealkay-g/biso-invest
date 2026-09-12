@@ -1,6 +1,7 @@
 'use client'
 
 import { ReactNode, useEffect, useRef, useState } from 'react'
+import anime from 'animejs'
 
 interface RevealProps {
   children: ReactNode
@@ -13,28 +14,23 @@ interface RevealProps {
 }
 
 /**
- * Apparition progressive au scroll : opacity 0→1 + translate → 0.
- * - axis "y" (défaut) : arrive par le bas (translateY +from).
- * - axis "x" : arrive par la droite (fromLeft=false) ou la gauche (fromLeft=true).
- * Le stagger se fait via la prop `delay` (60ms par carte).
- * Respecte prefers-reduced-motion (apparition instantanée).
+ * Apparition fluide avec anime.js
  */
 export default function Reveal({
   children,
   delay = 0,
-  duration = 300,
+  duration = 800,
   className = '',
   axis = 'y',
-  from = 12,
+  from = 30,
   fromLeft = false,
 }: RevealProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
-  const reducedRef = useRef(false)
+  const hasAnimated = useRef(false)
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      reducedRef.current = true
       setVisible(true)
       return
     }
@@ -45,23 +41,29 @@ export default function Reveal({
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
+          if (entry.isIntersecting && !hasAnimated.current) {
             setVisible(true)
+            hasAnimated.current = true
+
+            anime({
+              targets: el,
+              opacity: [0, 1],
+              translateX: axis === 'x' ? [fromLeft ? -from : from, 0] : [0, 0],
+              translateY: axis === 'y' ? [from, 0] : [0, 0],
+              duration: duration,
+              delay: delay,
+              easing: 'cubicBezier(0.22, 1, 0.36, 1)',
+            })
             observer.disconnect()
           }
         })
       },
-      { threshold: 0.05, rootMargin: '0px 0px -20px 0px' }
+      { threshold: 0.1, rootMargin: '0px 0px -20px 0px' }
     )
 
     observer.observe(el)
     return () => observer.disconnect()
-  }, [])
-
-  const hiddenTransform =
-    axis === 'x'
-      ? `translateX(${fromLeft ? -from : from}px)`
-      : `translateY(${from}px)`
+  }, [axis, from, fromLeft, duration, delay])
 
   return (
     <div
@@ -69,12 +71,7 @@ export default function Reveal({
       className={className}
       style={{
         opacity: visible ? 1 : 0,
-        transform: visible ? 'translate(0, 0)' : hiddenTransform,
-        transitionProperty: 'opacity, transform',
-        transitionDuration: reducedRef.current ? '0ms' : `${duration}ms`,
-        transitionDelay: reducedRef.current ? '0ms' : `${delay}ms`,
-        transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)',
-        willChange: visible ? 'auto' : 'opacity, transform',
+        willChange: 'transform, opacity',
       }}
     >
       {children}

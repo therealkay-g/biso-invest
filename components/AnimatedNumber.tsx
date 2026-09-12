@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import anime from 'animejs'
 
 interface AnimatedNumberProps {
   value: number
@@ -10,46 +11,35 @@ interface AnimatedNumberProps {
 }
 
 /**
- * Compteur numérique : part de la valeur précédente et rejoint progressivement
- * `value` (easing cubic ease-out). N'altère jamais la donnée : pure mise en forme.
- * Respecte prefers-reduced-motion (affichage direct de la valeur finale).
+ * Compteur numérique fluide avec anime.js
  */
-export default function AnimatedNumber({ value, duration = 700, format, className = '' }: AnimatedNumberProps) {
+export default function AnimatedNumber({ value, duration = 1200, format, className = '' }: AnimatedNumberProps) {
   const [display, setDisplay] = useState(0)
-  const prevRef = useRef(0)
+  const numberRef = useRef({ current: 0 })
 
   useEffect(() => {
     const reduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const from = prevRef.current
-    prevRef.current = value
+    const startValue = numberRef.current.current
 
-    if (reduced || from === value) {
+    if (reduced || startValue === value) {
       setDisplay(value)
       return
     }
 
-    let raf = 0
-    let start: number | null = null
-
-    const step = (ts: number) => {
-      if (start === null) start = ts
-      const elapsed = ts - start
-      const progress = Math.min(elapsed / duration, 1)
-      const eased = 1 - Math.pow(1 - progress, 3)
-      const increment = Math.max(Math.round(Math.abs(value - from) / 100), 1)
-      const next = from + (value - from) * eased
-      setDisplay(Math.round(next / increment) * increment)
-      setDisplay(from + (value - from) * eased)
-      if (progress < 1) {
-        raf = requestAnimationFrame(step)
-      } else {
+    anime({
+      targets: numberRef.current,
+      current: {
+        value: value,
+      },
+      duration: duration,
+      easing: 'easeOutExpo',
+      update: () => {
+        setDisplay(Math.round(numberRef.current.current))
+      },
+      complete: () => {
         setDisplay(value)
       }
-    }
-
-    raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    })
   }, [value, duration])
 
   return <span className={className}>{format ? format(display) : Math.round(display).toLocaleString('fr-FR')}</span>
