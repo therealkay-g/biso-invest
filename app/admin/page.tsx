@@ -749,64 +749,6 @@ export default function AdminPage() {
               </div>
             )}
           </div>
-        )}img src={dep.proof_url} alt={`Capture ${dep.reference}`} className="h-16 w-auto object-contain" />
-                      </button>
-                    ) : (
-                      <p className="text-[10px] text-gray-400 mt-1">Aucune capture fournie</p>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                      dep.status === 'VALIDEE' ? 'bg-emerald-50 text-emerald-700' : dep.status === 'REFUSEE' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'
-                    }`}>
-                      {dep.status}
-                    </span>
-                    {dep.status === 'EN_ATTENTE' && (
-                      <div className="flex space-x-1">
-                        <button
-                          onClick={() => handleValidateDeposit(dep)}
-                          className="bg-biso-600 text-white p-2 rounded-lg text-xs font-semibold hover:bg-biso-700"
-                        >
-                          Valider
-                        </button>
-                        <button
-                          onClick={() => setTargetDepositId(dep.id)}
-                          className="bg-red-500 text-white p-2 rounded-lg text-xs font-semibold hover:bg-red-600"
-                        >
-                          Refuser
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {deposits.length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-6">Aucune recharge trouvée.</p>
-              )}
-            </div>
-
-            {/* Pagination Controls */}
-            {deposits.length > PAGE_SIZE && (
-              <div className="flex justify-between items-center pt-3 border-t border-gray-100 text-xs text-gray-500">
-                <span>Page {pageDeposits} sur {Math.ceil(deposits.length / PAGE_SIZE)} ({deposits.length} dépôts)</span>
-                <div className="flex space-x-1">
-                  <button
-                    onClick={() => setPageDeposits(p => Math.max(1, p - 1))}
-                    disabled={pageDeposits === 1}
-                    className="p-1.5 border rounded-lg hover:bg-gray-50 disabled:opacity-40"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setPageDeposits(p => Math.min(Math.ceil(deposits.length / PAGE_SIZE), p + 1))}
-                    disabled={pageDeposits >= Math.ceil(deposits.length / PAGE_SIZE)}
-                    className="p-1.5 border rounded-lg hover:bg-gray-50 disabled:opacity-40"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
 
             {previewProof && (
               <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4" onClick={() => setPreviewProof(null)}>
