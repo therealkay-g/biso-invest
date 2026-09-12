@@ -7,6 +7,7 @@ import { Product, Wallet } from '@/types'
 import { ProductSkeleton } from '@/components/Skeleton'
 import { useToast } from '@/components/ToastProvider'
 import Parallax from '@/components/Parallax'
+import PageEnter from '@/components/PageEnter'
 import { RippleButton } from '@/components/RippleButton'
 import { ArrowLeft, ShieldCheck, CheckCircle2, TrendingUp, Clock, Award, Wallet as WalletIcon, Minus, Plus, Lock, HandCoins } from 'lucide-react'
 import { getVipTierForPrice } from '@/utils/constants'
@@ -134,7 +135,7 @@ export default function ProductDetailPage() {
   const vipTier = getVipTierForPrice(product.price)
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32 page-enter">
+    <PageEnter className="min-h-screen bg-gray-50 pb-32">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 p-4 flex items-center justify-between sticky top-0 z-40">
         <Link href="/invest" className="p-2 rounded-full hover:bg-gray-100" aria-label="Retour">
@@ -375,6 +376,6 @@ export default function ProductDetailPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageEnter>
   )
 }

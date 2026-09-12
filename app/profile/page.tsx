@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, WithdrawalAccount, KycProfile, KycStatus } from '@/types'
 import Header from '@/components/Header'
+import PageEnter from '@/components/PageEnter'
 import { useToast } from '@/components/ToastProvider'
 import {
   Shield, LogOut, Phone, Plus, ChevronRight, Wallet, TrendingUp,
@@ -182,7 +183,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28 page-enter">
+    <PageEnter className="min-h-screen bg-gray-50 pb-28">
       <Header displayName="Moi" vipLevel={profile?.current_vip || 'VIP0'} showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-5">
@@ -475,6 +476,6 @@ export default function ProfilePage() {
           <span className="text-sm">Se déconnecter</span>
         </button>
       </div>
-    </div>
+    </PageEnter>
   )
 }

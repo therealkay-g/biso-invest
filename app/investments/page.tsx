@@ -6,6 +6,8 @@ import { Investment, ProfitClaim } from '@/types'
 import Header from '@/components/Header'
 import { TableSkeleton } from '@/components/Skeleton'
 import Reveal from '@/components/Reveal'
+import PageEnter from '@/components/PageEnter'
+import StaggerIn from '@/components/StaggerIn'
 import ProgressBar from '@/components/ProgressBar'
 import PullToRefresh from '@/components/PullToRefresh'
 import { RippleButton } from '@/components/RippleButton'
@@ -145,7 +147,7 @@ export default function InvestmentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28 page-enter">
+    <PageEnter className="min-h-screen bg-gray-50 pb-28">
       <Header displayName="Mes Investissements" vipLevel="Bénéfice du jour (VENDRE)" showBack={true} />
 
       <PullToRefresh onRefresh={() => window.location.reload()}>
@@ -178,8 +180,8 @@ export default function InvestmentsPage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-6">
-            {investments.map((inv, index) => {
+          <StaggerIn className="space-y-6">
+            {investments.map((inv) => {
               const capital = inv.total_amount
               const monthlyReturn = (inv.product?.monthly_return || 0) * inv.quantity
               const now = new Date()
@@ -197,8 +199,7 @@ export default function InvestmentsPage() {
               const progressPercent = Math.min(100, Math.round((elapsedMs / totalDurationMs) * 100))
 
               return (
-                <Reveal key={inv.id} delay={index * 60}>
-                  <div className="card p-6 space-y-5">
+                  <div key={inv.id} className="card p-6 space-y-5">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
                       <div className="flex items-center space-x-2">
@@ -382,10 +383,9 @@ export default function InvestmentsPage() {
                     </div>
                   )}
                   </div>
-                </Reveal>
               )
             })}
-          </div>
+          </StaggerIn>
         )}
       </div>
       </PullToRefresh>
@@ -398,6 +398,6 @@ export default function InvestmentsPage() {
           onClose={() => setSelectedCertInvestment(null)}
         />
       )}
-    </div>
+    </PageEnter>
   )
 }

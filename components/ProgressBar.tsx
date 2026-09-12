@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
+import anime from 'animejs'
 
 interface ProgressBarProps {
   value: number
@@ -12,8 +13,7 @@ interface ProgressBarProps {
 }
 
 /**
- * Barre de progression animée : part de 0% et rejoint la valeur réelle
- * (500–800 ms, easing doux). S'active à l'apparition dans le viewport.
+ * Barre de progression animée avec anime.js : tween fluide 0 → valeur réelle.
  * Respecte prefers-reduced-motion (valeur immédiate).
  */
 export default function ProgressBar({
@@ -25,37 +25,40 @@ export default function ProgressBar({
   duration = 600,
 }: ProgressBarProps) {
   const pct = Math.min(Math.max((value / max) * 100, 0), 100)
-  const [width, setWidth] = useState(0)
+  const barRef = useRef<HTMLDivElement>(null)
+  const stateRef = useRef({ v: 0 })
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    const el = barRef.current
+    if (!el) return
 
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduced) {
-      setWidth(pct)
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      stateRef.current.v = pct
+      el.style.width = `${pct}%`
       return
     }
 
-    let cancelled = false
-    const timer = setTimeout(() => {
-      if (!cancelled) setWidth(pct)
-    }, delay)
-
-    return () => {
-      cancelled = true
-      clearTimeout(timer)
-    }
-  }, [pct, delay])
+    anime({
+      targets: stateRef.current,
+      v: pct,
+      duration,
+      delay,
+      easing: 'easeOutExpo',
+      update: () => {
+        el.style.width = `${stateRef.current.v}%`
+      },
+      complete: () => {
+        el.style.width = `${pct}%`
+      },
+    })
+  }, [pct, duration, delay])
 
   return (
     <div className={`w-full bg-gray-100 rounded-full overflow-hidden ${className}`}>
       <div
-        className={`h-full rounded-full transition-[width] ${barClassName}`}
-        style={{
-          width: `${width}%`,
-          transitionDuration: `${duration}ms`,
-          transitionTimingFunction: 'var(--biso-ease-standard)',
-        }}
+        ref={barRef}
+        className={`h-full rounded-full ${barClassName}`}
+        style={{ width: '0%' }}
       />
     </div>
   )

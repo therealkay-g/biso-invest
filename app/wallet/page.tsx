@@ -8,6 +8,7 @@ import Header from '@/components/Header'
 import WalletCard from '@/components/WalletCard'
 import CopyButton from '@/components/CopyButton'
 import Reveal from '@/components/Reveal'
+import PageEnter from '@/components/PageEnter'
 import { RippleButton } from '@/components/RippleButton'
 import { WalletSkeleton, TableSkeleton } from '@/components/Skeleton'
 import { useToast } from '@/components/ToastProvider'
@@ -254,7 +255,7 @@ function WalletContent() {
   const activePaymentAccount = paymentAccounts.find(p => p.network === depositNetwork)
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24 page-enter">
+    <PageEnter className="min-h-screen bg-gray-50 pb-24">
       <Header displayName="Portefeuille" vipLevel="BISO Wallet" showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-5">
@@ -622,7 +623,7 @@ function WalletContent() {
           </div>
         </div>
       )}
-    </div>
+    </PageEnter>
   )
 }
 

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client'
 import { VipLevel, Profile, Wallet } from '@/types'
 import Header from '@/components/Header'
 import Reveal from '@/components/Reveal'
+import PageEnter from '@/components/PageEnter'
 import ProgressBar from '@/components/ProgressBar'
 import Confetti from '@/components/Confetti'
 import { Crown, Lock, CheckCircle2, Sparkles, TrendingUp, Gem, Award } from 'lucide-react'
@@ -122,7 +123,7 @@ export default function VipPage() {
   const currentTotalInvested = wallet?.total_invested || 0
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28 page-enter">
+    <PageEnter className="min-h-screen bg-gray-50 pb-28">
       <Header displayName="Niveaux VIP" vipLevel={profile?.current_vip || 'VIP0'} showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-5">
@@ -297,6 +298,6 @@ export default function VipPage() {
       </div>
 
       {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
-    </div>
+    </PageEnter>
   )
 }

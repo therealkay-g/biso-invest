@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client'
 import { Profile, ReferralTask, ReferralTaskStats, ReferralTaskReward } from '@/types'
 import Header from '@/components/Header'
 import Reveal from '@/components/Reveal'
+import PageEnter from '@/components/PageEnter'
 import ProgressBar from '@/components/ProgressBar'
 import PullToRefresh from '@/components/PullToRefresh'
 import Confetti from '@/components/Confetti'
@@ -118,7 +119,7 @@ export default function TaskPage() {
   const nextReward = stats?.next_reward
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28 page-enter">
+    <PageEnter className="min-h-screen bg-gray-50 pb-28">
       <Header displayName="Tâche" vipLevel={profile?.current_vip || 'VIP0'} showBack={true} />
 
       <PullToRefresh onRefresh={() => window.location.reload()}>
@@ -354,6 +355,6 @@ export default function TaskPage() {
       </PullToRefresh>
 
       {showConfetti && <Confetti onDone={() => setShowConfetti(false)} />}
-    </div>
+    </PageEnter>
   )
 }

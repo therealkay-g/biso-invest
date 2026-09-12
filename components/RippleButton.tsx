@@ -2,6 +2,7 @@
 
 import { MouseEvent, ReactNode, useRef } from 'react'
 import Link from 'next/link'
+import anime from 'animejs'
 
 interface RippleButtonProps {
   children: ReactNode
@@ -69,11 +70,22 @@ function spawnRipple(e: MouseEvent<HTMLElement>, host: HTMLElement | null) {
 
   const ink = document.createElement('span')
   ink.className = 'ripple-ink'
+  ink.style.animation = 'none'
+  ink.style.transform = 'scale(0.2)'
+  ink.style.opacity = '0.35'
   ink.style.width = `${size}px`
   ink.style.height = `${size}px`
   ink.style.left = `${x}px`
   ink.style.top = `${y}px`
 
   host.appendChild(ink)
-  ink.addEventListener('animationend', () => ink.remove(), { once: true })
+
+  anime({
+    targets: ink,
+    scale: [0.2, 1],
+    opacity: [0.35, 0],
+    duration: isTouch ? 550 : 450,
+    easing: 'easeOutExpo',
+    complete: () => ink.remove(),
+  })
 }

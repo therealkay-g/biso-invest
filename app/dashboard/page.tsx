@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import WalletCard from '@/components/WalletCard'
 import ProductCard from '@/components/ProductCard'
-import Reveal from '@/components/Reveal'
+import PageEnter from '@/components/PageEnter'
+import StaggerIn from '@/components/StaggerIn'
 import PullToRefresh from '@/components/PullToRefresh'
 import { RippleButton } from '@/components/RippleButton'
 import { WalletSkeleton, ProductSkeleton } from '@/components/Skeleton'
@@ -237,7 +238,7 @@ export default function DashboardPage() {
   const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-8 page-enter">
+    <PageEnter className="min-h-screen bg-gray-50 pb-8">
       <Header
         displayName={greetingName}
         vipLevel={profile?.current_vip || 'VIP0'}
@@ -310,26 +311,25 @@ export default function DashboardPage() {
         />
 
         {/* Quick actions */}
-        <div className="grid grid-cols-4 gap-3">
+        <StaggerIn className="grid grid-cols-4 gap-3">
           {[
             { href: '/invest', label: 'Investir', icon: Package, bg: 'bg-emerald-50 text-emerald-600' },
             { href: '/task', label: 'Tâches', icon: Users, bg: 'bg-amber-50 text-amber-600' },
             { href: '/investments', label: 'Mes gains', icon: TrendingUp, bg: 'bg-emerald-50 text-emerald-700' },
             { href: '/vip', label: 'VIP', icon: Shield, bg: 'bg-gray-100 text-gray-700' },
-          ].map(({ href, label, icon: Icon, bg }, qi) => (
-            <Reveal key={href} delay={qi * 60}>
-              <Link
-                href={href}
-                className="card-sm p-3 flex flex-col items-center justify-center text-center space-y-1.5 hover:border-emerald-300 transition-all active:scale-95"
-              >
-                <span className={`w-10 h-10 rounded-2xl ${bg} flex items-center justify-center`}>
-                  <Icon className="w-5 h-5 tap-icon" aria-hidden="true" />
-                </span>
-                <span className="text-[10px] font-bold text-gray-700">{label}</span>
-              </Link>
-            </Reveal>
+          ].map(({ href, label, icon: Icon, bg }) => (
+            <Link
+              key={href}
+              href={href}
+              className="card-sm p-3 flex flex-col items-center justify-center text-center space-y-1.5 hover:border-emerald-300 transition-all active:scale-95"
+            >
+              <span className={`w-10 h-10 rounded-2xl ${bg} flex items-center justify-center`}>
+                <Icon className="w-5 h-5 tap-icon" aria-hidden="true" />
+              </span>
+              <span className="text-[10px] font-bold text-gray-700">{label}</span>
+            </Link>
           ))}
-        </div>
+        </StaggerIn>
 
         {/* Mes investissements */}
         <section className="space-y-3 animate-fade-in">
@@ -357,7 +357,8 @@ export default function DashboardPage() {
               </Link>
             </div>
           ) : (
-            activeInvestments.map((inv, index) => {
+            <StaggerIn className="space-y-3">
+            {activeInvestments.map((inv) => {
               const monthlyReturn = (inv.product?.monthly_return || 0) * inv.quantity
               const now = new Date()
               const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
@@ -368,8 +369,7 @@ export default function DashboardPage() {
               const SectorIcon = (category && SECTOR_ICONS[category.name])?.icon || Sprout
 
               return (
-                <Reveal key={inv.id} delay={index * 60}>
-                  <div className="card p-4 space-y-3">
+                <div key={inv.id} className="card p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center space-x-3 min-w-0">
                       <span className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
@@ -449,10 +449,10 @@ export default function DashboardPage() {
                     Voir l&apos;historique de mes bénéfices
                   </Link>
                   </div>
-                </Reveal>
               )
-            })
-          )}
+            })}
+          </StaggerIn>
+        )}
         </section>
 
         {/* Popular packs */}
@@ -468,16 +468,14 @@ export default function DashboardPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {popularProducts.map((product, pIdx) => (
-              <Reveal key={product.id} delay={pIdx * 60}>
-                <ProductCard product={product} />
-              </Reveal>
+          <StaggerIn className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            {popularProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
             ))}
-          </div>
+          </StaggerIn>
         </section>
       </main>
       </PullToRefresh>
-    </div>
+    </PageEnter>
   )
 }
