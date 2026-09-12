@@ -749,52 +749,6 @@ export default function AdminPage() {
               </div>
             )}
           </div>
-
-            {previewProof && (
-              <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4" onClick={() => setPreviewProof(null)}>
-                <div className="bg-white rounded-2xl p-3 max-w-lg w-full space-y-3" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-gray-900 text-sm">Capture de preuve de dépôt</h4>
-                    <button
-                      onClick={() => setPreviewProof(null)}
-                      className="text-gray-500 hover:text-gray-700"
-                      aria-label="Fermer la visionneuse"
-                    >
-                      <XCircle className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <img src={previewProof} alt="Capture de preuve de dépôt" className="w-full h-auto rounded-xl object-contain max-h-[70vh]" />
-                  <a
-                    href={previewProof}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="block w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold py-2 rounded-xl"
-                  >
-                    Ouvrir dans un nouvel onglet
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {targetDepositId && (
-              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                <div className="bg-white p-6 rounded-2xl max-w-sm w-full space-y-4">
-                  <h4 className="font-bold text-gray-900 text-sm">Motif du refus</h4>
-                  <textarea
-                    rows={3}
-                    placeholder="Saisissez le motif obligatoire..."
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    className="w-full p-3 bg-gray-50 border rounded-xl text-xs"
-                  ></textarea>
-                  <div className="flex space-x-2">
-                    <button onClick={() => setTargetDepositId(null)} className="flex-1 bg-gray-100 py-2 rounded-xl text-xs">Annuler</button>
-                    <button onClick={() => handleRefuseDeposit(targetDepositId)} className="flex-1 bg-red-500 text-white py-2 rounded-xl text-xs font-semibold">Confirmer Refus</button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
         )}
 
         {activeTab === 'withdrawals' && (
