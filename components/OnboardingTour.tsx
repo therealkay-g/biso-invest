@@ -48,16 +48,7 @@ export default function OnboardingTour() {
     async function checkOnboarding() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('has_completed_onboarding')
-        .eq('id', user.id)
-        .single()
-
-      if (profile && !profile.has_completed_onboarding) {
-        setIsOpen(true)
-      }
+      setIsOpen(true)
     }
 
     checkOnboarding()
