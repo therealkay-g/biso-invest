@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/components/ToastProvider'
 
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ''
+
 export function usePushNotifications() {
   const [isSubscribed, setIsSubscribed] = useState(false)
   const toast = useToast()
@@ -36,8 +38,7 @@ export function usePushNotifications() {
       const registration = await navigator.serviceWorker.ready
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        // VAPID public key would go here in a real production environment
-        // applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       })
 
       const { data: { user } } = await supabase.auth.getUser()

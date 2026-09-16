@@ -129,7 +129,20 @@ export default function DashboardPage() {
       // Sync profit notifications (fire-and-forget)
       supabase.rpc('sync_profit_notifications').then((res: { data: any }) => {
         const count = (res.data as { new_notifications?: number } | null)?.new_notifications
-        if (count && count > 0) toast.success('Bénéfices disponibles à vendre !')
+        if (count && count > 0) {
+          toast.success('Bénéfices disponibles à vendre !')
+          // Envoi push dès qu'un bénéfice est disponible
+          fetch('/api/push/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              title: 'Bénéfice disponible',
+              body: `${count} bénéfice(s) à vendre. Connectez-vous pour les réclamer !`,
+              url: '/dashboard',
+            }),
+          }).catch(() => {})
+        }
       }).catch(() => {})
 
     } catch (err) {

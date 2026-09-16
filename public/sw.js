@@ -2,7 +2,7 @@
 // STRICT POLICY: Cache uniquement les assets statiques de l'application.
 // AUCUNE donnée financière, transactionnelle, page dynamique ou navigation n'est interceptée.
 
-const CACHE_NAME = 'biso-static-v2';
+const CACHE_NAME = 'biso-static-v3';
 const STATIC_ASSETS = [
   '/manifest.json',
   '/icon.svg',
@@ -26,6 +26,54 @@ self.addEventListener('activate', (event) => {
     })
   );
   self.clients.claim();
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+// Affichage des notifications push reçues
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  let payload = {};
+  try {
+    payload = event.data.json();
+  } catch (e) {
+    payload = { title: 'BISO INVEST', body: event.data.text() };
+  }
+
+  const title = payload.title || 'BISO INVEST';
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/icon.svg',
+    badge: '/icon.svg',
+    data: payload.data || { url: '/dashboard' },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Navigation à partir d'une notification cliquée
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data && event.notification.data.url
+    ? event.notification.data.url
+    : '/dashboard';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client && client.url.includes('/')) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    })
+  );
 });
 
 self.addEventListener('fetch', (event) => {

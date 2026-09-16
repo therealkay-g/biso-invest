@@ -276,6 +276,22 @@ export default function AdminPage() {
       setTargetWithdrawalId(null)
       setWithdrawalAction(null)
 
+      // Notification push à l'utilisateur
+      const target = withdrawals.find(w => w.id === withdrawalId)
+      const targetUserId = (target as any)?.user_id
+      if (targetUserId && result?.net_amount) {
+        fetch('/api/push/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: targetUserId,
+            title: 'Retrait approuvé',
+            body: `Votre retrait de ${result.net_amount.toLocaleString('fr-FR')} FC a été validé.`,
+            url: '/dashboard',
+          }),
+        }).catch(() => {})
+      }
+
       const { data: witData } = await supabase.from('withdrawals').select('*, profile:profiles(*)').order('created_at', { ascending: false })
       setWithdrawals(witData || [])
     } catch (err: any) {
