@@ -7,6 +7,7 @@ import Header from '@/components/Header'
 import PageEnter from '@/components/PageEnter'
 import { BookOpen, CheckCircle2, Lock, PlayCircle, FileText, Award, ChevronRight, ChevronLeft } from 'lucide-react'
 import { useToast } from '@/components/ToastProvider'
+import { Profile } from '@/types'
 
 interface Course {
   id: string
@@ -32,6 +33,7 @@ export default function AcademyPage() {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null)
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [completedLessons, setCompletedLessons] = useState<string[]>([])
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const toast = useToast()
 
@@ -46,6 +48,13 @@ export default function AcademyPage() {
 
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single()
+          setProfile(profileData)
+
           const { data: progressData } = await supabase
             .from('user_academy_progress')
             .select('lesson_id')
@@ -88,6 +97,8 @@ export default function AcademyPage() {
       toast.error(err.message || 'Erreur lors de la validation')
     }
   }
+
+  const greetingName = profile?.display_name || profile?.phone || 'Investisseur'
 
   const renderLessonContent = (content: string) => {
     return content.split('\n').map((line, idx) => {
@@ -156,7 +167,7 @@ export default function AcademyPage() {
 
   return (
     <PageEnter className="min-h-screen bg-gray-50 dark:bg-zinc-950 pb-20">
-      <Header displayName="Académie" showBack={true} backUrl="/dashboard" />
+      <Header displayName={greetingName} vipLevel={profile?.current_vip || 'VIP0'} showBack={true} backUrl="/dashboard" />
 
       <main className="max-w-4xl mx-auto px-4 pt-6 space-y-8">
         <div className="text-center space-y-2 animate-fade-in">
