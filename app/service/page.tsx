@@ -5,7 +5,8 @@ import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { SupportTicket, FaqItem, Announcement, NotificationItem } from '@/types'
 import Header from '@/components/Header'
-import { Headphones, HelpCircle, Bell, MessageSquare, Send } from 'lucide-react'
+import Link from 'next/link'
+import { Headphones, HelpCircle, Bell, MessageSquare, Send, CheckCheck, ChevronRight } from 'lucide-react'
 
 function ServiceContent() {
   const searchParams = useSearchParams()
@@ -230,16 +231,51 @@ function ServiceContent() {
 
         {activeTab === 'notifications' && (
           <div className="space-y-3">
-            <h3 className="font-bold text-gray-800 text-sm">Notifications</h3>
-            {notifications.map((notif) => (
-              <div key={notif.id} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-xs flex justify-between items-center">
-                <div>
-                  <h4 className="font-bold text-gray-900 text-sm">{notif.title}</h4>
-                  <p className="text-xs text-gray-600">{notif.message}</p>
-                </div>
-                <span className="text-[10px] text-gray-400">{new Date(notif.created_at).toLocaleDateString('fr-FR')}</span>
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-gray-800 text-sm">Notifications</h3>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={async () => {
+                    await supabase.rpc('mark_notifications_read')
+                    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
+                  }}
+                  className="inline-flex items-center space-x-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Tout lu</span>
+                </button>
+                <Link href="/notifications" className="inline-flex items-center space-x-0.5 text-[11px] font-bold text-emerald-600 hover:underline">
+                  <span>Voir tout</span>
+                  <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </Link>
               </div>
-            ))}
+            </div>
+            {notifications.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-6">Aucune notification.</p>
+            ) : (
+              notifications.map((notif) => (
+                <button
+                  key={notif.id}
+                  onClick={async () => {
+                    if (notif.is_read) return
+                    await supabase.from('notifications').update({ is_read: true }).eq('id', notif.id)
+                    setNotifications((prev) => prev.map((n) => (n.id === notif.id ? { ...n, is_read: true } : n)))
+                  }}
+                  className={`w-full text-left bg-white p-4 rounded-2xl border shadow-xs flex items-start space-x-3 transition-all active:scale-[0.99] ${
+                    notif.is_read ? 'border-gray-100 opacity-70' : 'border-l-4 border-l-emerald-500 border-t-gray-100 border-r-gray-100 border-b-gray-100'
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className={`text-sm ${notif.is_read ? 'font-semibold text-gray-700' : 'font-black text-gray-900'}`}>{notif.title}</h4>
+                      {!notif.is_read && <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />}
+                    </div>
+                    <p className="text-xs text-gray-600 mt-0.5 leading-relaxed">{notif.message}</p>
+                  </div>
+                  <span className="text-[10px] text-gray-400 shrink-0">{new Date(notif.created_at).toLocaleDateString('fr-FR')}</span>
+                </button>
+              ))
+            )}
           </div>
         )}
       </div>

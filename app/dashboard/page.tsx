@@ -120,6 +120,12 @@ export default function DashboardPage() {
         .limit(100)
       setClaims(claimData || [])
 
+      // Sync profit notifications (fire-and-forget)
+      supabase.rpc('sync_profit_notifications').then((res: { data: any }) => {
+        const count = (res.data as { new_notifications?: number } | null)?.new_notifications
+        if (count && count > 0) toast.success('Bénéfices disponibles à vendre !')
+      }).catch(() => {})
+
     } catch (err) {
       console.error('Error loading dashboard:', err)
     } finally {
