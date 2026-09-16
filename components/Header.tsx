@@ -4,6 +4,10 @@ import { ArrowLeft, Shield } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import NotificationsBell from '@/components/NotificationsBell'
+import ThemeToggle from '@/components/ThemeToggle'
+import UserAvatar from '@/components/UserAvatar'
+
+
 
 interface HeaderProps {
   displayName?: string
@@ -25,7 +29,7 @@ export default function Header({
   const initial = (displayName || 'B').replace(/[^A-Za-zÀ-ÿ0-9]/g, '').charAt(0).toUpperCase() || 'B'
 
   return (
-    <header className="bg-white/95 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40 px-4 py-3 flex items-center justify-between shadow-sm">
+    <header className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-gray-100 dark:border-zinc-800 sticky top-0 z-40 px-4 py-3 flex items-center justify-between shadow-sm">
       <div className="flex items-center space-x-3 min-w-0">
         {showBack && (
           <Link href={backUrl} className="p-2 rounded-full hover:bg-gray-100 mr-0.5 transition-colors shrink-0" aria-label="Retour">
@@ -70,13 +74,16 @@ export default function Header({
           </Link>
         )}
 
+        <ThemeToggle />
         <NotificationsBell />
 
         {/* Avatar utilisateur */}
         <Link href="/profile" className="shrink-0" aria-label="Mon profil">
-          <span className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-900 text-white font-black text-sm flex items-center justify-center shadow-sm border border-emerald-500/30">
-            {initial}
-          </span>
+          <UserAvatar
+            name={displayName}
+            vipLevel={vipLevel}
+            size="md"
+          />
         </Link>
       </div>
     </header>

@@ -15,8 +15,10 @@
     "@types/animejs": "^3.1.13",
     "animejs": "^3.2.2",
     "clsx": "^2.1.0",
+    "framer-motion": "^13.4.0",
     "lucide-react": "^0.359.0",
     "next": "14.2.3",
+    "next-themes": "^0.4.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tailwind-merge": "^2.2.2"

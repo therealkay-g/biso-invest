@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Profile, Deposit, Withdrawal, Product, VipLevel, PaymentAccount, AdminLog, AdminTaskOverviewRow, KycProfile } from '@/types'
 import { useToast } from '@/components/ToastProvider'
-import { Shield, Users, DollarSign, Package, CheckCircle2, XCircle, AlertCircle, Settings, Download, ChevronLeft, ChevronRight, History, FileCheck } from 'lucide-react'
+import { Shield, Users, DollarSign, Package, CheckCircle2, XCircle, AlertCircle, Settings, Download, ChevronLeft, ChevronRight, History, FileCheck, X, Plus } from 'lucide-react'
 import anime from 'animejs'
 
 export default function AdminPage() {
@@ -22,6 +22,7 @@ export default function AdminPage() {
   const [logs, setLogs] = useState<AdminLog[]>([])
   const [taskOverview, setTaskOverview] = useState<AdminTaskOverviewRow[]>([])
   const [kycProfiles, setKycProfiles] = useState<KycProfile[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   // Search and filter states
@@ -58,6 +59,19 @@ export default function AdminPage() {
 
   // Proof preview state
   const [previewProof, setPreviewProof] = useState<string | null>(null)
+
+  // Product management state
+  const [showProductModal, setShowProductModal] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [productForm, setProductForm] = useState({
+    name: '',
+    price: 0,
+    monthlyReturn: 0,
+    durationMonths: 12,
+    category_id: '',
+    description: '',
+    is_active: true,
+  })
 
   // Withdrawal management state
   const [targetWithdrawalId, setTargetWithdrawalId] = useState<string | null>(null)
@@ -350,6 +364,82 @@ export default function AdminPage() {
     }
   }
 
+  const handleSaveProduct = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const totalReturns = productForm.monthlyReturn * productForm.durationMonths
+
+      if (editingProduct) {
+        const { error } = await supabase.from('products').update({
+          name: productForm.name,
+          price: productForm.price,
+          monthly_return: productForm.monthlyReturn,
+          duration_months: productForm.durationMonths,
+          category_id: productForm.category_id,
+          description: productForm.description,
+          is_active: productForm.is_active,
+          updated_at: new Date().toISOString(),
+        }).eq('id', editingProduct.id)
+        if (error) throw error
+        toast.success('Produit mis à jour avec succès.')
+      } else {
+        const { error } = await supabase.from('products').insert({
+          name: productForm.name,
+          price: productForm.price,
+          monthly_return: productForm.monthlyReturn,
+          duration_months: productForm.durationMonths,
+          category_id: productForm.category_id,
+          total_returns: totalReturns,
+          description: productForm.description,
+          is_active: productForm.is_active,
+        })
+        if (error) throw error
+        toast.success('Nouveau produit créé avec succès.')
+      }
+
+      setShowProductModal(false)
+      setEditingProduct(null)
+      setProductForm({ name: '', price: 0, monthlyReturn: 0, durationMonths: 12, category_id: '', description: '', is_active: true })
+
+      const { data: prodData } = await supabase.from('products').select('*').order('created_at')
+      setProducts(prodData || [])
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de la sauvegarde du produit')
+    }
+  }
+
+  const handleDeleteProduct = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce produit ? Cela peut affecter les investissements existants.')) return
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id)
+      if (error) throw error
+      toast.success('Produit supprimé.')
+      const { data: prodData } = await supabase.from('products').select('*').order('created_at')
+      setProducts(prodData || [])
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de la suppression')
+    }
+  }
+
+  const openProductModal = (product: Product | null = null) => {
+    if (product) {
+      setEditingProduct(product)
+      setProductForm({
+        name: product.name,
+        price: product.price,
+        monthlyReturn: product.monthly_return,
+        durationMonths: product.duration_months,
+        category_id: product.category_id,
+        description: product.description || '',
+        is_active: product.is_active,
+      })
+    } else {
+      setEditingProduct(null)
+      setProductForm({ name: '', price: 0, monthlyReturn: 0, durationMonths: 12, category_id: '', description: '', is_active: true })
+    }
+    setShowProductModal(true)
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -390,6 +480,125 @@ export default function AdminPage() {
           Retour au site
         </a>
       </div>
+
+      {showProductModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl shadow-2xl border border-gray-100 dark:border-zinc-800 overflow-hidden animate-slide-up">
+            <div className="bg-biso-600 p-6 text-white flex items-center justify-between">
+              <h2 className="font-black text-lg">
+                {editingProduct ? 'Modifier le Produit' : 'Nouveau Produit'}
+              </h2>
+              <button onClick={() => setShowProductModal(false)} className="p-1 hover:bg-white/20 rounded-full transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProduct} className="p-6 space-y-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nom du produit</label>
+                  <input
+                    type="text"
+                    required
+                    value={productForm.name}
+                    onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                    className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
+                    placeholder="ex: Pack Pisciculture Or"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Prix (FC)</label>
+                    <input
+                      type="number"
+                      required
+                      value={productForm.price}
+                      onChange={(e) => setProductForm({ ...productForm, price: Number(e.target.value) })}
+                      className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Revenu / Mois (FC)</label>
+                    <input
+                      type="number"
+                      required
+                      value={productForm.monthlyReturn}
+                      onChange={(e) => setProductForm({ ...productForm, monthlyReturn: Number(e.target.value) })}
+                      className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Durée (Mois)</label>
+                    <input
+                      type="number"
+                      required
+                      value={productForm.durationMonths}
+                      onChange={(e) => setProductForm({ ...productForm, durationMonths: Number(e.target.value) })}
+                      className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Catégorie</label>
+                    <select
+                      required
+                      value={productForm.category_id}
+                      onChange={(e) => setProductForm({ ...productForm, category_id: e.target.value })}
+                      className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
+                    >
+                      <option value="">Choisir...</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Description</label>
+                  <textarea
+                    rows={3}
+                    value={productForm.description}
+                    onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                    className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none resize-none"
+                    placeholder="Détails du pack..."
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700">
+                  <span className="text-xs font-bold text-gray-700 dark:text-zinc-300">Produit Actif</span>
+                  <button
+                    type="button"
+                    onClick={() => setProductForm({ ...productForm, is_active: !productForm.is_active })}
+                    className={`w-11 h-6 rounded-full transition-colors relative ${productForm.is_active ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-zinc-600'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${productForm.is_active ? 'left-6' : 'left-1'}`} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowProductModal(false)}
+                  className="flex-1 py-3 rounded-2xl bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 font-bold transition-colors hover:bg-gray-200 dark:hover:bg-zinc-700"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-2xl bg-biso-600 hover:bg-biso-700 text-white font-bold shadow-lg shadow-biso-600/20 transition-all active:scale-95"
+                >
+                  {editingProduct ? 'Mettre à jour' : 'Créer le produit'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="p-4 max-w-7xl mx-auto space-y-6">
         {/* Admin Navigation */}
@@ -992,14 +1201,47 @@ export default function AdminPage() {
         )}
 
         {activeTab === 'products' && (
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-4">
-            <h3 className="font-bold text-gray-800 text-sm">Catalogue Produits ({products.length})</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="tab-content-item bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-gray-800 text-sm">Catalogue Produits ({products.length})</h3>
+              <button
+                onClick={() => openProductModal()}
+                className="inline-flex items-center space-x-1 bg-biso-600 hover:bg-biso-700 text-white font-bold px-3 py-2 rounded-xl text-[10px] uppercase tracking-wider transition-all active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Ajouter un produit</span>
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {products.map((p) => (
-                <div key={p.id} className="p-4 bg-gray-50 rounded-xl space-y-1">
-                  <h4 className="font-bold text-gray-900 text-xs">{p.name}</h4>
+                <div key={p.id} className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-2 group relative">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-bold text-gray-900 text-xs">{p.name}</h4>
+                    <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => openProductModal(p)}
+                        className="p-1.5 bg-white border border-gray-200 rounded-lg text-gray-600 hover:text-biso-600 hover:border-biso-200 transition-colors"
+                        title="Modifier"
+                      >
+                        <Settings className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteProduct(p.id)}
+                        className="p-1.5 bg-white border border-gray-200 rounded-lg text-gray-600 hover:text-red-600 hover:border-red-200 transition-colors"
+                        title="Supprimer"
+                      >
+                        <XCircle className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
                   <p className="text-xs text-biso-600 font-semibold">{p.price.toLocaleString('fr-FR')} FC</p>
                   <p className="text-[10px] text-gray-500">Versement: {p.monthly_return.toLocaleString('fr-FR')} FC / mois</p>
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${p.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                      {p.is_active ? 'Actif' : 'Inactif'}
+                    </span>
+                    <span className="text-[9px] text-gray-400">{p.duration_months} mois</span>
+                  </div>
                 </div>
               ))}
             </div>
