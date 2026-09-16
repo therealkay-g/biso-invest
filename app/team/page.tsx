@@ -57,7 +57,7 @@ export default function TeamPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 pb-24">
-        <Header displayName="Mon Équipe" vipLevel="Chargement..." showBack={true} />
+        <Header pageTitle="Mon Équipe" showBack={true} />
         <div className="p-4 max-w-4xl mx-auto space-y-6">
           <div className="h-44 bg-gray-200 rounded-3xl animate-pulse" />
           <TableSkeleton rows={4} />
@@ -75,7 +75,7 @@ export default function TeamPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-28">
-      <Header displayName="Mon Réseau & Équipe" vipLevel="Affiliation 4 Niveaux" showBack={true} />
+      <Header pageTitle="Mon Réseau & Équipe" showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-6">
         {/* Referral Gold Box */}

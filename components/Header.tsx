@@ -6,12 +6,10 @@ import Image from 'next/image'
 import NotificationsBell from '@/components/NotificationsBell'
 import ThemeToggle from '@/components/ThemeToggle'
 import UserAvatar from '@/components/UserAvatar'
-
-
+import { useRealtimeProfile } from '@/components/RealtimeProvider'
 
 interface HeaderProps {
-  displayName?: string
-  vipLevel?: string
+  pageTitle?: string
   showBack?: boolean
   backUrl?: string
   isAdmin?: boolean
@@ -19,14 +17,15 @@ interface HeaderProps {
 }
 
 export default function Header({
-  displayName = 'Utilisateur',
-  vipLevel = 'VIP0',
+  pageTitle,
   showBack = true,
   backUrl = '/dashboard',
   isAdmin = false,
   adminRole = 'ADMIN'
 }: HeaderProps) {
-  const initial = (displayName || 'B').replace(/[^A-Za-zÀ-ÿ0-9]/g, '').charAt(0).toUpperCase() || 'B'
+  const profile = useRealtimeProfile()
+  const displayName = profile?.display_name || profile?.phone || 'Investisseur'
+  const vipLevel = profile?.current_vip || 'VIP0'
 
   return (
     <header className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-gray-100 dark:border-zinc-800 sticky top-0 z-40 px-4 py-3 flex items-center justify-between shadow-sm">
@@ -60,6 +59,9 @@ export default function Header({
             )}
             <span className="text-sm font-bold text-gray-800 truncate">{displayName}</span>
           </div>
+          {pageTitle && (
+            <p className="text-[10px] font-semibold text-gray-400 truncate mt-0.5">{pageTitle}</p>
+          )}
         </div>
       </div>
 
@@ -77,7 +79,6 @@ export default function Header({
         <ThemeToggle />
         <NotificationsBell />
 
-        {/* Avatar utilisateur */}
         <Link href="/profile" className="shrink-0" aria-label="Mon profil">
           <UserAvatar
             name={displayName}

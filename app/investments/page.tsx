@@ -138,7 +138,7 @@ export default function InvestmentsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 pb-24">
-        <Header displayName="Mes Investissements" vipLevel="Chargement..." showBack={true} />
+        <Header pageTitle="Mes Investissements" showBack={true} />
         <div className="p-4 max-w-4xl mx-auto space-y-6">
           <TableSkeleton rows={3} />
         </div>
@@ -148,7 +148,7 @@ export default function InvestmentsPage() {
 
   return (
     <PageEnter className="min-h-screen bg-gray-50 pb-28">
-      <Header displayName="Mes Investissements" vipLevel="Bénéfice du jour (VENDRE)" showBack={true} />
+      <Header pageTitle="Mes Investissements" showBack={true} />
 
       <PullToRefresh onRefresh={() => window.location.reload()}>
       <div className="p-4 max-w-4xl mx-auto space-y-6">

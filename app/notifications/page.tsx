@@ -94,7 +94,7 @@ export default function NotificationsPage() {
 
   return (
     <PageEnter className="min-h-screen bg-gray-50 pb-28">
-      <Header displayName="Notifications" vipLevel="Centre de notifications" showBack={true} />
+      <Header pageTitle="Notifications" showBack={true} />
 
       <PullToRefresh onRefresh={() => window.location.reload()}>
         <main className="p-4 max-w-4xl mx-auto space-y-5">

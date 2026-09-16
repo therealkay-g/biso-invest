@@ -207,7 +207,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
-        <Header displayName="Investisseur" vipLevel="VIP0" showBack={false} />
+        <Header showBack={false} />
         <div className="p-4 space-y-6 max-w-4xl mx-auto">
           <WalletSkeleton />
           <div className="grid grid-cols-2 gap-3">
@@ -232,8 +232,6 @@ export default function DashboardPage() {
   return (
     <PageEnter className="min-h-screen bg-gray-50 pb-8">
       <Header
-        displayName={greetingName}
-        vipLevel={profile?.current_vip || 'VIP0'}
         showBack={false}
         isAdmin={isAdmin}
         adminRole={adminRole || 'ADMIN'}

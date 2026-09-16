@@ -102,7 +102,7 @@ export default function TaskPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 pb-24">
-        <Header displayName="Tâches" vipLevel="Chargement..." showBack={true} />
+        <Header pageTitle="Tâches" showBack={true} />
         <div className="p-4 max-w-4xl mx-auto space-y-6">
           <div className="h-60 bg-emerald-100 rounded-3xl animate-pulse" />
           <div className="h-32 bg-gray-200 rounded-2xl animate-pulse" />
@@ -120,7 +120,7 @@ export default function TaskPage() {
 
   return (
     <PageEnter className="min-h-screen bg-gray-50 pb-28">
-      <Header displayName="Tâche" vipLevel={profile?.current_vip || 'VIP0'} showBack={true} />
+      <Header pageTitle="Tâche" showBack={true} />
 
       <PullToRefresh onRefresh={() => window.location.reload()}>
       <div className="p-4 max-w-4xl mx-auto space-y-6">

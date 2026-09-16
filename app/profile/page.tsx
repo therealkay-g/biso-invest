@@ -9,7 +9,7 @@ import PageEnter from '@/components/PageEnter'
 import { useToast } from '@/components/ToastProvider'
 import {
   Shield, LogOut, Phone, Plus, ChevronRight, Wallet, TrendingUp,
-  BadgeCheck, Users, Info, Crown, CircleDollarSign, Copy, X, FileCheck, Upload, Bell
+  BadgeCheck, Users, Info, Crown, CircleDollarSign, Copy, X, FileCheck, Upload, Bell, User
 } from 'lucide-react'
 import Link from 'next/link'
 import VipProgressionBar from '@/components/VipProgressionBar'
@@ -45,6 +45,10 @@ export default function ProfilePage() {
   const [kycFile, setKycFile] = useState<File | null>(null)
   const [uploadingKyc, setUploadingKyc] = useState(false)
 
+  // Nom affiché state
+  const [editName, setEditName] = useState('')
+  const [savingName, setSavingName] = useState(false)
+
   useEffect(() => {
     async function loadProfile() {
       try {
@@ -56,6 +60,7 @@ export default function ProfilePage() {
 
         const { data: pData } = await supabase.from('profiles').select('*').eq('id', user.id).single()
         setProfile(pData)
+        setEditName(pData?.display_name || '')
 
         const { data: vData } = await supabase.from('vip_levels').select('*').order('display_order', { ascending: true })
         setVipLevels(vData || [])
@@ -139,6 +144,36 @@ export default function ProfilePage() {
     }
   }
 
+  const handleSaveName = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const name = editName.trim()
+    if (!name) {
+      toast.error('Veuillez saisir votre nom')
+      return
+    }
+
+    setSavingName(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Non authentifié')
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ display_name: name })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      setProfile(prev => prev ? { ...prev, display_name: name } : prev)
+      toast.success('Nom mis à jour ! Il s\u2019affiche désormais partout.')
+    } catch (err: any) {
+      console.error('Error saving name:', err)
+      toast.error(err?.message || 'Erreur lors de la mise à jour du nom')
+    } finally {
+      setSavingName(false)
+    }
+  }
+
   const handleKycUpload = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!kycFile) {
@@ -197,7 +232,7 @@ export default function ProfilePage() {
 
   return (
     <PageEnter className="min-h-screen bg-gray-50 pb-28">
-      <Header displayName="Moi" vipLevel={profile?.current_vip || 'VIP0'} showBack={true} />
+      <Header pageTitle="Moi" showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-5">
         {/* Carte profil premium */}
@@ -223,6 +258,41 @@ export default function ProfilePage() {
               {profile?.current_vip}
             </span>
           </div>
+        </div>
+
+        {/* Mon nom */}
+        <div className="card p-5 space-y-4">
+          <div className="flex items-center space-x-2.5">
+            <span className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <User className="w-5 h-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h3 className="font-black text-gray-900 text-sm">Mon nom</h3>
+              <p className="text-[10px] text-gray-400">Affiché dans l\u2019en-tête de toutes les pages.</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSaveName} className="space-y-3">
+            <input
+              type="text"
+              maxLength={100}
+              placeholder="Entrez votre nom (ex : Jean K.)"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className="input-field"
+            />
+            <button
+              type="submit"
+              disabled={savingName}
+              className="btn-primary w-full flex items-center justify-center space-x-2"
+            >
+              {savingName ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+              ) : (
+                <span>Enregistrer mon nom</span>
+              )}
+            </button>
+          </form>
         </div>
 
         <VipProgressionBar

@@ -243,7 +243,7 @@ function WalletContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 pb-24">
-        <Header displayName="Portefeuille" vipLevel="Chargement..." showBack={true} />
+        <Header pageTitle="Portefeuille" showBack={true} />
         <div className="p-4 max-w-4xl mx-auto space-y-6">
           <WalletSkeleton />
           <TableSkeleton rows={4} />
@@ -256,7 +256,7 @@ function WalletContent() {
 
   return (
     <PageEnter className="min-h-screen bg-gray-50 pb-24">
-      <Header displayName="Portefeuille" vipLevel="BISO Wallet" showBack={true} />
+      <Header pageTitle="Portefeuille" showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-5">
         {/* Tabs */}

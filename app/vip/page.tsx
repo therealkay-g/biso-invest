@@ -124,7 +124,7 @@ export default function VipPage() {
 
   return (
     <PageEnter className="min-h-screen bg-gray-50 pb-28">
-      <Header displayName="Niveaux VIP" vipLevel={profile?.current_vip || 'VIP0'} showBack={true} />
+      <Header pageTitle="Niveaux VIP" showBack={true} />
 
       <div className="p-4 max-w-4xl mx-auto space-y-5">
         {/* Statut VIP actuel */}

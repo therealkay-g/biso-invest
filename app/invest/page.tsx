@@ -66,7 +66,7 @@ export default function InvestPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 pb-24">
-        <Header displayName="Investir" vipLevel="Opportunités" showBack={false} />
+        <Header pageTitle="Investir" showBack={false} />
         <div className="p-4 max-w-4xl mx-auto space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[0, 1, 2].map(i => <div key={i} className="h-24 bg-gray-200 rounded-3xl animate-pulse" />)}
@@ -82,7 +82,7 @@ export default function InvestPage() {
 
   return (
     <PageEnter className="min-h-screen bg-gray-50 pb-24">
-      <Header displayName="Investir" vipLevel="Packs VIP1 - VIP4" showBack={false} />
+      <Header pageTitle="Investir" showBack={false} />
 
       <main className="p-4 max-w-4xl mx-auto space-y-6">
         <div className="animate-fade-in">

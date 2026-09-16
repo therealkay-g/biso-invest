@@ -2,11 +2,12 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Wallet } from '@/types'
+import { Wallet, Profile } from '@/types'
 
 interface RealtimeContextType {
   wallet: Wallet | null
   setWallet: (wallet: Wallet | null) => void
+  profile: Profile | null
   isLoading: boolean
 }
 
@@ -14,10 +15,12 @@ const RealtimeContext = createContext<RealtimeContextType | undefined>(undefined
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {
   const [wallet, setWallet] = useState<Wallet | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    let channel: any
+    let walletChannel: any
+    let profileChannel: any
 
     async function initRealtime() {
       try {
@@ -27,7 +30,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        // Initial fetch
+        // Initial fetch wallet
         const { data: initialWallet } = await supabase
           .from('wallets')
           .select('*')
@@ -35,8 +38,16 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           .single()
         setWallet(initialWallet)
 
-        // Subscribe to updates
-        channel = supabase
+        // Initial fetch profile
+        const { data: initialProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+        setProfile(initialProfile)
+
+        // Subscribe to wallet updates
+        walletChannel = supabase
           .channel(`wallet-realtime-${user.id}`)
           .on(
             'postgres_changes',
@@ -52,6 +63,24 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
             }
           )
           .subscribe()
+
+        // Subscribe to profile updates (nom, VIP, statut)
+        profileChannel = supabase
+          .channel(`profile-realtime-${user.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'profiles',
+              filter: `id=eq.${user.id}`,
+            },
+            (payload: any) => {
+              console.log('Realtime Profile Update:', payload)
+              setProfile(payload.new as Profile)
+            }
+          )
+          .subscribe()
       } catch (err) {
         console.error('Realtime Provider Error:', err)
       } finally {
@@ -62,12 +91,13 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     initRealtime()
 
     return () => {
-      if (channel) supabase.removeChannel(channel)
+      if (walletChannel) supabase.removeChannel(walletChannel)
+      if (profileChannel) supabase.removeChannel(profileChannel)
     }
   }, [])
 
   return (
-    <RealtimeContext.Provider value={{ wallet, setWallet, isLoading }}>
+    <RealtimeContext.Provider value={{ wallet, setWallet, profile, isLoading }}>
       {children}
     </RealtimeContext.Provider>
   )
@@ -79,4 +109,12 @@ export function useRealtimeWallet() {
     throw new Error('useRealtimeWallet must be used within a RealtimeProvider')
   }
   return context
+}
+
+export function useRealtimeProfile() {
+  const context = useContext(RealtimeContext)
+  if (context === undefined) {
+    throw new Error('useRealtimeProfile must be used within a RealtimeProvider')
+  }
+  return context.profile
 }
