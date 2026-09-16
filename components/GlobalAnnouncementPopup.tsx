@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase/client'
 interface Announcement {
   id: string
   title: string
-  message: string
+  content: string
 }
 
 export default function GlobalAnnouncementPopup() {
@@ -18,8 +18,8 @@ export default function GlobalAnnouncementPopup() {
     async function fetchAnnouncement() {
       const { data, error } = await supabase
         .from('announcements')
-        .select('id, title, message')
-        .eq('is_active', true)
+        .select('id, title, content')
+        .eq('is_published', true)
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
@@ -58,7 +58,7 @@ export default function GlobalAnnouncementPopup() {
             {announcement.title}
           </h3>
           <p className="text-sm text-gray-600 dark:text-zinc-400 leading-relaxed">
-            {announcement.message}
+            {announcement.content}
           </p>
 
           <button
