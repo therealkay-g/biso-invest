@@ -12,7 +12,7 @@ import { WalletSkeleton, ProductSkeleton } from '@/components/Skeleton'
 import { supabase } from '@/lib/supabase/client'
 import { Product, Profile, Wallet, Investment, Announcement, ProfitClaim, ProductCategory } from '@/types'
 import { ALLOWED_PACK_PRICES } from '@/utils/constants'
-import { Plus, ArrowUpRight, Package, Users, TrendingUp, Shield, Bell, ChevronRight, HandCoins, CheckCircle2, AlertCircle, Sprout, Beef, Fish, CalendarCheck } from 'lucide-react'
+import { Plus, ArrowUpRight, Package, Users, TrendingUp, Shield, Bell, ChevronRight, HandCoins, CheckCircle2, AlertCircle, Sprout, Beef, Fish, CalendarCheck, BookOpen } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ToastProvider'
 import OpportunityAlert from '@/components/OpportunityAlert'
@@ -312,12 +312,13 @@ export default function DashboardPage() {
         />
 
         {/* Quick actions */}
-        <StaggerIn className="grid grid-cols-4 gap-3">
+        <StaggerIn className="grid grid-cols-5 gap-3">
           {[
             { href: '/invest', label: 'Investir', icon: Package, bg: 'bg-emerald-50 text-emerald-600' },
             { href: '/task', label: 'Tâches', icon: Users, bg: 'bg-amber-50 text-amber-600' },
             { href: '/investments', label: 'Mes gains', icon: TrendingUp, bg: 'bg-emerald-50 text-emerald-700' },
             { href: '/vip', label: 'VIP', icon: Shield, bg: 'bg-gray-100 text-gray-700' },
+            { href: '/academy', label: 'Académie', icon: BookOpen, bg: 'bg-indigo-50 text-indigo-600' },
           ].map(({ href, label, icon: Icon, bg }) => (
             <Link
               key={href}
