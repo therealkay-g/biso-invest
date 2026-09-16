@@ -15,6 +15,12 @@ import { ALLOWED_PACK_PRICES } from '@/utils/constants'
 import { Plus, ArrowUpRight, Package, Users, TrendingUp, Shield, Bell, ChevronRight, HandCoins, CheckCircle2, AlertCircle, Sprout, Beef, Fish, CalendarCheck } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ToastProvider'
+import OpportunityAlert from '@/components/OpportunityAlert'
+import { useRealtimeWallet } from '@/components/RealtimeProvider'
+import PredictionPanel from '@/components/PredictionPanel'
+
+
+
 
 const SECTOR_ICONS: Record<string, { label: string; icon: typeof Sprout }> = {
   Agriculture: { label: 'Agriculture', icon: Sprout },
@@ -24,7 +30,7 @@ const SECTOR_ICONS: Record<string, { label: string; icon: typeof Sprout }> = {
 
 export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [wallet, setWallet] = useState<Wallet | null>(null)
+  const { wallet, setWallet, isLoading: walletLoading } = useRealtimeWallet()
   const [popularProducts, setPopularProducts] = useState<Product[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [activeInvestments, setActiveInvestments] = useState<(Investment & { product?: Product })[]>([])
@@ -136,39 +142,6 @@ export default function DashboardPage() {
   useEffect(() => {
     loadDashboard()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Supabase Realtime synchronization on wallet
-  useEffect(() => {
-    let channel: any
-    async function setupRealtime() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      channel = supabase
-        .channel(`dashboard-wallet-${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'wallets',
-            filter: `user_id=eq.${user.id}`,
-          },
-          (payload: any) => {
-            if (payload.new) {
-              setWallet(payload.new as Wallet)
-            }
-          }
-        )
-        .subscribe()
-    }
-
-    setupRealtime()
-
-    return () => {
-      if (channel) supabase.removeChannel(channel)
-    }
   }, [])
 
   const todayKey = () => {
@@ -304,6 +277,15 @@ export default function DashboardPage() {
             </Link>
           </div>
         )}
+
+        <OpportunityAlert />
+
+        <PredictionPanel
+          wallet={wallet}
+          investments={activeInvestments}
+          vipLevels={[]}
+          profile={profile}
+        />
 
         {/* Carte solde premium */}
         <WalletCard

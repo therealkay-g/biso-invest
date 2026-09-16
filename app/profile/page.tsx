@@ -9,9 +9,16 @@ import PageEnter from '@/components/PageEnter'
 import { useToast } from '@/components/ToastProvider'
 import {
   Shield, LogOut, Phone, Plus, ChevronRight, Wallet, TrendingUp,
-  BadgeCheck, Users, Info, Crown, CircleDollarSign, Copy, X, FileCheck, Upload
+  BadgeCheck, Users, Info, Crown, CircleDollarSign, Copy, X, FileCheck, Upload, Bell
 } from 'lucide-react'
 import Link from 'next/link'
+import VipProgressionBar from '@/components/VipProgressionBar'
+import UserAvatar from '@/components/UserAvatar'
+import { usePushNotifications } from '@/components/hooks/usePushNotifications'
+import { useRealtimeWallet } from '@/components/RealtimeProvider'
+
+
+
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -19,6 +26,9 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [withdrawalAccounts, setWithdrawalAccounts] = useState<WithdrawalAccount[]>([])
   const [kycProfile, setKycProfile] = useState<KycProfile | null>(null)
+  const [vipLevels, setVipLevels] = useState<any[]>([])
+  const { wallet, isLoading: walletLoading } = useRealtimeWallet()
+  const { isSubscribed, subscribe, unsubscribe } = usePushNotifications()
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -46,6 +56,9 @@ export default function ProfilePage() {
 
         const { data: pData } = await supabase.from('profiles').select('*').eq('id', user.id).single()
         setProfile(pData)
+
+        const { data: vData } = await supabase.from('vip_levels').select('*').order('display_order', { ascending: true })
+        setVipLevels(vData || [])
 
         const { data: kycData } = await supabase.from('kyc_profiles').select('*').eq('user_id', user.id).maybeSingle()
         setKycProfile(kycData)
@@ -191,9 +204,11 @@ export default function ProfilePage() {
         <div className="relative overflow-hidden bg-gradient-to-br from-emerald-800 via-emerald-700 to-emerald-900 text-white rounded-3xl p-6 shadow-xl border border-emerald-500/30 animate-fade-in">
           <div className="absolute -right-10 -top-10 w-40 h-40 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
           <div className="flex items-center space-x-4 relative">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-300 to-amber-500 text-emerald-950 font-black text-2xl flex items-center justify-center shadow-lg border-2 border-amber-200/50">
-              {profile?.phone?.charAt(0)?.toUpperCase() || 'U'}
-            </div>
+            <UserAvatar
+              name={profile?.phone}
+              vipLevel={profile?.current_vip || 'VIP0'}
+              size="lg"
+            />
             <div className="min-w-0 flex-1">
               <h2 className="text-base font-black text-white truncate">{profile?.phone}</h2>
               <button
@@ -209,6 +224,12 @@ export default function ProfilePage() {
             </span>
           </div>
         </div>
+
+        <VipProgressionBar
+          currentVip={profile?.current_vip || 'VIP0'}
+          totalInvested={wallet?.total_invested || 0}
+          vipLevels={vipLevels}
+        />
 
         {/* Comptes de retrait */}
         <div className="card p-5 space-y-4">
@@ -250,6 +271,31 @@ export default function ProfilePage() {
                 </span>
               </div>
             ))}
+          </div>
+
+          {/* Notifications Settings */}
+          <div className="flex items-center justify-between p-3.5 bg-gray-50 rounded-2xl border border-gray-100">
+            <div className="flex items-center space-x-3">
+              <span className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                <Bell className="w-4 h-4 text-emerald-700" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-gray-900">Notifications Push</p>
+                <p className="text-[10px] text-gray-500 truncate">Alerte gains et nouveautés</p>
+              </div>
+            </div>
+            <button
+              onClick={isSubscribed ? unsubscribe : subscribe}
+              className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none ${
+                isSubscribed ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-zinc-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                  isSubscribed ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
 
           {showAddAccount && (
