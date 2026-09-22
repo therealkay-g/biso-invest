@@ -289,7 +289,7 @@ export default function ProductDetailPage() {
               { title: '2. Gagnez chaque jour', text: `Un bénéfice de +${dailyProfit.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC/jour se génère automatiquement.` },
               { title: '3. Vendez votre bénéfice quotidien', text: 'Cliquez sur VENDRE chaque jour depuis « Mes investissements » pour créditer votre solde.' },
               { title: '4. Bénéfice non réclamé', text: 'Un bénéfice non vendu le jour même est perdu et ne sera jamais reporté.' },
-              { title: '5. Cycle de 12 mois', text: `Au terme des ${product.duration_months} mois, votre contrat est complété.` },
+              { title: `5. Cycle de ${product.duration_months} mois`, text: `Au terme des ${product.duration_months} mois, votre contrat est complété.` },
             ].map((step) => (
               <li key={step.title} className="flex space-x-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" aria-hidden="true" />

@@ -14,7 +14,7 @@ const GUIDE_SECTIONS: Array<{ title: string; body: string }> = [
   },
   {
     title: 'Revenu mensuel prévu',
-    body: 'Chaque mois, votre pack verse son revenu mensuel pendant sa durée (par exemple : Tilapia 20 000 FC → revenu mensuel de 20 000 FC, sur 12 mois). Le montant exact affiché sur la page du pack fait foi.',
+    body: 'Chaque mois, votre pack verse son revenu mensuel pendant sa durée (par exemple : Tilapia 20 000 FC → revenu mensuel de 20 000 FC, sur 3 mois). Le montant exact affiché sur la page du pack fait foi.',
   },
   {
     title: 'Bénéfice quotidien',

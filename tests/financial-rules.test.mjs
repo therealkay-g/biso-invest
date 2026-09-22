@@ -474,7 +474,7 @@ function simulateClaimDailyProfit(userId, investments, claims, balance, today, g
     if (inv.status !== 'ACTIVE') continue;
     // 10. Encore dans la pÃ©riode (durÃ©e en mois), sinon Â« terminÃ© Â»
     const periodEnd = new Date(inv.created_at);
-    periodEnd.setMonth(periodEnd.getMonth() + (inv.duration_months || 12));
+    periodEnd.setMonth(periodEnd.getMonth() + (inv.duration_months || 3));
     if (today.getTime() >= periodEnd.getTime()) continue;
     // 2/3/5/9. DÃ©jÃ  rÃ©clamÃ© aujourd'hui ? Aucun crÃ©dit possible
     if (claims.some((c) => c.investment_id === inv.id && c.profit_date === todayStr)) continue;
@@ -504,7 +504,7 @@ function makeInvestment(overrides = {}) {
     user_id: 'user-1',
     monthly_return: 30000,
     created_at: new Date(2024, 0, 5),
-    duration_months: 12,
+    duration_months: 3,
     status: 'ACTIVE',
     ...overrides,
   };
@@ -597,7 +597,7 @@ describe("12. Validation quotidienne du bÃ©nÃ©fice (bouton VENDRE)", () => {
 
   it("8. Mois de 30 jours (30 000 / 30 = 1 000 FC)", () => {
     const claims = [];
-    const inv = makeInvestment();
+    const inv = makeInvestment({ created_at: new Date(2024, 3, 1) });
     const day = new Date(2024, 3, 15);
     const res = simulateClaimDailyProfit('user-1', [inv], claims, 0, day, getDaysInMonth);
     assert.equal(res.claimed_amount, 1000);

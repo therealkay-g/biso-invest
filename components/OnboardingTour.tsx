@@ -33,7 +33,7 @@ const STEPS: OnboardingStep[] = [
   },
   {
     title: 'Investir dans un pack',
-    description: 'Onglet Investir : choisissez parmi 3 secteurs (Agriculture, Élevage, Pisciculture). Chaque secteur propose 4 packs à 20 000, 50 000, 100 000 et 250 000 FC, sur 12 mois, avec un revenu mensuel égal à votre investissement.',
+    description: 'Onglet Investir : choisissez parmi 3 secteurs (Agriculture, Élevage, Pisciculture). Chaque secteur propose 4 packs à 20 000, 50 000, 100 000 et 250 000 FC, sur 3 mois, avec un revenu mensuel égal à votre investissement.',
     icon: TrendingUp,
     color: 'bg-amber-500',
   },

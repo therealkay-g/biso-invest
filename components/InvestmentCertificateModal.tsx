@@ -114,7 +114,7 @@ export default function InvestmentCertificateModal({ investment, userName = 'Inv
               </div>
               <div>
                 <span className="text-gray-500 text-[11px]">Durée de l'Engagement :</span>
-                <p className="font-bold text-gray-800">{investment.duration_months} Mois (12 Cycles)</p>
+                <p className="font-bold text-gray-800">{investment.duration_months} Mois ({investment.duration_months} Cycles)</p>
               </div>
               <div>
                 <span className="text-gray-500 text-[11px]">Date de Souscription :</span>
