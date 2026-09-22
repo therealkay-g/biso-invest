@@ -1,0 +1,66 @@
+import type { Metadata, Viewport } from 'next'
+import './globals.css'
+import { Inter } from 'next/font/google'
+import BottomNavigation from '@/components/BottomNavigation'
+import { ToastProvider } from '@/components/ToastProvider'
+import NetworkStatus from '@/components/NetworkStatus'
+import PWAInstallPrompt from '@/components/PWAInstallPrompt'
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
+import WelcomePopup from '@/components/WelcomePopup'
+import ClientProviders from '@/components/ClientProviders'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: 'BISO INVEST — Ensemble, construisons demain.',
+  description: 'Plateforme d\'investissement dans l\'économie réelle en RDC (Agriculture, Élevage).',
+  manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+    ],
+    apple: '/icons/apple-touch-icon.png',
+  },
+  openGraph: {
+    title: 'BISO INVEST — Ensemble, construisons demain.',
+    description: 'Plateforme d\'investissement dans l\'économie réelle en RDC.',
+    images: [{ url: '/images/logo.png', width: 512, height: 512 }],
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#16a34a',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="fr" suppressHydrationWarning>
+      <body className={`${inter.className} bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-zinc-100 antialiased min-h-screen pb-20 md:pb-0`}>
+        <ClientProviders>
+          <ToastProvider>
+            <NetworkStatus />
+            <PWAInstallPrompt />
+            <ServiceWorkerRegister />
+            <WelcomePopup />
+            <div className="max-w-md mx-auto md:max-w-4xl lg:max-w-6xl min-h-screen bg-white dark:bg-zinc-900 shadow-xl relative flex flex-col justify-between">
+              <main className="flex-1 pb-16 md:pb-0">
+                {children}
+              </main>
+              <BottomNavigation />
+            </div>
+          </ToastProvider>
+        </ClientProviders>
+      </body>
+    </html>
+  )
+}

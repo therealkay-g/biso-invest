@@ -1,0 +1,40 @@
+{
+  "name": "biso-invest",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "node --test tests/financial-rules.test.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.39.8",
+    "@types/animejs": "^3.1.13",
+    "animejs": "^3.2.2",
+    "clsx": "^2.1.0",
+    "framer-motion": "^13.4.0",
+    "lucide-react": "^0.359.0",
+    "next": "14.2.3",
+    "next-themes": "^0.4.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwind-merge": "^2.2.2",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.16.2",
+    "@types/node": "^20.11.24",
+    "@types/react": "^18.2.61",
+    "@types/react-dom": "^18.2.19",
+    "@types/web-push": "^3.6.4",
+    "autoprefixer": "^10.5.5",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.3",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.3.3"
+  }
+}
