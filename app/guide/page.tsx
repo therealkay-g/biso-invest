@@ -10,15 +10,15 @@ const GUIDE_SECTIONS: Array<{ title: string; body: string }> = [
   },
   {
     title: 'Comment investir ?',
-    body: 'Ouvrez le pack souhaité, choisissez la quantité puis validez. Le capital est immédiatement débité de votre portefeuille, qui doit disposer du solde suffisant. Votre investissement démarre ensuite un contrat dont la durée dépend du secteur : 15 jours pour les packs Agriculture, 3 mois pour les autres secteurs, avec un bénéfice disponible chaque jour éligible.',
+    body: 'Ouvrez le pack souhaité, choisissez la quantité puis validez. Le capital est immédiatement débité de votre portefeuille, qui doit disposer du solde suffisant. Votre investissement démarre ensuite un contrat dont la durée dépend du secteur : 15 jours pour les packs Agriculture, 18 jours pour les packs Élevage et 10 jours pour les packs Pisciculture, avec un bénéfice disponible chaque jour éligible.',
   },
   {
     title: 'Bénéfice quotidien prévu',
-    body: 'Le bénéfice quotidien est de 10 % du capital investi, arrondi à 2 décimales, pour chaque jour éligible du contrat : 15 jours pour les packs Agriculture, 3 mois pour les autres secteurs. Exemples : 20 000 FC de capital → 2 000 FC par jour ; 50 000 FC → 5 000 FC par jour ; 250 000 FC → 25 000 FC par jour.',
+    body: 'Le bénéfice quotidien est de 10 % du capital investi pour les packs Agriculture (15 jours), 15 % pour les packs Élevage (18 jours) et 20 % pour les packs Pisciculture (10 jours), arrondi à 2 décimales, pour chaque jour éligible du contrat. Exemples sur 20 000 FC de capital : 2 000 FC par jour (Agriculture, 30 000 FC au total) ; 3 000 FC par jour (Élevage, 54 000 FC au total) ; 4 000 FC par jour (Pisciculture, 40 000 FC au total).',
   },
   {
     title: 'Bénéfice quotidien',
-    body: 'Chaque jour éligible, le bénéfice est calculé comme 10 % du capital investi, puis arrondi à 2 décimales. Il ne dépend pas du nombre de jours du mois.',
+    body: 'Chaque jour éligible, le bénéfice est calculé comme le taux du secteur (10 %, 15 % ou 20 % du capital selon le pack), puis arrondi à 2 décimales. Il ne dépend pas du nombre de jours du mois.',
   },
   {
     title: 'Vendre : réclamer son bénéfice',

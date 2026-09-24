@@ -14,17 +14,17 @@ const FAQ_DATABASE: FAQItem[] = [
   {
     category: 'General',
     question: 'C\'est quoi BISO INVEST ?',
-    answer: 'BISO INVEST est une plateforme d\'investissement dans l\'économie réelle en RDC, spécialisée dans l\'agriculture et la pisciculture. Nous permettons aux particuliers de financer des projets productifs et de percevoir un bénéfice quotidien de 10 % du capital investi, pour chaque jour éligible de la durée du pack (15 jours pour les packs Agriculture, 3 mois pour les autres secteurs).',
+    answer: 'BISO INVEST est une plateforme d\'investissement dans l\'économie réelle en RDC, spécialisée dans l\'agriculture, l\'élevage et la pisciculture. Nous permettons aux particuliers de financer des projets productifs et de percevoir un bénéfice quotidien selon le secteur : 10 % du capital (Agriculture, 15 jours), 15 % (Élevage, 18 jours) ou 20 % (Pisciculture, 10 jours), pour chaque jour éligible de la durée du pack.',
   },
   {
     category: 'Investment',
     question: 'Comment investir ?',
-    answer: 'C\'est simple ! Allez dans l\'onglet "Investir", choisissez un pack qui correspond à votre budget (ex: Pack Pisciculture), validez le paiement et votre bénéfice de 10 % du capital investi sera disponible chaque jour éligible pendant la durée du pack (15 jours pour les packs Agriculture, 3 mois pour les autres secteurs).',
+    answer: 'C\'est simple ! Allez dans l\'onglet "Investir", choisissez un pack qui correspond à votre budget (ex: Pack Pisciculture), validez le paiement et votre bénéfice quotidien (10 %, 15 % ou 20 % du capital selon le secteur) sera disponible chaque jour éligible pendant la durée du pack (15 jours Agriculture, 18 jours Élevage, 10 jours Pisciculture).',
   },
   {
     category: 'Investment',
     question: 'Quand suis-je payé ?',
-    answer: 'Chaque jour éligible, votre bénéfice est de 10 % du capital investi, arrondi à 2 décimales, et est disponible dans votre wallet. Vous pouvez "vendre" votre bénéfice chaque jour ; un jour non réclamé est perdu.',
+    answer: 'Chaque jour éligible, votre bénéfice est calculé sur le taux de votre secteur (10 % Agriculture, 15 % Élevage, 20 % Pisciculture) appliqué au capital investi, arrondi à 2 décimales, et est disponible dans votre wallet. Vous pouvez "vendre" votre bénéfice chaque jour ; un jour non réclamé est perdu.',
   },
   {
     category: 'Wallet',

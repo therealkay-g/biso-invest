@@ -11,6 +11,8 @@ import {
   calculateContractGain,
   calculateDailyProfit,
   formatContractDuration,
+  formatDailyProfitRate,
+  getContractDailyRate,
   getContractDayCount,
 } from '@/utils/financial.mjs'
 
@@ -73,8 +75,10 @@ export default function AdminPage() {
     name: '',
     price: 0,
     durationMonths: 3,
-    /** 0 = contrat de 3 mois ; 15 = contrat court de 15 jours (Agriculture). */
+    /** 0 = contrat de 3 mois ; 10/15/18 = contrat court en jours selon le secteur. */
     durationDays: 0,
+    /** Taux de bénéfice quotidien en % (10 Agriculture, 15 Élevage, 20 Pisciculture). */
+    dailyRate: 10,
     category_id: '',
     description: '',
     is_active: true,
@@ -400,19 +404,47 @@ export default function AdminPage() {
     }
   }
 
+  /**
+   * Sélection de la catégorie : applique automatiquement la grille officielle
+   * du secteur (durée en jours + taux quotidien) au formulaire produit.
+   */
+  const handleProductCategoryChange = (categoryId: string) => {
+    const category = categories.find((c) => c.id === categoryId)
+    const normalizedName = (category?.name || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+    const durationBySector: Record<string, number> = {
+      agriculture: 15,
+      elevage: 18,
+      pisciculture: 10,
+    }
+    const sectorDays = durationBySector[normalizedName] ?? 0
+    const categoryRate = Number(category?.daily_rate)
+    setProductForm((prev) => ({
+      ...prev,
+      category_id: categoryId,
+      durationDays: sectorDays,
+      dailyRate: Number.isFinite(categoryRate) && categoryRate > 0
+        ? Math.round(categoryRate * 100)
+        : 10,
+    }))
+  }
+
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       const price = Math.round(Number(productForm.price) * 100) / 100
       const durationMonths = 3 // politique BISO : catalogue mensuel plafonné à 3 mois
-      const durationDays = productForm.durationDays === 15 ? 15 : null
+      const durationDays = productForm.durationDays > 0 ? productForm.durationDays : null
+      const dailyRate = Number(productForm.dailyRate) > 0 ? Number(productForm.dailyRate) / 100 : 0.10
       if (!Number.isFinite(price) || price <= 0) {
         toast.error('Le prix doit être supérieur à 0 FC.')
         return
       }
 
       const contractDays = getContractDayCount({ duration_months: durationMonths, duration_days: durationDays }, new Date())
-      const totalReturns = calculateContractGain(price, contractDays)
+      const totalReturns = calculateContractGain(price, contractDays, dailyRate)
       const productData = {
         name: productForm.name.trim(),
         price,
@@ -420,6 +452,7 @@ export default function AdminPage() {
         monthly_return: price,
         duration_months: durationMonths,
         duration_days: durationDays,
+        daily_rate: dailyRate,
         category_id: productForm.category_id,
         total_returns: totalReturns,
         description: productForm.description,
@@ -441,7 +474,7 @@ export default function AdminPage() {
 
       setShowProductModal(false)
       setEditingProduct(null)
-      setProductForm({ name: '', price: 0, durationMonths: 3, durationDays: 0, category_id: '', description: '', is_active: true })
+      setProductForm({ name: '', price: 0, durationMonths: 3, durationDays: 0, dailyRate: 10, category_id: '', description: '', is_active: true })
 
       const { data: prodData, error: reloadError } = await supabase
         .from('products')
@@ -480,14 +513,15 @@ export default function AdminPage() {
         name: product.name,
         price: product.price,
         durationMonths: 3,
-        durationDays: product.duration_days === 15 ? 15 : 0,
+        durationDays: product.duration_days && [10, 15, 18].includes(Number(product.duration_days)) ? Number(product.duration_days) : 0,
+        dailyRate: Number(product.daily_rate) > 0 ? Math.round(Number(product.daily_rate) * 100) : 10,
         category_id: product.category_id,
         description: product.description || '',
         is_active: product.is_active,
       })
     } else {
       setEditingProduct(null)
-      setProductForm({ name: '', price: 0, durationMonths: 3, durationDays: 0, category_id: '', description: '', is_active: true })
+      setProductForm({ name: '', price: 0, durationMonths: 3, durationDays: 0, dailyRate: 10, category_id: '', description: '', is_active: true })
     }
     setShowProductModal(true)
   }
@@ -520,6 +554,10 @@ export default function AdminPage() {
 
   const pendingDeposits = filteredDeposits.filter(d => d.status === 'EN_ATTENTE');
   const pendingWithdrawals = filteredWithdrawals.filter(w => w.status === 'EN_ATTENTE');
+
+  // Aperçu du formulaire produit (taux quotidien + durée courte en jours).
+  const previewRate = Number(productForm.dailyRate) > 0 ? Number(productForm.dailyRate) / 100 : 0.10
+  const previewDays = productForm.durationDays > 0 ? productForm.durationDays : null
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -573,11 +611,11 @@ export default function AdminPage() {
                 </div>
 
                 <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800">
-                  <p className="text-xs font-black">Gain contractuel : 10% du capital par jour</p>
+                  <p className="text-xs font-black">Gain contractuel : {formatDailyProfitRate(previewRate)} du capital par jour</p>
                   <p className="text-[10px] mt-1">
-                    +{calculateDailyProfit(productForm.price).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC / jour
+                    +{calculateDailyProfit(productForm.price, previewRate).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC / jour
                     {' • '}
-                    {calculateContractGain(productForm.price, getContractDayCount({ duration_months: 3, duration_days: productForm.durationDays === 15 ? 15 : null }, new Date())).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC maximum sur le contrat
+                    {calculateContractGain(productForm.price, getContractDayCount({ duration_months: 3, duration_days: previewDays }, new Date()), previewRate).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC maximum sur le contrat
                   </p>
                 </div>
 
@@ -592,22 +630,38 @@ export default function AdminPage() {
                     >
                       <option value={0}>3 mois (défaut)</option>
                       <option value={15}>15 jours (Agriculture)</option>
+                      <option value={18}>18 jours (Élevage)</option>
+                      <option value={10}>10 jours (Pisciculture)</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Catégorie</label>
-                    <select
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Taux quotidien (%)</label>
+                    <input
+                      type="number"
                       required
-                      value={productForm.category_id}
-                      onChange={(e) => setProductForm({ ...productForm, category_id: e.target.value })}
+                      min="0.01"
+                      max="100"
+                      step="1"
+                      value={productForm.dailyRate}
+                      onChange={(e) => setProductForm({ ...productForm, dailyRate: Number(e.target.value) })}
                       className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
-                    >
-                      <option value="">Choisir...</option>
-                      {categories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
+                    />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Catégorie</label>
+                  <select
+                    required
+                    value={productForm.category_id}
+                    onChange={(e) => handleProductCategoryChange(e.target.value)}
+                    className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
+                  >
+                    <option value="">Choisir...</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -1288,7 +1342,7 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <p className="text-xs text-biso-600 font-semibold">{p.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</p>
-                  <p className="text-[10px] text-gray-500">Gain: +{calculateDailyProfit(p.price).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC / jour (10%)</p>
+                  <p className="text-[10px] text-gray-500">Gain: +{calculateDailyProfit(p.price, getContractDailyRate(p)).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC / jour ({formatDailyProfitRate(getContractDailyRate(p))})</p>
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${p.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                       {p.is_active ? 'Actif' : 'Inactif'}

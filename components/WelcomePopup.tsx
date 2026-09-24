@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { X, CheckCircle2, Sprout, Tractor, Fish, Clock, ArrowRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getVipTierForPrice } from '@/utils/constants'
-import { formatContractDuration } from '@/utils/financial.mjs'
+import { formatContractDuration, formatDailyProfitRate } from '@/utils/financial.mjs'
 import {
   WELCOME_MODAL_CONTAINER_CLASSES,
   WELCOME_CARD_CLASSES,
@@ -81,7 +81,7 @@ export default function WelcomePopup() {
           .order('order_index', { ascending: true }),
         supabase
           .from('products')
-          .select('id, category_id, name, price, duration_months, duration_days')
+          .select('id, category_id, name, price, duration_months, duration_days, daily_rate')
           .eq('is_active', true),
       ])
       if (categoryResult.error || productResult.error) {
@@ -155,8 +155,8 @@ export default function WelcomePopup() {
 
         <div className="px-5 py-4">
           <p className="text-sm text-gray-600 leading-relaxed">
-            Découvrez nos secteurs d&apos;investissement et leurs packs officiels. Chaque pack
-            génère un gain immuable de 10% du capital par jour.
+            Découvrez nos secteurs d&apos;investissement et leurs packs officiels. Chaque secteur
+            offre un bénéfice quotidien propre : 10 %, 15 % ou 20 % du capital selon le pack.
           </p>
 
           {sectors.length === 0 ? (
@@ -204,7 +204,7 @@ export default function WelcomePopup() {
                             <div className="mt-2 pt-2 border-t border-gray-100 grid grid-cols-2 gap-2">
                               <div>
                                 <p className="text-[10px] text-gray-400 uppercase font-semibold">
-                                  Gain / jour (10%)
+                                  Gain / jour ({formatDailyProfitRate(pack.dailyRate)})
                                 </p>
                                 <p className="text-xs font-bold text-gray-900">
                                   +{pack.dailyRevenue.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC

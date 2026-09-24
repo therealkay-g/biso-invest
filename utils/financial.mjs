@@ -1,4 +1,6 @@
 export const DAILY_PROFIT_RATE = 0.10
+/** Taux de bénéfice quotidien par défaut (legacy) ; réel : investissements/products.daily_rate. */
+export const DEFAULT_DAILY_RATE = 0.10
 export const BUSINESS_TIME_ZONE = 'Africa/Kinshasa'
 export const DEFAULT_DURATION_MONTHS = 3
 
@@ -44,11 +46,37 @@ export function roundToTwoDecimals(value) {
   return Math.round((amount + Number.EPSILON) * 100) / 100
 }
 
-/** The contractual gain is always 10% of invested capital, rounded to cents. */
-export function calculateDailyProfit(capital) {
+/** The contractual gain is always rate × invested capital, rounded to cents. */
+export function calculateDailyProfit(capital, rate = DEFAULT_DAILY_RATE) {
   const amount = Number(capital)
   if (!Number.isFinite(amount) || amount <= 0) return 0
-  return roundToTwoDecimals(amount * DAILY_PROFIT_RATE)
+  const rateValue = Number(rate)
+  const effectiveRate = Number.isFinite(rateValue) && rateValue > 0 ? rateValue : DEFAULT_DAILY_RATE
+  return roundToTwoDecimals(amount * effectiveRate)
+}
+
+/**
+ * Taux de bénéfice quotidien d'un pack ou d'un investissement (daily_rate
+ * snapshoté, défaut 10 %).
+ * @param {{ daily_rate?: number | null }} contract
+ * @returns {number}
+ */
+export function getContractDailyRate(contract) {
+  const rate = Number(contract?.daily_rate)
+  return Number.isFinite(rate) && rate > 0 ? rate : DEFAULT_DAILY_RATE
+}
+
+/**
+ * Libellé d'affichage d'un taux quotidien : 0.10 -> "10 %", 0.15 -> "15 %".
+ * @param {number | null | undefined} rate
+ * @returns {string}
+ */
+export function formatDailyProfitRate(rate) {
+  const value = Number(rate)
+  if (!Number.isFinite(value) || value <= 0) return '10 %'
+  const percent = value * 100
+  const formatted = Number.isInteger(percent) ? String(percent) : percent.toFixed(2)
+  return `${formatted} %`
 }
 
 function getDatePartsInTimeZone(value, timeZone = BUSINESS_TIME_ZONE) {
@@ -340,20 +368,20 @@ export function getContractDaysBetween(contract, fromDate, toDate) {
   return getBusinessDayDifference(effectiveToKey, effectiveFromKey)
 }
 
-export function calculateContractGain(capital, contractDays) {
+export function calculateContractGain(capital, contractDays, rate = DEFAULT_DAILY_RATE) {
   const days = Number(contractDays)
   if (!Number.isFinite(days) || days <= 0) return 0
-  return roundToTwoDecimals(calculateDailyProfit(capital) * Math.floor(days))
+  return roundToTwoDecimals(calculateDailyProfit(capital, rate) * Math.floor(days))
 }
 
 export const calculateMaximumGain = calculateContractGain
 
 export function calculateRemainingGain(capital, contract, asOf = new Date()) {
-  return calculateContractGain(capital, getRemainingContractDays(contract, asOf))
+  return calculateContractGain(capital, getRemainingContractDays(contract, asOf), getContractDailyRate(contract))
 }
 
 export function calculateProjectedGain(capital, contract, fromDate, toDate) {
-  return calculateContractGain(capital, getContractDaysBetween(contract, fromDate, toDate))
+  return calculateContractGain(capital, getContractDaysBetween(contract, fromDate, toDate), getContractDailyRate(contract))
 }
 
 export function getContractProgress(contract, asOf = new Date()) {

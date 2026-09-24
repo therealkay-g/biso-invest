@@ -24,7 +24,7 @@ export interface VipPrediction {
 export const PredictiveEngine = {
   /**
    * Deterministic projections based on real remaining contract dates and the
-   * immutable 10% daily rule. Every horizon is capped by the contract end.
+   * immutable daily-rate rule (per-sector: 10/15/20%). Every horizon is capped by the contract end.
    */
   calculateProjections(wallet: Wallet, investments: (Investment & { product?: Product })[]): Prediction[] {
     const now = new Date()

@@ -3,7 +3,7 @@
 import { TrendingUp, Clock, Award } from 'lucide-react'
 import { Product } from '@/types'
 import { getVipTierForPrice } from '@/utils/constants'
-import { calculateDailyProfit, formatContractDuration } from '@/utils/financial.mjs'
+import { calculateDailyProfit, formatContractDuration, getContractDailyRate } from '@/utils/financial.mjs'
 import { RippleLink } from './RippleButton'
 
 interface ProductCardProps {
@@ -14,13 +14,13 @@ interface ProductCardProps {
  * Carte pack compacte (~120-160px de haut) :
  * ligne 1 : image 48px + nom + badge VIP
  * ligne 2 : montant investi
- * ligne 3 : gain quotidien (10% du prix) + durée
+ * ligne 3 : gain quotidien (taux du secteur × prix) + durée
  * bouton INVESTIR compact.
  * Hover : scale 1.02 — Clic : scale 0.98.
  */
 export default function ProductCard({ product }: ProductCardProps) {
   const vipTier = getVipTierForPrice(product.price)
-  const dailyProfit = calculateDailyProfit(product.price)
+  const dailyProfit = calculateDailyProfit(product.price, getContractDailyRate(product))
   const durationLabel = formatContractDuration(product.duration_days, product.duration_months)
 
   return (

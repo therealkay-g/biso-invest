@@ -15,7 +15,9 @@ import { ALLOWED_PACK_PRICES } from '@/utils/constants'
 import {
   calculateDailyProfit,
   formatContractDuration,
+  formatDailyProfitRate,
   getBusinessDateKey,
+  getContractDailyRate,
   getRemainingContractDays,
 } from '@/utils/financial.mjs'
 import { Plus, ArrowUpRight, Package, Users, TrendingUp, Shield, Bell, ChevronRight, HandCoins, CheckCircle2, AlertCircle, Sprout, Beef, Fish, CalendarCheck, BookOpen } from 'lucide-react'
@@ -419,7 +421,7 @@ export default function DashboardPage() {
           ) : (
             <StaggerIn className="space-y-3">
             {activeInvestments.slice(0, 5).map((inv) => {
-              const dailyProfit = Number(inv.daily_profit) || calculateDailyProfit(inv.total_amount)
+              const dailyProfit = Number(inv.daily_profit) || calculateDailyProfit(inv.total_amount, getContractDailyRate(inv))
               const durationLabel = formatContractDuration(inv.duration_days, inv.duration_months)
               const finished = isInvestmentFinished(inv)
               const claimedToday = hasClaimedToday(inv.id)
@@ -454,7 +456,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="border-x border-gray-200">
                       <p className="text-[9px] uppercase text-gray-400 font-semibold">Taux journalier</p>
-                      <p className="text-xs font-black text-emerald-700 tabular-nums">10% / jour</p>
+                      <p className="text-xs font-black text-emerald-700 tabular-nums">{formatDailyProfitRate(getContractDailyRate(inv))} / jour</p>
                     </div>
                     <div>
                       <p className="text-[9px] uppercase text-gray-400 font-semibold">Bénéfice du jour</p>

@@ -40,6 +40,8 @@ export interface WelcomeProductRow {
   duration_months: number
   /** 15 pour les packs Agriculture ; absent = contrat mensuel de 3 mois. */
   duration_days?: number | null
+  /** Taux de bénéfice quotidien du pack (10/15/20 % selon le secteur). */
+  daily_rate?: number | null
   is_active?: boolean | null
 }
 
@@ -50,8 +52,10 @@ export interface WelcomePack {
   /** @deprecated Kept only for compatibility with legacy consumers. */
   monthlyReturn: number
   durationMonths: number
-  /** Durée en jours (15 pour l'Agriculture) ; null = 3 mois. */
+  /** Durée en jours (15 Agriculture, 18 Élevage, 10 Pisciculture) ; null = 3 mois. */
   durationDays: number | null
+  /** Taux de bénéfice quotidien du pack (10/15/20 %). */
+  dailyRate: number
   vipLevel: string
   vipName: string
   dailyRevenue: number
@@ -100,16 +104,18 @@ export function buildActiveSectors(
         .filter((p) => p.category_id === cat.id)
         .map((p): WelcomePack => {
           const tier = getVipTierForPrice(p.price)
+          const rate = Number(p.daily_rate) > 0 ? Number(p.daily_rate) : 0.10
           return {
             id: p.id,
             name: p.name,
             price: p.price,
-            monthlyReturn: calculateDailyProfit(p.price),
+            monthlyReturn: calculateDailyProfit(p.price, rate),
             durationMonths: Number(p.duration_months) || 3,
             durationDays: Number(p.duration_days) || null,
+            dailyRate: rate,
             vipLevel: tier ? tier.level : 'VIP0',
             vipName: tier ? tier.name : `Pack ${p.price.toLocaleString('fr-FR')} FC`,
-            dailyRevenue: calculateDailyProfit(p.price),
+            dailyRevenue: calculateDailyProfit(p.price, rate),
           }
         })
         .sort((a, b) => a.price - b.price)

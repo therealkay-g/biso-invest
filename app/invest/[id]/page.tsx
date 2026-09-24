@@ -15,6 +15,8 @@ import {
   calculateContractGain,
   calculateDailyProfit,
   formatContractDuration,
+  formatDailyProfitRate,
+  getContractDailyRate,
   getContractDayCount,
 } from '@/utils/financial.mjs'
 import Link from 'next/link'
@@ -139,11 +141,13 @@ export default function ProductDetailPage() {
   const durationMonths = Number(product.duration_months) || 3
   const durationDays = Number(product.duration_days) || 0
   const durationLabel = formatContractDuration(durationDays, durationMonths)
+  const dailyRate = getContractDailyRate(product)
+  const rateLabel = formatDailyProfitRate(dailyRate)
   const totalCost = product.price * quantity
-  const dailyProfitPerPack = calculateDailyProfit(product.price)
-  const dailyProfit = calculateDailyProfit(totalCost)
+  const dailyProfitPerPack = calculateDailyProfit(product.price, dailyRate)
+  const dailyProfit = calculateDailyProfit(totalCost, dailyRate)
   const contractDays = getContractDayCount({ duration_months: durationMonths, duration_days: durationDays || null }, now)
-  const totalExpectedReturn = calculateContractGain(totalCost, contractDays)
+  const totalExpectedReturn = calculateContractGain(totalCost, contractDays, dailyRate)
   const vipTier = getVipTierForPrice(product.price)
 
   return (
@@ -298,7 +302,7 @@ export default function ProductDetailPage() {
           <ol className="space-y-3">
             {[
               { title: '1. Souscrivez votre pack', text: `Investissez ${product.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC (× quantité) depuis votre portefeuille.` },
-              { title: '2. Gagnez 10% par jour', text: `Un bénéfice de +${dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC/jour se génère automatiquement.` },
+              { title: `2. Gagnez ${rateLabel} par jour`, text: `Un bénéfice de +${dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC/jour se génère automatiquement.` },
               { title: '3. Vendez votre bénéfice quotidien', text: 'Cliquez sur VENDRE chaque jour depuis « Mes investissements » pour créditer votre solde.' },
               { title: '4. Bénéfice non réclamé', text: 'Un bénéfice non vendu le jour même est perdu et ne sera jamais reporté.' },
               { title: `5. Cycle de ${durationLabel}`, text: `Au terme de ${durationLabel} de contrat et ${contractDays} jours éligibles, votre contrat est complété.` },

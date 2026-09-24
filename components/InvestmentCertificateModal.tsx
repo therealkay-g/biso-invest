@@ -4,7 +4,7 @@ import React from 'react'
 import { X, Printer, ShieldCheck, Award, QrCode } from 'lucide-react'
 import Image from 'next/image'
 import { Investment } from '@/types'
-import { calculateDailyProfit, formatContractDuration, getBusinessDateKey, getContractEndDate } from '@/utils/financial.mjs'
+import { calculateDailyProfit, formatContractDuration, formatDailyProfitRate, getBusinessDateKey, getContractDailyRate, getContractEndDate } from '@/utils/financial.mjs'
 
 interface CertificateProps {
   investment: Investment
@@ -24,7 +24,7 @@ export default function InvestmentCertificateModal({ investment, userName = 'Inv
     month: 'long',
     year: 'numeric'
   })
-  const dailyProfit = Number(investment.daily_profit) || calculateDailyProfit(investment.total_amount)
+  const dailyProfit = Number(investment.daily_profit) || calculateDailyProfit(investment.total_amount, getContractDailyRate(investment))
   const durationLabel = formatContractDuration(investment.duration_days, investment.duration_months)
   const contractEnd = getContractEndDate(investment)
 
@@ -114,7 +114,7 @@ export default function InvestmentCertificateModal({ investment, userName = 'Inv
               <div>
                 <span className="text-gray-500 text-[11px]">Gain Journalier Contractuel :</span>
                 <p className="font-bold text-biso-700 text-sm">
-                  +{dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC / jour (10%)
+                  +{dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC / jour ({formatDailyProfitRate(getContractDailyRate(investment))})
                 </p>
               </div>
               <div>

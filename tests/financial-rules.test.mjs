@@ -9,10 +9,13 @@ import assert from 'node:assert/strict';
 import {
   addBusinessDays,
   addBusinessMonths,
+  calculateContractGain,
   calculateDailyProfit,
   DEFAULT_DURATION_MONTHS,
   formatContractDuration,
+  formatDailyProfitRate,
   getBusinessDateKey,
+  getContractDailyRate,
   getContractDayCount,
 } from '../utils/financial.mjs';
 
@@ -201,6 +204,67 @@ describe("3. Bénéfice quotidien de 10 % du capital investi", () => {
     assert.equal(formatContractDuration(undefined, 3), '3 mois');
     assert.equal(formatContractDuration(0, 3), '3 mois');
     assert.equal(formatContractDuration(null, undefined), '3 mois');
+  });
+});
+
+describe("3bis. Grille par secteur (migration 033) : 10/15/20 % et durées 15/18/10 jours", () => {
+  it("applique le taux du secteur au capital : 15 % Élevage, 20 % Pisciculture", () => {
+    assert.equal(calculateDailyProfit(20000, 0.15), 3000);
+    assert.equal(calculateDailyProfit(20000, 0.20), 4000);
+    assert.equal(calculateDailyProfit(50000, 0.15), 7500);
+    assert.equal(calculateDailyProfit(250000, 0.20), 50000);
+  });
+
+  it("reste à 10 % par défaut quand aucun daily_rate n'est fourni", () => {
+    assert.equal(calculateDailyProfit(20000), 2000);
+    assert.equal(calculateDailyProfit(20000, 0), 2000);
+    assert.equal(calculateDailyProfit(20000, NaN), 2000);
+  });
+
+  it("extrait le taux snapshoté d'un contrat (investissement ou produit)", () => {
+    assert.equal(getContractDailyRate({ daily_rate: 0.15 }), 0.15);
+    assert.equal(getContractDailyRate({ daily_rate: 0.2 }), 0.2);
+    assert.equal(getContractDailyRate({ daily_rate: 0 }), 0.10);
+    assert.equal(getContractDailyRate({}), 0.10);
+    assert.equal(getContractDailyRate(undefined), 0.10);
+    assert.equal(getContractDailyRate(null), 0.10);
+  });
+
+  it("formate les taux d'affichage (10 %, 15 %, 20 %)", () => {
+    assert.equal(formatDailyProfitRate(0.10), '10 %');
+    assert.equal(formatDailyProfitRate(0.15), '15 %');
+    assert.equal(formatDailyProfitRate(0.20), '20 %');
+    assert.equal(formatDailyProfitRate(0), '10 %');
+    assert.equal(formatDailyProfitRate(null), '10 %');
+  });
+
+  it("calcule le gain total d'un contrat court au taux du secteur", () => {
+    // Élevage : 15 % × 18 jours sur 20 000 FC = 54 000 FC.
+    assert.equal(calculateContractGain(20000, 18, 0.15), 54000);
+    // Pisciculture : 20 % × 10 jours sur 20 000 FC = 40 000 FC.
+    assert.equal(calculateContractGain(20000, 10, 0.20), 40000);
+    // Agriculture : 10 % × 15 jours sur 20 000 FC = 30 000 FC.
+    assert.equal(calculateContractGain(20000, 15), 30000);
+  });
+
+  it("applique les durées courtes de chaque secteur (15/18/10 jours)", () => {
+    assert.equal(getContractDayCount({
+      created_at: '2024-01-10T10:00:00Z',
+      duration_months: 3,
+      duration_days: 15,
+    }), 15);
+    assert.equal(getContractDayCount({
+      created_at: '2024-01-10T10:00:00Z',
+      duration_months: 3,
+      duration_days: 18,
+    }), 18);
+    assert.equal(getContractDayCount({
+      created_at: '2024-01-10T10:00:00Z',
+      duration_months: 3,
+      duration_days: 10,
+    }), 10);
+    assert.equal(formatContractDuration(18, 3), '18 jours');
+    assert.equal(formatContractDuration(10, 3), '10 jours');
   });
 });
 

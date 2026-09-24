@@ -18,7 +18,9 @@ import Link from 'next/link'
 import {
   calculateDailyProfit,
   formatContractDuration,
+  formatDailyProfitRate,
   getBusinessDateKey,
+  getContractDailyRate,
   getContractEndDate,
   getContractProgress,
   getRemainingContractDays,
@@ -222,7 +224,7 @@ export default function InvestmentsPage() {
           <StaggerIn className="space-y-6">
             {investments.map((inv) => {
               const capital = Number(inv.total_amount) || 0
-              const dailyProfit = Number(inv.daily_profit) || calculateDailyProfit(capital)
+              const dailyProfit = Number(inv.daily_profit) || calculateDailyProfit(capital, getContractDailyRate(inv))
               const now = new Date()
               const durationLabel = formatContractDuration(inv.duration_days, inv.duration_months)
               const remainingDays = getRemainingContractDays(inv, now)
@@ -299,7 +301,7 @@ export default function InvestmentsPage() {
                           +{dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC
                         </p>
                         <p className={`text-[10px] mt-0.5 ${finished ? 'text-gray-400' : claimedToday ? 'text-emerald-600' : 'text-emerald-200'}`}>
-                          10% du capital investi par jour{finished ? '' : ` • ${remainingDays} jour${remainingDays > 1 ? 's' : ''} restant${remainingDays > 1 ? 's' : ''}`}
+                          {formatDailyProfitRate(getContractDailyRate(inv))} du capital investi par jour{finished ? '' : ` • ${remainingDays} jour${remainingDays > 1 ? 's' : ''} restant${remainingDays > 1 ? 's' : ''}`}
                         </p>
                       </div>
 
@@ -388,7 +390,7 @@ export default function InvestmentsPage() {
                     </div>
                     <div className="text-center border-x border-gray-200">
                       <p className="text-gray-400 font-semibold">Taux contractuel</p>
-                      <p className="font-black text-emerald-800 tabular-nums mt-0.5">10% / jour</p>
+                      <p className="font-black text-emerald-800 tabular-nums mt-0.5">{formatDailyProfitRate(getContractDailyRate(inv))} / jour</p>
                     </div>
                     <div className="text-center">
                       <p className="text-gray-400 font-semibold">Jours restants</p>

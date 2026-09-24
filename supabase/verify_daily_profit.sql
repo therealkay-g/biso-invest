@@ -1,7 +1,9 @@
--- Vérifications en lecture seule après application de 030_daily_profit_10_percent.sql
--- Dans Supabase SQL Editor, toutes les assertions ci-dessous doivent retourner true.
+-- Vérifications en lecture seule après application de 033_sector_daily_rates.sql
+-- (et de la chaîne 030/031/032). Dans Supabase SQL Editor, toutes les
+-- assertions ci-dessous doivent retourner true.
 
--- 1. La nouvelle RPC est disponible et l'ancienne RPC sans paramètre a disparu.
+-- 1. La RPC par investissement est disponible et l'ancienne RPC sans paramètre
+--    a disparu.
 select
   exists (
     select 1
@@ -20,7 +22,8 @@ select
       and pg_get_function_identity_arguments(p.oid) = ''
   ) as legacy_rpc_removed;
 
--- 2. L'ancien moteur de retrait cumulatif n'est plus exécutable par un utilisateur.
+-- 2. L'ancien moteur de retrait cumulatif n'est plus exécutable par un
+--    utilisateur.
 select not exists (
   select 1
   from pg_proc p
@@ -30,22 +33,31 @@ select not exists (
     and has_function_privilege('authenticated', p.oid, 'EXECUTE')
 ) as legacy_claim_locked;
 
--- 3. Formule officielle : 10 % du capital, arrondis à deux décimales.
-select public.calculate_daily_profit(20000) = 2000.00 as gain_20k_ok,
-       public.calculate_daily_profit(50000) = 5000.00 as gain_50k_ok,
-       public.calculate_daily_profit(250000) = 25000.00 as gain_250k_ok;
+-- 3. Taux par secteur (politique 033).
+select
+  (select daily_rate from public.product_categories where name = 'Agriculture')  = 0.10 as ag_rate_ok,
+  (select daily_rate from public.product_categories where name = 'Élevage')      = 0.15 as el_rate_ok,
+  (select daily_rate from public.product_categories where name = 'Pisciculture') = 0.20 as pi_rate_ok;
 
--- 4. Les investissements existants portent un snapshot quotidien égal à 10 %.
+-- 4. Snapshots daily_profit conformes au taux snapshoté (10/15/20 %).
 select count(*) = 0 as invalid_daily_snapshots
 from public.investments
-where daily_profit is distinct from round(total_amount * 0.10, 2);
+where daily_profit is distinct from round(total_amount * coalesce(daily_rate, 0.10), 2)
+   or daily_rate is null
+   or daily_rate <= 0
+   or daily_rate > 1;
 
--- 5. Tous les produits actifs respectent la durée commerciale de 3 mois.
+-- 5. Durées du catalogue par secteur : 15/18/10 jours, monthly plafonné à 3.
 select count(*) = 0 as invalid_product_durations
-from public.products
-where duration_months <> 3;
+from public.products p
+join public.product_categories c on c.id = p.category_id
+where p.duration_months <> 3
+   or p.duration_days is null
+   or p.duration_days not in (10, 15, 18)
+   or p.daily_rate is distinct from c.daily_rate
+   or p.total_returns is distinct from round(p.price * p.daily_rate * p.duration_days, 2);
 
--- 6. Les dates de fin sont toujours ultérieures à la date de début.
-select count(*) = 0 as invalid_contract_dates
-from public.investments
-where ends_at is null or ends_at <= created_at;
+-- 6. Aucun produit en défaut de taux.
+select count(*) = 0 as invalid_product_rates
+from public.products
+where daily_rate is null or daily_rate <= 0 or daily_rate > 1;

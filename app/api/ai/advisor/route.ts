@@ -46,14 +46,15 @@ export async function POST(req: Request) {
       - Current Balance: ${wallet.balance} FC
 
       Financial rule:
-      - Daily gain: 10% of invested capital per eligible day, rounded to 2 decimals.
-      - A nonclaimed day is lost; the current contract duration is 3 months.
+      - Daily gain = sector rate × invested capital per eligible day, rounded to 2 decimals.
+      - Sector rates: Agriculture 10% (15 days), Elevage 15% (18 days), Pisciculture 20% (10 days).
+      - A nonclaimed day is lost.
 
       Active Investments:
-      ${investments?.map(inv => `- ${inv.product?.name}: ${inv.total_amount} FC invested (daily gain: 10% of this amount)`).join('\n')}
+      ${investments?.map(inv => `- ${inv.product?.name}: ${inv.total_amount} FC invested (daily gain: ${(Number(inv.daily_rate) || 0.10) * 100}% => ${inv.daily_profit} FC/day; ${inv.duration_days || 90} days)`).join('\n')}
 
       Available Investment Packs:
-      ${products?.map(p => `- ${p.name}: ${p.price} FC (daily gain: 10% of invested capital, rounded to 2 decimals; 3-month contract)`).join('\n')}
+      ${products?.map(p => `- ${p.name}: ${p.price} FC (daily gain: ${(Number(p.daily_rate) || 0.10) * 100}% of invested capital, rounded to 2 decimals; ${p.duration_days ? `${p.duration_days} days` : '3-month contract'})`).join('\n')}
     `
 
     // 3. SIMULATION de la logique IA (en attendant un vrai LLM)
