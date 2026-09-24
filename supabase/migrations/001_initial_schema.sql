@@ -357,7 +357,7 @@ on conflict (network) do nothing;
 -- SEED DATA: VIP LEVELS (VIP0 to VIP7, VIP5-7 deactivated)
 insert into vip_levels (level_name, min_investment, max_packs, benefits, is_active, display_order)
 values
-  ('VIP0', 0, 1, 'Condition 0 FC - Maximum 1 pack', true, 0),
+  ('VIP0', 0, 0, 'Condition 0 FC - Aucun pack autorisé', true, 0),
   ('VIP1', 20000, 3, 'Condition 20 000 FC - Maximum 3 packs', true, 1),
   ('VIP2', 100000, 5, 'Condition 100 000 FC - Maximum 5 packs', true, 2),
   ('VIP3', 250000, 8, 'Condition 250 000 FC - Maximum 8 packs', true, 3),

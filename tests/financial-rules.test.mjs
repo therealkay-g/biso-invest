@@ -33,7 +33,7 @@ function calculateDailyGain(totalAmount) {
 
 // Simulation du systÃ¨me VIP (Paliers officiels : VIP1=20 000 FC, VIP2=50 000 FC, VIP3=100 000 FC, VIP4=250 000 FC)
 const VIP_LEVELS = [
-  { level_name: 'VIP0', min_investment: 0, max_packs: 1, is_active: true, display_order: 0 },
+  { level_name: 'VIP0', min_investment: 0, max_packs: 0, is_active: true, display_order: 0 },
   { level_name: 'VIP1', min_investment: 20000, max_packs: 3, is_active: true, display_order: 1 },
   { level_name: 'VIP2', min_investment: 50000, max_packs: 5, is_active: true, display_order: 2 },
   { level_name: 'VIP3', min_investment: 100000, max_packs: 8, is_active: true, display_order: 3 },
@@ -271,7 +271,7 @@ describe("8. MontÃ©e automatique de palier VIP", () => {
   it("DÃ©bute Ã  VIP0 pour 0 FC investi", () => {
     const vip = evaluateVip(0);
     assert.equal(vip.level_name, 'VIP0');
-    assert.equal(vip.max_packs, 1);
+    assert.equal(vip.max_packs, 0);
   });
 
 it("Passe automatiquement Ã  VIP1 dÃ¨s 20 000 FC investis", () => {
@@ -310,9 +310,9 @@ it("Passe automatiquement Ã  VIP1 dÃ¨s 20 000 FC investis", () => {
 // SUITE 9 : Limites de packs selon le niveau VIP
 // ============================================================
 describe("9. Respect des plafonds de packs par niveau VIP", () => {
-  it("VIP0 plafonnÃ© Ã  1 pack", () => {
+  it("VIP0 plafonnÃ© Ã  0 pack", () => {
     const vip0 = VIP_LEVELS.find(v => v.level_name === 'VIP0');
-    assert.equal(vip0.max_packs, 1);
+    assert.equal(vip0.max_packs, 0);
   });
 
   it("VIP1 plafonnÃ© Ã  3 packs", () => {

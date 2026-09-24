@@ -1587,7 +1587,7 @@ WHERE price IN (20000, 50000, 100000, 250000);
 
 -- Official VIP thresholds
 UPDATE vip_levels
-SET min_investment = 0, max_packs = 1, benefits = 'Condition 0 FC — Maximum 1 pack', is_active = true
+SET min_investment = 0, max_packs = 0, benefits = 'Condition 0 FC — Aucun pack autorisé', is_active = true
 WHERE level_name = 'VIP0';
 
 UPDATE vip_levels

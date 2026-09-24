@@ -83,7 +83,7 @@ export default function VipPage() {
 
         // Paliers officiels : VIP0=0, VIP1=20 000, VIP2=50 000, VIP3=100 000, VIP4=250 000
         const OFFICIAL_VIP: Record<string, { min_investment: number; max_packs: number; benefits: string }> = {
-          VIP0: { min_investment: 0, max_packs: 1, benefits: 'Accessible à tous — Maximum 1 pack actif' },
+          VIP0: { min_investment: 0, max_packs: 0, benefits: 'Accès libre — Aucun pack autorisé' },
           VIP1: { min_investment: 20000, max_packs: 3, benefits: 'Investissement cumulé de 20 000 FC — Maximum 3 packs' },
           VIP2: { min_investment: 50000, max_packs: 5, benefits: 'Investissement cumulé de 50 000 FC — Maximum 5 packs' },
           VIP3: { min_investment: 100000, max_packs: 8, benefits: 'Investissement cumulé de 100 000 FC — Maximum 8 packs' },
