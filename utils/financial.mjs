@@ -209,6 +209,17 @@ export function addBusinessMonths(dateKey, months) {
   return `${String(date.getUTCFullYear()).padStart(4, '0')}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
 }
 
+/** Adds calendar days to a business-date key (YYYY-MM-DD). */
+export function addBusinessDays(dateKey, days) {
+  const serial = businessDateKeyToSerial(dateKey)
+  const amount = Number(days)
+  if (serial === null || !Number.isFinite(amount)) return null
+
+  const date = new Date(serial)
+  date.setUTCDate(date.getUTCDate() + Math.trunc(amount))
+  return `${String(date.getUTCFullYear()).padStart(4, '0')}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
+}
+
 export function getBusinessDayDifference(laterDateKey, earlierDateKey) {
   const later = businessDateKeyToSerial(laterDateKey)
   const earlier = businessDateKeyToSerial(earlierDateKey)
@@ -233,6 +244,7 @@ function getContractStart(contract, fallbackDate) {
 
 /**
  * Uses the immutable ends_at snapshot when present. Legacy rows fall back to
+ * created_at + duration_days (short Agriculture contract) or
  * created_at + duration_months, with the safe legacy default of three months.
  */
 export function getContractEndDate(contract, fallbackDate = new Date()) {
@@ -245,6 +257,14 @@ export function getContractEndDate(contract, fallbackDate = new Date()) {
   const startKey = getBusinessDateKey(start)
   const startTimeParts = getDateTimePartsInTimeZone(start)
   if (!startKey || !startTimeParts) return null
+
+  const durationDays = Number(contract?.duration_days)
+  if (Number.isInteger(durationDays) && durationDays > 0) {
+    const dayEndKey = addBusinessDays(startKey, durationDays)
+    if (!dayEndKey) return null
+    return businessDateTimeToDate(dayEndKey, startTimeParts)
+  }
+
   const endKey = addBusinessMonths(startKey, normalizeDurationMonths(contract?.duration_months))
   if (!endKey) return null
 
@@ -253,6 +273,9 @@ export function getContractEndDate(contract, fallbackDate = new Date()) {
 
 /** Full number of contract dates in [start date, end date), capped at zero. */
 export function getContractDayCount(contract, anchorDate = new Date()) {
+  if (contract?.duration_days && Number.isInteger(Number(contract.duration_days)) && Number(contract.duration_days) > 0) {
+    return Math.trunc(Number(contract.duration_days))
+  }
   const start = getContractStart(contract, anchorDate)
   const end = getContractEndDate(contract, anchorDate)
   if (!start || !end) return 0
@@ -265,6 +288,19 @@ export function getContractDayCount(contract, anchorDate = new Date()) {
 
 export const getEligibleContractDays = getContractDayCount
 export const countEligibleContractDays = getContractDayCount
+
+/**
+ * Libellé d'affichage de la durée d'un pack ou d'un contrat.
+ * Un pack Agriculture (duration_days = 15) prime sur le libellé mensuel.
+ * @param {number | null | undefined} durationDays
+ * @param {number | null | undefined} [durationMonths]
+ * @returns {string}
+ */
+export function formatContractDuration(durationDays, durationMonths = DEFAULT_DURATION_MONTHS) {
+  const days = Number(durationDays)
+  if (Number.isInteger(days) && days > 0) return `${days} jours`
+  return `${Number(durationMonths) || DEFAULT_DURATION_MONTHS} mois`
+}
 
 /** Remaining eligible dates include the current business date and exclude ends_at. */
 export function getRemainingContractDays(contract, asOf = new Date()) {

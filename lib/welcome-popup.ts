@@ -38,6 +38,8 @@ export interface WelcomeProductRow {
   price: number
   monthly_return?: number // Legacy database field; intentionally ignored.
   duration_months: number
+  /** 15 pour les packs Agriculture ; absent = contrat mensuel de 3 mois. */
+  duration_days?: number | null
   is_active?: boolean | null
 }
 
@@ -48,6 +50,8 @@ export interface WelcomePack {
   /** @deprecated Kept only for compatibility with legacy consumers. */
   monthlyReturn: number
   durationMonths: number
+  /** Durée en jours (15 pour l'Agriculture) ; null = 3 mois. */
+  durationDays: number | null
   vipLevel: string
   vipName: string
   dailyRevenue: number
@@ -102,6 +106,7 @@ export function buildActiveSectors(
             price: p.price,
             monthlyReturn: calculateDailyProfit(p.price),
             durationMonths: Number(p.duration_months) || 3,
+            durationDays: Number(p.duration_days) || null,
             vipLevel: tier ? tier.level : 'VIP0',
             vipName: tier ? tier.name : `Pack ${p.price.toLocaleString('fr-FR')} FC`,
             dailyRevenue: calculateDailyProfit(p.price),

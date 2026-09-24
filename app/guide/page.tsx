@@ -10,11 +10,11 @@ const GUIDE_SECTIONS: Array<{ title: string; body: string }> = [
   },
   {
     title: 'Comment investir ?',
-    body: 'Ouvrez le pack souhaité, choisissez la quantité puis validez. Le capital est immédiatement débité de votre portefeuille, qui doit disposer du solde suffisant. Votre investissement démarre ensuite un contrat de 3 mois, avec un bénéfice disponible chaque jour éligible.',
+    body: 'Ouvrez le pack souhaité, choisissez la quantité puis validez. Le capital est immédiatement débité de votre portefeuille, qui doit disposer du solde suffisant. Votre investissement démarre ensuite un contrat dont la durée dépend du secteur : 15 jours pour les packs Agriculture, 3 mois pour les autres secteurs, avec un bénéfice disponible chaque jour éligible.',
   },
   {
     title: 'Bénéfice quotidien prévu',
-    body: 'Le bénéfice quotidien est de 10 % du capital investi, arrondi à 2 décimales, pour chaque jour éligible du contrat de 3 mois. Exemples : 20 000 FC de capital → 2 000 FC par jour ; 50 000 FC → 5 000 FC par jour ; 250 000 FC → 25 000 FC par jour.',
+    body: 'Le bénéfice quotidien est de 10 % du capital investi, arrondi à 2 décimales, pour chaque jour éligible du contrat : 15 jours pour les packs Agriculture, 3 mois pour les autres secteurs. Exemples : 20 000 FC de capital → 2 000 FC par jour ; 50 000 FC → 5 000 FC par jour ; 250 000 FC → 25 000 FC par jour.',
   },
   {
     title: 'Bénéfice quotidien',

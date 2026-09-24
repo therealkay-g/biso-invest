@@ -10,6 +10,7 @@ import anime from 'animejs'
 import {
   calculateContractGain,
   calculateDailyProfit,
+  formatContractDuration,
   getContractDayCount,
 } from '@/utils/financial.mjs'
 
@@ -72,6 +73,8 @@ export default function AdminPage() {
     name: '',
     price: 0,
     durationMonths: 3,
+    /** 0 = contrat de 3 mois ; 15 = contrat court de 15 jours (Agriculture). */
+    durationDays: 0,
     category_id: '',
     description: '',
     is_active: true,
@@ -401,17 +404,14 @@ export default function AdminPage() {
     e.preventDefault()
     try {
       const price = Math.round(Number(productForm.price) * 100) / 100
-      const durationMonths = Number(productForm.durationMonths)
+      const durationMonths = 3 // politique BISO : catalogue mensuel plafonné à 3 mois
+      const durationDays = productForm.durationDays === 15 ? 15 : null
       if (!Number.isFinite(price) || price <= 0) {
         toast.error('Le prix doit être supérieur à 0 FC.')
         return
       }
-      if (!Number.isInteger(durationMonths) || durationMonths !== 3) {
-        toast.error('La politique actuelle des packs BISO est fixée à 3 mois.')
-        return
-      }
 
-      const contractDays = getContractDayCount({ duration_months: durationMonths }, new Date())
+      const contractDays = getContractDayCount({ duration_months: durationMonths, duration_days: durationDays }, new Date())
       const totalReturns = calculateContractGain(price, contractDays)
       const productData = {
         name: productForm.name.trim(),
@@ -419,6 +419,7 @@ export default function AdminPage() {
         // Legacy compatibility: this field must never define the financial return.
         monthly_return: price,
         duration_months: durationMonths,
+        duration_days: durationDays,
         category_id: productForm.category_id,
         total_returns: totalReturns,
         description: productForm.description,
@@ -440,7 +441,7 @@ export default function AdminPage() {
 
       setShowProductModal(false)
       setEditingProduct(null)
-      setProductForm({ name: '', price: 0, durationMonths: 3, category_id: '', description: '', is_active: true })
+      setProductForm({ name: '', price: 0, durationMonths: 3, durationDays: 0, category_id: '', description: '', is_active: true })
 
       const { data: prodData, error: reloadError } = await supabase
         .from('products')
@@ -479,13 +480,14 @@ export default function AdminPage() {
         name: product.name,
         price: product.price,
         durationMonths: 3,
+        durationDays: product.duration_days === 15 ? 15 : 0,
         category_id: product.category_id,
         description: product.description || '',
         is_active: product.is_active,
       })
     } else {
       setEditingProduct(null)
-      setProductForm({ name: '', price: 0, durationMonths: 3, category_id: '', description: '', is_active: true })
+      setProductForm({ name: '', price: 0, durationMonths: 3, durationDays: 0, category_id: '', description: '', is_active: true })
     }
     setShowProductModal(true)
   }
@@ -575,24 +577,22 @@ export default function AdminPage() {
                   <p className="text-[10px] mt-1">
                     +{calculateDailyProfit(productForm.price).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC / jour
                     {' • '}
-                    {calculateContractGain(productForm.price, getContractDayCount({ duration_months: productForm.durationMonths }, new Date())).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC maximum sur le contrat
+                    {calculateContractGain(productForm.price, getContractDayCount({ duration_months: 3, duration_days: productForm.durationDays === 15 ? 15 : null }, new Date())).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC maximum sur le contrat
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Durée (Mois)</label>
-                    <input
-                      type="number"
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Durée du contrat</label>
+                    <select
                       required
-                      min="3"
-                      max="3"
-                      step="1"
-                       readOnly
-                      value={productForm.durationMonths}
-                      onChange={(e) => setProductForm({ ...productForm, durationMonths: Number(e.target.value) })}
+                      value={productForm.durationDays}
+                      onChange={(e) => setProductForm({ ...productForm, durationDays: Number(e.target.value) })}
                       className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
-                    />
+                    >
+                      <option value={0}>3 mois (défaut)</option>
+                      <option value={15}>15 jours (Agriculture)</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Catégorie</label>
@@ -1293,7 +1293,7 @@ export default function AdminPage() {
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${p.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                       {p.is_active ? 'Actif' : 'Inactif'}
                     </span>
-                    <span className="text-[9px] text-gray-400">{Number(p.duration_months) || 3} mois</span>
+                    <span className="text-[9px] text-gray-400">{formatContractDuration(p.duration_days, p.duration_months)}</span>
                   </div>
                 </div>
               ))}

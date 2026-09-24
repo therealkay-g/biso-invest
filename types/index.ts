@@ -96,6 +96,8 @@ export interface Product {
   price: number
   monthly_return: number
   duration_months: number
+  /** Durée en jours (15 pour les packs Agriculture) ; null/absent = contrat mensuel de 3 mois. */
+  duration_days?: number | null
   total_returns: number
   purchase_limit: number
   description: string
@@ -114,6 +116,8 @@ export interface Investment {
   daily_profit: number
   monthly_return: number
   duration_months: number
+  /** Durée en jours snapshotée à la souscription (15 pour l'Agriculture). */
+  duration_days?: number | null
   paid_installments: number
   remaining_installments: number
   next_payment_date: string

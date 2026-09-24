@@ -4,7 +4,7 @@ import React from 'react'
 import { X, Printer, ShieldCheck, Award, QrCode } from 'lucide-react'
 import Image from 'next/image'
 import { Investment } from '@/types'
-import { calculateDailyProfit, getBusinessDateKey, getContractEndDate } from '@/utils/financial.mjs'
+import { calculateDailyProfit, formatContractDuration, getBusinessDateKey, getContractEndDate } from '@/utils/financial.mjs'
 
 interface CertificateProps {
   investment: Investment
@@ -25,7 +25,7 @@ export default function InvestmentCertificateModal({ investment, userName = 'Inv
     year: 'numeric'
   })
   const dailyProfit = Number(investment.daily_profit) || calculateDailyProfit(investment.total_amount)
-  const durationMonths = Number(investment.duration_months) || 3
+  const durationLabel = formatContractDuration(investment.duration_days, investment.duration_months)
   const contractEnd = getContractEndDate(investment)
 
   return (
@@ -119,7 +119,7 @@ export default function InvestmentCertificateModal({ investment, userName = 'Inv
               </div>
               <div>
                 <span className="text-gray-500 text-[11px]">Durée de l'Engagement :</span>
-                <p className="font-bold text-gray-800">{durationMonths} mois</p>
+                <p className="font-bold text-gray-800">{durationLabel}</p>
               </div>
               <div>
                 <span className="text-gray-500 text-[11px]">Date de Souscription :</span>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { X, CheckCircle2, Sprout, Tractor, Fish, Clock, ArrowRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { getVipTierForPrice } from '@/utils/constants'
+import { formatContractDuration } from '@/utils/financial.mjs'
 import {
   WELCOME_MODAL_CONTAINER_CLASSES,
   WELCOME_CARD_CLASSES,
@@ -80,7 +81,7 @@ export default function WelcomePopup() {
           .order('order_index', { ascending: true }),
         supabase
           .from('products')
-          .select('id, category_id, name, price, duration_months')
+          .select('id, category_id, name, price, duration_months, duration_days')
           .eq('is_active', true),
       ])
       if (categoryResult.error || productResult.error) {
@@ -215,7 +216,7 @@ export default function WelcomePopup() {
                                 </p>
                                 <p className="text-xs font-bold text-gray-900 flex items-center gap-1">
                                   <Clock className="w-3 h-3 text-gray-400" />
-                                  {pack.durationMonths} mois
+                                  {formatContractDuration(pack.durationDays, pack.durationMonths)}
                                 </p>
                               </div>
                             </div>

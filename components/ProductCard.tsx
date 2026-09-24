@@ -3,7 +3,7 @@
 import { TrendingUp, Clock, Award } from 'lucide-react'
 import { Product } from '@/types'
 import { getVipTierForPrice } from '@/utils/constants'
-import { calculateDailyProfit } from '@/utils/financial.mjs'
+import { calculateDailyProfit, formatContractDuration } from '@/utils/financial.mjs'
 import { RippleLink } from './RippleButton'
 
 interface ProductCardProps {
@@ -21,7 +21,7 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const vipTier = getVipTierForPrice(product.price)
   const dailyProfit = calculateDailyProfit(product.price)
-  const durationMonths = Number(product.duration_months) || 3
+  const durationLabel = formatContractDuration(product.duration_days, product.duration_months)
 
   return (
     <div className="card pressable overflow-hidden flex flex-col justify-between animate-fade-in group">
@@ -62,7 +62,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </span>
           <span className="text-gray-600 font-semibold inline-flex items-center shrink-0">
             <Clock className="w-3 h-3 mr-1 text-amber-600" aria-hidden="true" />
-            {durationMonths} mois
+            {durationLabel}
           </span>
         </div>
       </div>

@@ -14,12 +14,12 @@ const FAQ_DATABASE: FAQItem[] = [
   {
     category: 'General',
     question: 'C\'est quoi BISO INVEST ?',
-    answer: 'BISO INVEST est une plateforme d\'investissement dans l\'économie réelle en RDC, spécialisée dans l\'agriculture et la pisciculture. Nous permettons aux particuliers de financer des projets productifs et de percevoir un bénéfice quotidien de 10 % du capital investi, pour chaque jour éligible du contrat de 3 mois.',
+    answer: 'BISO INVEST est une plateforme d\'investissement dans l\'économie réelle en RDC, spécialisée dans l\'agriculture et la pisciculture. Nous permettons aux particuliers de financer des projets productifs et de percevoir un bénéfice quotidien de 10 % du capital investi, pour chaque jour éligible de la durée du pack (15 jours pour les packs Agriculture, 3 mois pour les autres secteurs).',
   },
   {
     category: 'Investment',
     question: 'Comment investir ?',
-    answer: 'C\'est simple ! Allez dans l\'onglet "Investir", choisissez un pack qui correspond à votre budget (ex: Pack Pisciculture), validez le paiement et votre bénéfice de 10 % du capital investi sera disponible chaque jour éligible pendant le contrat de 3 mois.',
+    answer: 'C\'est simple ! Allez dans l\'onglet "Investir", choisissez un pack qui correspond à votre budget (ex: Pack Pisciculture), validez le paiement et votre bénéfice de 10 % du capital investi sera disponible chaque jour éligible pendant la durée du pack (15 jours pour les packs Agriculture, 3 mois pour les autres secteurs).',
   },
   {
     category: 'Investment',

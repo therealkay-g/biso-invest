@@ -7,9 +7,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  addBusinessDays,
   addBusinessMonths,
   calculateDailyProfit,
   DEFAULT_DURATION_MONTHS,
+  formatContractDuration,
   getBusinessDateKey,
   getContractDayCount,
 } from '../utils/financial.mjs';
@@ -179,6 +181,26 @@ describe("3. Bénéfice quotidien de 10 % du capital investi", () => {
       created_at: '2024-01-31T10:00:00Z',
       duration_months: 3,
     }), 90);
+  });
+
+  it("applique la durée courte de 15 jours (pack Agriculture)", () => {
+    // Un pack Agriculture (duration_days = 15) prime sur duration_months : le
+    // contrat court exactement 15 jours calendaires, pas un calcul mensuel.
+    assert.equal(getContractDayCount({
+      created_at: '2024-01-31T10:00:00Z',
+      duration_months: 3,
+      duration_days: 15,
+    }), 15);
+    assert.equal(addBusinessDays('2024-01-31', 15), '2024-02-15');
+    assert.equal(addBusinessDays('2024-12-20', 15), '2025-01-04');
+  });
+
+  it("formate la durée d'affichage (Agriculture 15 jours, autres 3 mois)", () => {
+    assert.equal(formatContractDuration(15, 3), '15 jours');
+    assert.equal(formatContractDuration(null, 3), '3 mois');
+    assert.equal(formatContractDuration(undefined, 3), '3 mois');
+    assert.equal(formatContractDuration(0, 3), '3 mois');
+    assert.equal(formatContractDuration(null, undefined), '3 mois');
   });
 });
 

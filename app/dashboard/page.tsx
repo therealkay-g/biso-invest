@@ -14,6 +14,7 @@ import { Product, Profile, Wallet, Investment, Announcement, ProfitClaim, Produc
 import { ALLOWED_PACK_PRICES } from '@/utils/constants'
 import {
   calculateDailyProfit,
+  formatContractDuration,
   getBusinessDateKey,
   getRemainingContractDays,
 } from '@/utils/financial.mjs'
@@ -419,7 +420,7 @@ export default function DashboardPage() {
             <StaggerIn className="space-y-3">
             {activeInvestments.slice(0, 5).map((inv) => {
               const dailyProfit = Number(inv.daily_profit) || calculateDailyProfit(inv.total_amount)
-              const durationMonths = Number(inv.duration_months) || 3
+              const durationLabel = formatContractDuration(inv.duration_days, inv.duration_months)
               const finished = isInvestmentFinished(inv)
               const claimedToday = hasClaimedToday(inv.id)
               const category = categories.find(c => c.id === inv.product?.category_id)
@@ -434,7 +435,7 @@ export default function DashboardPage() {
                       </span>
                       <div className="min-w-0">
                         <h3 className="font-bold text-gray-900 text-sm truncate">{inv.product?.name || 'Pack Investissement'}</h3>
-                        <p className="text-[11px] text-gray-500 capitalize">{category?.name || 'Secteur'} • {durationMonths} mois</p>
+                        <p className="text-[11px] text-gray-500 capitalize">{category?.name || 'Secteur'} • {durationLabel}</p>
                       </div>
                     </div>
                     <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${

@@ -14,6 +14,7 @@ import { getVipTierForPrice } from '@/utils/constants'
 import {
   calculateContractGain,
   calculateDailyProfit,
+  formatContractDuration,
   getContractDayCount,
 } from '@/utils/financial.mjs'
 import Link from 'next/link'
@@ -136,10 +137,12 @@ export default function ProductDetailPage() {
 
   const now = new Date()
   const durationMonths = Number(product.duration_months) || 3
+  const durationDays = Number(product.duration_days) || 0
+  const durationLabel = formatContractDuration(durationDays, durationMonths)
   const totalCost = product.price * quantity
   const dailyProfitPerPack = calculateDailyProfit(product.price)
   const dailyProfit = calculateDailyProfit(totalCost)
-  const contractDays = getContractDayCount({ duration_months: durationMonths }, now)
+  const contractDays = getContractDayCount({ duration_months: durationMonths, duration_days: durationDays || null }, now)
   const totalExpectedReturn = calculateContractGain(totalCost, contractDays)
   const vipTier = getVipTierForPrice(product.price)
 
@@ -174,7 +177,7 @@ export default function ProductDetailPage() {
             )}
             <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-md text-emerald-900 font-extrabold text-xs px-3 py-1.5 rounded-full border border-emerald-200 flex items-center space-x-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
-              <span>Contrat {durationMonths} mois</span>
+              <span>Contrat {durationLabel}</span>
             </span>
           </div>
 
@@ -206,7 +209,7 @@ export default function ProductDetailPage() {
                 <p className="text-[9px] uppercase text-gray-400 font-bold">Durée</p>
                 <p className="font-black text-gray-900 text-sm tabular-nums mt-0.5 inline-flex items-center">
                   <Clock className="w-3.5 h-3.5 mr-0.5 text-amber-600" aria-hidden="true" />
-                  {durationMonths} mois
+                  {durationLabel}
                 </p>
               </div>
             </div>
@@ -298,7 +301,7 @@ export default function ProductDetailPage() {
               { title: '2. Gagnez 10% par jour', text: `Un bénéfice de +${dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC/jour se génère automatiquement.` },
               { title: '3. Vendez votre bénéfice quotidien', text: 'Cliquez sur VENDRE chaque jour depuis « Mes investissements » pour créditer votre solde.' },
               { title: '4. Bénéfice non réclamé', text: 'Un bénéfice non vendu le jour même est perdu et ne sera jamais reporté.' },
-              { title: `5. Cycle de ${durationMonths} mois`, text: `Au terme des ${durationMonths} mois et ${contractDays} jours éligibles, votre contrat est complété.` },
+              { title: `5. Cycle de ${durationLabel}`, text: `Au terme de ${durationLabel} de contrat et ${contractDays} jours éligibles, votre contrat est complété.` },
             ].map((step) => (
               <li key={step.title} className="flex space-x-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" aria-hidden="true" />
@@ -350,7 +353,7 @@ export default function ProductDetailPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Durée du contrat :</span>
-                <span className="font-bold text-gray-800">{durationMonths} mois</span>
+                <span className="font-bold text-gray-800">{durationLabel}</span>
               </div>
               <div className="flex justify-between border-t border-gray-200 pt-1.5">
                 <span className="text-gray-800 font-bold">Gain maximum estimé :</span>

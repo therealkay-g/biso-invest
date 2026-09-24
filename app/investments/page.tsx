@@ -17,6 +17,7 @@ import { Package, CheckCircle2, AlertCircle, Award, Clock, History, HandCoins, A
 import Link from 'next/link'
 import {
   calculateDailyProfit,
+  formatContractDuration,
   getBusinessDateKey,
   getContractEndDate,
   getContractProgress,
@@ -223,7 +224,7 @@ export default function InvestmentsPage() {
               const capital = Number(inv.total_amount) || 0
               const dailyProfit = Number(inv.daily_profit) || calculateDailyProfit(capital)
               const now = new Date()
-              const durationMonths = Number(inv.duration_months) || 3
+              const durationLabel = formatContractDuration(inv.duration_days, inv.duration_months)
               const remainingDays = getRemainingContractDays(inv, now)
               const contractEnd = getContractEndDate(inv, now)
               const finished = isInvestmentFinished(inv)
@@ -262,7 +263,7 @@ export default function InvestmentsPage() {
                   <div className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
                     <div className="flex justify-between text-xs font-bold">
                       <span className="text-gray-600 flex items-center">
-                        <Clock className="w-3.5 h-3.5 mr-1 text-emerald-600" aria-hidden="true" /> Contrat ({durationMonths} mois)
+                        <Clock className="w-3.5 h-3.5 mr-1 text-emerald-600" aria-hidden="true" /> Contrat ({durationLabel})
                       </span>
                       <span className="text-emerald-700 tabular-nums">{progressPercent}%</span>
                     </div>
