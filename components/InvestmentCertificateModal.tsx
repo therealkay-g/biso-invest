@@ -4,6 +4,7 @@ import React from 'react'
 import { X, Printer, ShieldCheck, Award, QrCode } from 'lucide-react'
 import Image from 'next/image'
 import { Investment } from '@/types'
+import { calculateDailyProfit, getBusinessDateKey, getContractEndDate } from '@/utils/financial.mjs'
 
 interface CertificateProps {
   investment: Investment
@@ -16,12 +17,16 @@ export default function InvestmentCertificateModal({ investment, userName = 'Inv
     window.print()
   }
 
-  const certificateNumber = `BISO-${new Date(investment.created_at).getFullYear()}-${investment.id.substring(0, 8).toUpperCase()}`
+  const certificateYear = getBusinessDateKey(investment.created_at)?.slice(0, 4) || '----'
+  const certificateNumber = `BISO-${certificateYear}-${investment.id.substring(0, 8).toUpperCase()}`
   const investmentDate = new Date(investment.created_at).toLocaleDateString('fr-FR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric'
   })
+  const dailyProfit = Number(investment.daily_profit) || calculateDailyProfit(investment.total_amount)
+  const durationMonths = Number(investment.duration_months) || 3
+  const contractEnd = getContractEndDate(investment)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto modal-overlay">
@@ -103,23 +108,31 @@ export default function InvestmentCertificateModal({ investment, userName = 'Inv
               <div>
                 <span className="text-gray-500 text-[11px]">Capital Investi :</span>
                 <p className="font-extrabold text-emerald-800 text-sm">
-                  {investment.total_amount.toLocaleString('fr-FR')} FC
+                  {investment.total_amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC
                 </p>
               </div>
               <div>
-                <span className="text-gray-500 text-[11px]">Rendement Mensuel Contractuel :</span>
+                <span className="text-gray-500 text-[11px]">Gain Journalier Contractuel :</span>
                 <p className="font-bold text-biso-700 text-sm">
-                  {(investment.monthly_return * investment.quantity).toLocaleString('fr-FR')} FC / mois
+                  +{dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC / jour (10%)
                 </p>
               </div>
               <div>
                 <span className="text-gray-500 text-[11px]">Durée de l'Engagement :</span>
-                <p className="font-bold text-gray-800">{investment.duration_months} Mois ({investment.duration_months} Cycles)</p>
+                <p className="font-bold text-gray-800">{durationMonths} mois</p>
               </div>
               <div>
                 <span className="text-gray-500 text-[11px]">Date de Souscription :</span>
                 <p className="font-bold text-gray-800">{investmentDate}</p>
               </div>
+              {contractEnd && (
+                <div>
+                  <span className="text-gray-500 text-[11px]">Fin de Contrat :</span>
+                  <p className="font-bold text-gray-800">
+                    {contractEnd.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

@@ -1,17 +1,16 @@
 -- ============================================================================
 -- BISO INVEST — MIGRATION 013 : VALIDATION QUOTIDIENNE DU BÉNÉFICE (VENDRE)
 -- ============================================================================
--- Objectif : l'investisseur doit cliquer sur « VENDRE » UNE FOIS PAR JOUR pour
--- créditer son bénéfice journalier (revenu mensuel / jours réels du mois).
---   - Un bénéfice non réclamé un jour est DÉFINITIVEMENT perdu (jamais reporté).
---   - Impossible de réclamer deux fois le bénéfice du même jour (contrainte
---     unique + FOR UPDATE + insert on conflict retournant la ligne créditée).
---   - Montant calculé et crédité côté serveur UNIQUEMENT (RPC security definer).
---   - Aucune donnée d'un autre utilisateur ne peut être lue ou créditée.
--- Aucune autre table n'est recréée ; seule la contrainte de type de
--- wallet_transactions est élargie pour accepter 'DAILY_PROFIT'.
--- Les écritures wallets passent exclusivement par la RPC ci-dessous
--- (ledger, dépôts, retraits 15%, commissions, OTP, RLS existantes…).
+-- Règle financière officielle : le bénéfice d'une journée est exactement
+-- 10 % du capital total de l'investissement, arrondi à deux décimales.
+-- Le capital est lu dans le snapshot investments.total_amount ; aucune valeur
+-- mutable du produit n'est utilisée pour calculer le crédit.
+--
+-- La date métier est la date calendaire à Africa/Kinshasa.  Une réclamation
+-- porte sur un seul investissement et ne peut être faite qu'une fois pour
+-- cette date.  Un jour non réclamé est perdu : il n'est jamais reporté.
+-- La propriété, le calcul, le wallet et le ledger sont contrôlés par cette
+-- RPC SECURITY DEFINER ; le client ne fournit ni montant ni date.
 -- ============================================================================
 
 -- 1. TABLE profit_claims (historique des bénéfices réclamés)
@@ -20,16 +19,22 @@ create table if not exists profit_claims (
   user_id uuid references profiles(id) on delete cascade not null,
   investment_id uuid references investments(id) on delete cascade not null,
   cycle_id uuid references investment_cycles(id) on delete set null,
+  -- Cette date est toujours calculée en Africa/Kinshasa par la RPC.
   profit_date date not null,
-  amount numeric(15,2) not null,
+  amount numeric(15,2) not null check (amount >= 0),
   claimed_at timestamp with time zone default timezone('utc'::text, now()) not null,
   transaction_id uuid references wallet_transactions(id) on delete set null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   constraint profit_claims_one_per_day unique (investment_id, profit_date)
 );
 
-create index if not exists idx_profit_claims_user_date on profit_claims (user_id, profit_date desc);
-create index if not exists idx_profit_claims_inv_date on profit_claims (investment_id, profit_date desc);
+create index if not exists idx_profit_claims_user_date
+  on profit_claims (user_id, profit_date desc);
+create index if not exists idx_profit_claims_inv_date
+  on profit_claims (investment_id, profit_date desc);
+
+comment on table public.profit_claims is
+  'Une ligne par investissement et par date métier Africa/Kinshasa; le bénéfice est 10% du capital snapshot.';
 
 -- 2. RLS : un utilisateur ne voit QUE ses propres réclamations
 alter table profit_claims enable row level security;
@@ -44,123 +49,187 @@ create policy "Users can view own profit claims"
 -- direct n'est accordé.
 grant select on profit_claims to authenticated;
 
--- 4. Le ledger doit accepter le nouveau type DAILY_PROFIT (contrainte mise à jour)
+-- 3. Le ledger doit accepter le nouveau type DAILY_PROFIT (contrainte mise à jour)
 alter table wallet_transactions drop constraint if exists wallet_transactions_type_check;
 alter table wallet_transactions
   add constraint wallet_transactions_type_check
-  check (type in ('DEPOSIT', 'INVESTMENT', 'INVESTMENT_PAYMENT', 'DAILY_PROFIT', 'WITHDRAWAL', 'COMMISSION', 'COUPON', 'ADJUSTMENT'));
+  check (type in (
+    'DEPOSIT', 'INVESTMENT', 'INVESTMENT_PAYMENT', 'DAILY_PROFIT',
+    'WITHDRAWAL', 'COMMISSION', 'REFERRAL_TASK_REWARD', 'COUPON', 'ADJUSTMENT'
+  ));
 
--- 5. RPC sécurisée claim_daily_profit()
-create or replace function public.claim_daily_profit()
+-- 4. RPC sécurisée, par investissement : claim_daily_profit(uuid)
+-- La signature par carte est intentionnelle : un appel ne peut jamais créditer
+-- tous les investissements d'un utilisateur, et le requested investment_id est
+-- filtré par user_id avant toute écriture.
+create or replace function public.claim_daily_profit(p_investment_id uuid)
 returns jsonb as $$
 declare
   v_user_id uuid;
-  v_wallet record;
-  v_days int;
-  v_daily numeric;
-  v_amt numeric;
-  v_total numeric := 0;
-  v_claim_id uuid;
-  v_claim_ids uuid[] := '{}';
-  v_tx_id uuid;
-  v_ref varchar;
-  v_new_balance numeric;
-  v_cycle_id uuid;
+  v_now timestamp with time zone;
+  v_business_date date;
   v_inv record;
+  v_wallet record;
+  v_cycle_id uuid;
+  v_amount numeric;
+  v_new_balance numeric;
+  v_claim_id uuid;
+  v_tx_id uuid;
+  v_reference varchar;
 begin
-  -- 1. Utilisateur connecté uniquement
+  -- 1. Utilisateur connecté uniquement.
   v_user_id := auth.uid();
   if v_user_id is null then
     raise exception 'Non authentifié';
   end if;
 
-  -- Verrou du wallet : toute réclamation concurrente attend ici (anti double-clic)
-  select * into v_wallet from wallets where user_id = v_user_id for update;
+  v_now := now();
+  v_business_date := (v_now at time zone 'Africa/Kinshasa')::date;
+
+  -- 2. Verrouiller l'investissement ET vérifier la propriété.  Cette requête
+  --    rend impossible la réclamation directe d'un investissement d'un tiers.
+  select *
+    into v_inv
+  from public.investments
+  where id = p_investment_id
+    and user_id = v_user_id
+  for update;
+
+  if not found then
+    raise exception 'Investissement introuvable ou accès refusé';
+  end if;
+
+  if v_inv.status <> 'ACTIVE' then
+    raise exception 'Investissement non actif';
+  end if;
+
+  if v_now < v_inv.created_at then
+    raise exception 'Investissement pas encore actif';
+  end if;
+
+  -- 3. La période contractuelle est une fenêtre de dates, pas une durée
+  --    dépendant du mois courant.  La migration 030 remplacera cette fenêtre
+  --    par le snapshot ends_at; cette garde reste nécessaire pour le replay
+  --    historique et les bases déployées avant 030.
+  if v_now >= v_inv.created_at
+     + (coalesce(v_inv.duration_months, 3) * interval '1 month')
+     or v_business_date >= (
+       (v_inv.created_at
+        + (coalesce(v_inv.duration_months, 3) * interval '1 month'))
+       at time zone 'Africa/Kinshasa'
+     )::date then
+    raise exception 'Investissement terminé';
+  end if;
+
+  -- 4. Verrou du wallet : sérialise les crédits et permet d'écrire des
+  --    balances avant/après exactes dans le ledger.
+  select * into v_wallet
+  from public.wallets
+  where user_id = v_user_id
+  for update;
   if not found then
     raise exception 'Wallet introuvable';
   end if;
 
-  -- Nombre réel de jours du mois courant (28/29/30/31)
-  v_days := public.get_days_in_month(current_date);
-  v_ref := 'DAILY-' || upper(substring(md5(random()::text || clock_timestamp()::text) from 1 for 10));
+  -- 5. Snapshot du capital de l'investissement, jamais le produit courant.
+  v_amount := round(v_inv.total_amount * 0.10, 2);
+  if v_amount <= 0 then
+    raise exception 'Bénéfice journalier nul';
+  end if;
 
-  -- 2/3. Investissements actifs ET encore dans leur période (durée en mois)
-  for v_inv in
-    select i.id, i.monthly_return, i.status
-    from investments i
-    where i.user_id = v_user_id
-      and i.status = 'ACTIVE'
-      and (i.created_at + (i.duration_months * interval '1 month')) > now()
-    order by i.created_at asc
-    for update of i
-  loop
-    -- Cycle actuel de référence (pour l'historique) s'il en existe un
-    select c.id into v_cycle_id
-    from investment_cycles c
-    where c.investment_id = v_inv.id
-      and c.status = 'ACTIVE'
-    order by c.cycle_number asc
-    limit 1;
+  -- 6. Cycle correspondant, uniquement pour l'historique.  Le montant crédité
+  --    reste celui du capital snapshot, même si un cycle a une ancienne valeur.
+  select c.id into v_cycle_id
+  from public.investment_cycles c
+  where c.investment_id = v_inv.id
+    and c.status = 'ACTIVE'
+    and c.cycle_start_date <= v_now
+    and c.cycle_end_date > v_now
+  order by c.cycle_number asc
+  limit 1;
 
-    -- 4. Bénéfice journalier = revenu mensuel / jours réels du mois
-    v_daily := round(v_inv.monthly_return / v_days, 2);
+  -- 7. La contrainte unique (investment_id, profit_date) est l'atomicité de
+  --    l'idempotence.  Si la ligne existe déjà, aucun wallet/ledger n'est touché.
+  insert into public.profit_claims (
+    user_id, investment_id, cycle_id, profit_date, amount, claimed_at
+  )
+  values (
+    v_user_id, v_inv.id, v_cycle_id, v_business_date, v_amount, v_now
+  )
+  on conflict (investment_id, profit_date) do nothing
+  returning id into v_claim_id;
 
-    -- 5/9. Insertion atomique : la contrainte unique (investment_id, profit_date)
-    --      garantit qu'un même jour ne peut être crédité qu'UNE fois, même en
-    --      cas d'appels simultanés. Si la ligne existe déjà, rien n'est retourné.
-    v_amt := null;
-    insert into profit_claims (user_id, investment_id, cycle_id, profit_date, amount, claimed_at, transaction_id)
-    values (v_user_id, v_inv.id, v_cycle_id, current_date, v_daily, now(), null)
-    on conflict (investment_id, profit_date) do nothing
-    returning id, amount into v_claim_id, v_amt;
-
-    if v_amt is not null then
-      v_total := v_total + v_amt;
-      v_claim_ids := array_append(v_claim_ids, v_claim_id);
-    end if;
-  end loop;
-
-  -- 8. Rien à créditer aujourd'hui (déjà vendu ou aucun bénéfice disponible)
-  if v_total <= 0 then
+  if v_claim_id is null then
     return json_build_object(
       'success', true,
+      'investment_id', p_investment_id,
       'claimed_amount', 0,
       'already_claimed_today', true,
       'new_balance', v_wallet.balance,
-      'message', 'Aucun bénéfice à réclamer aujourd''hui'
+      'business_date', v_business_date,
+      'message', 'Bénéfice déjà réclamé pour cette date métier'
     );
   end if;
 
-  -- 6. Crédit atomique du wallet
-  v_new_balance := v_wallet.balance + v_total;
-
-  update wallets set
-    balance = v_new_balance,
-    total_earned = total_earned + v_total,
-    today_earned = today_earned + v_total,
-    updated_at = now()
+  -- 8. Crédit atomique du wallet, avec le montant exact de la réclamation.
+  v_new_balance := round(v_wallet.balance + v_amount, 2);
+  update public.wallets
+  set balance = v_new_balance,
+      total_earned = total_earned + v_amount,
+      today_earned = today_earned + v_amount,
+      updated_at = now()
   where user_id = v_user_id;
 
-  -- 7. Écriture unique dans le ledger
-  insert into wallet_transactions (user_id, type, amount, balance_before, balance_after, reference, description, status)
-  values (v_user_id, 'DAILY_PROFIT', v_total, v_wallet.balance, v_new_balance, v_ref, 'Bénéfice du jour (VENDRE)', 'COMPLETED')
+  -- 9. Une écriture ledger déterministe : une seule entrée par investissement
+  --    et par business_date, en plus de la contrainte de profit_claims.
+  v_reference := 'DAILY-'
+    || upper(substring(replace(p_investment_id::text, '-', '') from 1 for 32))
+    || '-' || to_char(v_business_date, 'YYYYMMDD');
+
+  insert into public.wallet_transactions (
+    user_id, type, amount, balance_before, balance_after,
+    reference, description, status
+  )
+  values (
+    v_user_id,
+    'DAILY_PROFIT',
+    v_amount,
+    v_wallet.balance,
+    v_new_balance,
+    v_reference,
+    'Bénéfice quotidien 10% du capital — ' || to_char(v_business_date, 'DD/MM/YYYY'),
+    'COMPLETED'
+  )
   returning id into v_tx_id;
 
-  -- 8. Liaison de l'historique de réclamation à la transaction
-  update profit_claims set transaction_id = v_tx_id where id = any(v_claim_ids);
+  update public.profit_claims
+  set transaction_id = v_tx_id
+  where id = v_claim_id;
 
-  insert into admin_logs (admin_id, action, target_object, new_value)
-  values (null, 'DAILY_PROFIT_CLAIM', 'profit_claims', 'User ' || v_user_id || ' a vendu son bénéfice du jour : ' || v_total || ' FC (' || array_length(v_claim_ids, 1) || ' investissement(s))');
+  insert into public.admin_logs (admin_id, action, target_object, new_value)
+  values (
+    null,
+    'DAILY_PROFIT_CLAIM',
+    'profit_claims',
+    'User ' || v_user_id || ' a vendu ' || v_amount
+      || ' FC pour l''investissement ' || p_investment_id
+      || ' (date métier ' || v_business_date || ')'
+  );
 
   return json_build_object(
     'success', true,
-    'claimed_amount', v_total,
+    'investment_id', p_investment_id,
+    'claimed_amount', v_amount,
+    'already_claimed_today', false,
     'new_balance', v_new_balance,
     'transaction_id', v_tx_id,
-    'already_claimed_today', false,
-    'claims_count', array_length(v_claim_ids, 1)
+    'business_date', v_business_date
   );
 end;
 $$ language plpgsql security definer set search_path = public, pg_temp;
 
-grant execute on function public.claim_daily_profit() to authenticated;
+revoke execute on function public.claim_daily_profit(uuid) from public, anon;
+grant execute on function public.claim_daily_profit(uuid) to authenticated;
+
+comment on function public.claim_daily_profit(uuid) is
+  'Réclame exactement 10% du capital snapshot, une fois par date métier Africa/Kinshasa, pour un investissement appartenant à auth.uid().';

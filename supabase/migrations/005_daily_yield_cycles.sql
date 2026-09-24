@@ -1,4 +1,4 @@
--- BISO INVEST - MIGRATION 005 (REVISED): DAILY YIELD & 30-DAY CYCLES FOR INVESTMENTS
+-- BISO INVEST - MIGRATION 005 (REVISED): DAILY 10% YIELD & MONTHLY CYCLES
 
 -- 1. INVESTMENT CYCLES TABLE
 create table if not exists investment_cycles (
@@ -32,18 +32,17 @@ create or replace function public.init_investment_cycles()
 returns trigger as $$
 declare
   v_daily_profit numeric;
-  v_monthly_return numeric;
 begin
-  select monthly_return into v_monthly_return from products where id = new.product_id;
-  v_daily_profit := v_monthly_return / 30.0;
+  -- Règle financière officielle : 10 % du capital investi chaque jour.
+  v_daily_profit := round(new.total_amount * 0.10, 2);
 
-  -- Insert Cycle 1 (30 days)
+  -- Insertion du premier cycle mensuel
   insert into investment_cycles (investment_id, cycle_number, cycle_start_date, cycle_end_date, daily_profit, accumulated_profit, withdrawn_profit, last_accrual_date, status)
   values (
     new.id,
     1,
     new.created_at,
-    new.created_at + interval '30 days',
+    new.created_at + interval '1 month',
     v_daily_profit,
     0.00,
     0.00,
@@ -83,10 +82,10 @@ begin
     end if;
 
     if v_now >= v_cycle.cycle_end_date then
-      v_days_diff := extract(day from (v_cycle.cycle_end_date - v_cycle.last_accrual_date))::int;
+      v_days_diff := floor(extract(epoch from (v_cycle.cycle_end_date - v_cycle.last_accrual_date)) / 86400)::int;
       if v_days_diff > 0 then
         update investment_cycles set
-          accumulated_profit = accumulated_profit + (v_days_diff * daily_profit),
+          accumulated_profit = accumulated_profit + (v_days_diff * v_cycle.daily_profit),
           last_accrual_date = v_cycle.cycle_end_date
         where id = v_cycle.id;
       end if;
@@ -99,7 +98,7 @@ begin
           p_investment_id,
           v_cycle.cycle_number + 1,
           v_cycle.cycle_end_date,
-          v_cycle.cycle_end_date + interval '30 days',
+          v_cycle.cycle_end_date + interval '1 month',
           v_cycle.daily_profit,
           0.00,
           0.00,
@@ -111,10 +110,10 @@ begin
         exit;
       end if;
     else
-      v_days_diff := extract(day from (v_now - v_cycle.last_accrual_date))::int;
+      v_days_diff := floor(extract(epoch from (v_now - v_cycle.last_accrual_date)) / 86400)::int;
       if v_days_diff > 0 then
         update investment_cycles set
-          accumulated_profit = accumulated_profit + (v_days_diff * daily_profit),
+          accumulated_profit = accumulated_profit + (v_days_diff * v_cycle.daily_profit),
           last_accrual_date = v_now
         where id = v_cycle.id;
       end if;

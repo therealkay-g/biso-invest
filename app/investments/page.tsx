@@ -15,6 +15,13 @@ import { useToast } from '@/components/ToastProvider'
 import InvestmentCertificateModal from '@/components/InvestmentCertificateModal'
 import { Package, CheckCircle2, AlertCircle, Award, Clock, History, HandCoins, ArrowRight, Sprout, Beef, Fish } from 'lucide-react'
 import Link from 'next/link'
+import {
+  calculateDailyProfit,
+  getBusinessDateKey,
+  getContractEndDate,
+  getContractProgress,
+  getRemainingContractDays,
+} from '@/utils/financial.mjs'
 
 interface InvestmentCycle {
   id: string
@@ -35,47 +42,63 @@ export default function InvestmentsPage() {
   const [loading, setLoading] = useState(true)
   const [sellLoading, setSellLoading] = useState<string | null>(null)
   const [sellSuccess, setSellSuccess] = useState<Record<string, boolean>>({})
+  const [claimedBusinessDates, setClaimedBusinessDates] = useState<Record<string, string>>({})
   const [selectedCertInvestment, setSelectedCertInvestment] = useState<Investment | null>(null)
   const [userDisplayName, setUserDisplayName] = useState('Investisseur Biso')
   const toast = useToast()
 
   const loadInvestments = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError) throw authError
       if (!user) {
         window.location.href = '/auth/login'
         return
       }
 
-      const { data: prof } = await supabase.from('profiles').select('display_name, phone').eq('id', user.id).single()
+      const { error: finalizeError } = await supabase.rpc('finalize_expired_investments')
+      if (finalizeError) {
+        console.warn('Impossible de finaliser les contrats expirés:', finalizeError)
+      }
+
+      const { data: prof, error: profileError } = await supabase
+        .from('profiles')
+        .select('display_name, phone')
+        .eq('id', user.id)
+        .single()
+      if (profileError) throw profileError
       if (prof) {
         setUserDisplayName(prof.display_name || prof.phone)
       }
 
-      const { data: invData } = await supabase
+      const { data: invData, error: investmentsError } = await supabase
         .from('investments')
         .select('*, product:products(*)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
 
-      if (invData) {
-        const enriched = await Promise.all(invData.map(async (inv: any) => {
-          const { data: cyclesData } = await supabase
-            .from('investment_cycles')
-            .select('*')
-            .eq('investment_id', inv.id)
-            .order('cycle_number', { ascending: true })
-          return { ...inv, cycles: cyclesData || [] }
-        }))
-        setInvestments(enriched)
-      }
+      if (investmentsError) throw investmentsError
+      const enriched = await Promise.all((invData || []).map(async (inv: any) => {
+        const { data: cyclesData, error: cyclesError } = await supabase
+          .from('investment_cycles')
+          .select('*')
+          .eq('investment_id', inv.id)
+          .order('cycle_number', { ascending: true })
+        if (cyclesError) throw cyclesError
+        return { ...inv, cycles: cyclesData || [] }
+      }))
+      setInvestments(enriched)
 
-      const { data: claimData } = await supabase
+      const { data: claimData, error: claimsError } = await supabase
         .from('profit_claims')
         .select('*')
         .eq('user_id', user.id)
         .order('profit_date', { ascending: false })
+        .order('claimed_at', { ascending: false })
+        .order('id', { ascending: false })
         .limit(300)
+      if (claimsError) throw claimsError
       setClaims(claimData || [])
     } catch (err) {
       console.error('Error loading investments:', err)
@@ -88,37 +111,50 @@ export default function InvestmentsPage() {
     loadInvestments()
   }, [loadInvestments])
 
-  const todayKey = () => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }
-
   const isInvestmentFinished = (inv: Investment) => {
     if (inv.status !== 'ACTIVE') return true
-    const end = new Date(inv.created_at)
-    end.setMonth(end.getMonth() + (inv.duration_months || 12))
-    return new Date() >= end
+    return getRemainingContractDays(inv, new Date()) <= 0
   }
 
   const hasClaimedToday = (invId: string) => {
-    const today = todayKey()
-    return claims.some(c => c.investment_id === invId && c.profit_date === today)
+    const today = getBusinessDateKey()
+    if (!today) return false
+    if (claimedBusinessDates[invId] === today) return true
+    return claims.some(claim => claim.investment_id === invId && claim.profit_date === today)
   }
 
   const handleSell = async (invId: string) => {
     if (sellLoading) return
     setSellLoading(invId)
     try {
-      const { data, error } = await supabase.rpc('claim_daily_profit')
+      const { data, error } = await supabase.rpc('claim_daily_profit', {
+        p_investment_id: invId,
+      })
       if (error) throw error
 
-      if (data?.claimed_amount > 0) {
-        toast.success(`Vente effectuée avec succès — Vous avez reçu : ${data.claimed_amount.toLocaleString('fr-FR')} FC`)
+      const result = (Array.isArray(data) ? data[0] : data) as null | {
+        claimed_amount?: number
+        already_claimed_today?: boolean
+        business_date?: string
+      }
+      if (!result || typeof result.claimed_amount !== 'number' || !Number.isFinite(result.claimed_amount)) {
+        throw new Error('Réponse invalide du service de vente.')
+      }
+      if (result.claimed_amount === 0 && result.already_claimed_today !== true) {
+        throw new Error("Aucun bénéfice n'a pu être vendu pour cet investissement.")
+      }
+
+      const businessDate = getBusinessDateKey(result.business_date) || getBusinessDateKey()
+      if (!businessDate) throw new Error('Date de vente invalide.')
+      setClaimedBusinessDates(current => ({ ...current, [invId]: businessDate }))
+
+      if (result.claimed_amount > 0) {
+        toast.success(`Vente effectuée avec succès — Vous avez reçu : ${result.claimed_amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC`)
       } else {
         toast.info('Bénéfice du jour déjà réclamé. Revenez demain !')
       }
       await loadInvestments()
-      if (data?.claimed_amount > 0) {
+      if (result.claimed_amount > 0) {
         setSellSuccess((s) => ({ ...s, [invId]: true }))
         setTimeout(() => {
           setSellSuccess((s) => {
@@ -146,6 +182,8 @@ export default function InvestmentsPage() {
     )
   }
 
+  const activeInvestmentCount = investments.filter(investment => !isInvestmentFinished(investment)).length
+
   return (
     <PageEnter className="min-h-screen bg-gray-50 pb-28">
       <Header pageTitle="Mes Investissements" showBack={true} />
@@ -154,11 +192,11 @@ export default function InvestmentsPage() {
       <div className="p-4 max-w-4xl mx-auto space-y-6">
         <div className="flex justify-between items-center mb-2 animate-fade-in">
           <div>
-            <h2 className="text-xl font-black text-gray-900">Mes engagements actifs</h2>
+            <h2 className="text-xl font-black text-gray-900">Mes investissements</h2>
             <p className="text-xs text-gray-500">Vendez chaque jour votre bénéfice journalier.</p>
           </div>
           <span className="text-xs font-bold bg-emerald-50 text-emerald-700 px-3.5 py-1.5 rounded-full border border-emerald-100">
-            {investments.length} actif{investments.length > 1 ? 's' : ''}
+            {activeInvestmentCount} actif{activeInvestmentCount > 1 ? 's' : ''}
           </span>
         </div>
 
@@ -182,21 +220,16 @@ export default function InvestmentsPage() {
         ) : (
           <StaggerIn className="space-y-6">
             {investments.map((inv) => {
-              const capital = inv.total_amount
-              const monthlyReturn = (inv.product?.monthly_return || 0) * inv.quantity
+              const capital = Number(inv.total_amount) || 0
+              const dailyProfit = Number(inv.daily_profit) || calculateDailyProfit(capital)
               const now = new Date()
-              const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-              const currentMonthName = now.toLocaleDateString('fr-FR', { month: 'long' })
-              const dailyProfit = monthlyReturn / daysInCurrentMonth
-
+              const durationMonths = Number(inv.duration_months) || 3
+              const remainingDays = getRemainingContractDays(inv, now)
+              const contractEnd = getContractEndDate(inv, now)
               const finished = isInvestmentFinished(inv)
               const claimedToday = hasClaimedToday(inv.id)
-              const invClaims = claims.filter(c => c.investment_id === inv.id).slice(0, 12)
-
-              const createdDate = new Date(inv.created_at).getTime()
-              const totalDurationMs = (inv.duration_months || 12) * 30 * 24 * 60 * 60 * 1000
-              const elapsedMs = Math.max(0, Date.now() - createdDate)
-              const progressPercent = Math.min(100, Math.round((elapsedMs / totalDurationMs) * 100))
+              const invClaims = claims.filter(claim => claim.investment_id === inv.id).slice(0, 12)
+              const progressPercent = getContractProgress(inv, now)
 
               return (
                   <div key={inv.id} className="card p-6 space-y-5">
@@ -220,7 +253,7 @@ export default function InvestmentsPage() {
                         <span>Certificat</span>
                       </button>
                       <span className="text-xs font-black bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl border border-emerald-200 tabular-nums">
-                        {capital.toLocaleString('fr-FR')} FC
+                        {capital.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC
                       </span>
                     </div>
                   </div>
@@ -229,7 +262,7 @@ export default function InvestmentsPage() {
                   <div className="bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
                     <div className="flex justify-between text-xs font-bold">
                       <span className="text-gray-600 flex items-center">
-                        <Clock className="w-3.5 h-3.5 mr-1 text-emerald-600" aria-hidden="true" /> Contrat ({inv.duration_months} mois)
+                        <Clock className="w-3.5 h-3.5 mr-1 text-emerald-600" aria-hidden="true" /> Contrat ({durationMonths} mois)
                       </span>
                       <span className="text-emerald-700 tabular-nums">{progressPercent}%</span>
                     </div>
@@ -239,6 +272,11 @@ export default function InvestmentsPage() {
                         barClassName="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full"
                       />
                     </div>
+                    {contractEnd && (
+                      <p className="text-[10px] text-gray-400 mt-1.5">
+                        Échéance : {contractEnd.toLocaleDateString('fr-FR')}
+                      </p>
+                    )}
                   </div>
 
                   {/* Bénéfice du jour — dominant */}
@@ -257,10 +295,10 @@ export default function InvestmentsPage() {
                           Bénéfice du jour
                         </p>
                         <p className={`text-2xl font-black tabular-nums mt-1 ${finished ? 'text-gray-400' : claimedToday ? 'text-emerald-900' : 'text-white'}`}>
-                          +{dailyProfit.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC
+                          +{dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC
                         </p>
                         <p className={`text-[10px] mt-0.5 ${finished ? 'text-gray-400' : claimedToday ? 'text-emerald-600' : 'text-emerald-200'}`}>
-                          {monthlyReturn.toLocaleString('fr-FR')} FC / mois sur {daysInCurrentMonth} jours ({currentMonthName})
+                          10% du capital investi par jour{finished ? '' : ` • ${remainingDays} jour${remainingDays > 1 ? 's' : ''} restant${remainingDays > 1 ? 's' : ''}`}
                         </p>
                       </div>
 
@@ -312,7 +350,7 @@ export default function InvestmentsPage() {
                   )}
 
                   {/* Historique des réclamations */}
-                  {!finished && invClaims.length > 0 && (
+                  {invClaims.length > 0 && (
                     <div className="space-y-2">
                       <h4 className="font-black text-gray-800 text-xs uppercase tracking-wider flex items-center">
                         <History className="w-3.5 h-3.5 mr-1.5 text-emerald-600" aria-hidden="true" /> Historique des bénéfices réclamés
@@ -330,7 +368,7 @@ export default function InvestmentsPage() {
                                 </p>
                               </div>
                               <span className="text-xs font-black text-emerald-700 tabular-nums">
-                                +{c.amount.toLocaleString('fr-FR')} FC
+                                +{c.amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC
                               </span>
                             </div>
                           </Reveal>
@@ -344,18 +382,16 @@ export default function InvestmentsPage() {
                     <div className="text-center">
                       <p className="text-gray-400 font-semibold">Bénéfice / jour</p>
                       <p className="font-black text-emerald-700 tabular-nums mt-0.5">
-                        +{dailyProfit.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC
+                        +{dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC
                       </p>
                     </div>
                     <div className="text-center border-x border-gray-200">
-                      <p className="text-gray-400 font-semibold">Rente / mois</p>
-                      <p className="font-black text-emerald-800 tabular-nums mt-0.5">
-                        +{monthlyReturn.toLocaleString('fr-FR')} FC
-                      </p>
+                      <p className="text-gray-400 font-semibold">Taux contractuel</p>
+                      <p className="font-black text-emerald-800 tabular-nums mt-0.5">10% / jour</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-gray-400 font-semibold">Durée</p>
-                      <p className="font-bold text-gray-800 mt-0.5">{inv.duration_months} mois</p>
+                      <p className="text-gray-400 font-semibold">Jours restants</p>
+                      <p className="font-bold text-gray-800 tabular-nums mt-0.5">{remainingDays}</p>
                     </div>
                   </div>
 

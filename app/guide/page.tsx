@@ -10,15 +10,15 @@ const GUIDE_SECTIONS: Array<{ title: string; body: string }> = [
   },
   {
     title: 'Comment investir ?',
-    body: 'Ouvrez le pack souhaité, choisissez la quantité puis validez. Le capital est immédiatement débité de votre portefeuille, qui doit disposer du solde suffisant. Votre investissement démarre ensuite avec des cycles mensuels de revenus.',
+    body: 'Ouvrez le pack souhaité, choisissez la quantité puis validez. Le capital est immédiatement débité de votre portefeuille, qui doit disposer du solde suffisant. Votre investissement démarre ensuite un contrat de 3 mois, avec un bénéfice disponible chaque jour éligible.',
   },
   {
-    title: 'Revenu mensuel prévu',
-    body: 'Chaque mois, votre pack verse son revenu mensuel pendant sa durée (par exemple : Tilapia 20 000 FC → revenu mensuel de 20 000 FC, sur 3 mois). Le montant exact affiché sur la page du pack fait foi.',
+    title: 'Bénéfice quotidien prévu',
+    body: 'Le bénéfice quotidien est de 10 % du capital investi, arrondi à 2 décimales, pour chaque jour éligible du contrat de 3 mois. Exemples : 20 000 FC de capital → 2 000 FC par jour ; 50 000 FC → 5 000 FC par jour ; 250 000 FC → 25 000 FC par jour.',
   },
   {
     title: 'Bénéfice quotidien',
-    body: 'Le revenu mensuel est réparti sur le nombre réel de jours du mois (28, 29, 30 ou 31). Le bénéfice quotidien correspond donc au revenu mensuel divisé par les jours réels du mois.',
+    body: 'Chaque jour éligible, le bénéfice est calculé comme 10 % du capital investi, puis arrondi à 2 décimales. Il ne dépend pas du nombre de jours du mois.',
   },
   {
     title: 'Vendre : réclamer son bénéfice',
@@ -26,7 +26,7 @@ const GUIDE_SECTIONS: Array<{ title: string; body: string }> = [
   },
   {
     title: 'Bénéfice quotidien non réclamé',
-    body: 'Un bénéfice quotidien non réclamé le jour même est perdu : il n\u2019est jamais reporté au lendemain. Pensez à réclamer votre bénéfice chaque jour.',
+    body: 'Un bénéfice quotidien non réclamé le jour même est définitivement perdu : il n\u2019est jamais reporté au lendemain. Pensez à réclamer votre bénéfice chaque jour éligible.',
   },
   {
     title: 'Comment effectuer un retrait ?',

@@ -45,11 +45,15 @@ export async function POST(req: Request) {
       - Total Invested: ${wallet.total_invested} FC
       - Current Balance: ${wallet.balance} FC
 
+      Financial rule:
+      - Daily gain: 10% of invested capital per eligible day, rounded to 2 decimals.
+      - A nonclaimed day is lost; the current contract duration is 3 months.
+
       Active Investments:
-      ${investments?.map(inv => `- ${inv.product?.name}: ${inv.total_amount} FC`).join('\n')}
+      ${investments?.map(inv => `- ${inv.product?.name}: ${inv.total_amount} FC invested (daily gain: 10% of this amount)`).join('\n')}
 
       Available Investment Packs:
-      ${products?.map(p => `- ${p.name}: ${p.price} FC (Return: ${p.monthly_return} FC/mo)`).join('\n')}
+      ${products?.map(p => `- ${p.name}: ${p.price} FC (daily gain: 10% of invested capital, rounded to 2 decimals; 3-month contract)`).join('\n')}
     `
 
     // 3. SIMULATION de la logique IA (en attendant un vrai LLM)

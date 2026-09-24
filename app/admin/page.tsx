@@ -7,6 +7,11 @@ import { Profile, Deposit, Withdrawal, Product, VipLevel, PaymentAccount, AdminL
 import { useToast } from '@/components/ToastProvider'
 import { Shield, Users, DollarSign, Package, CheckCircle2, XCircle, AlertCircle, Settings, Download, ChevronLeft, ChevronRight, History, FileCheck, X, Plus } from 'lucide-react'
 import anime from 'animejs'
+import {
+  calculateContractGain,
+  calculateDailyProfit,
+  getContractDayCount,
+} from '@/utils/financial.mjs'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -66,8 +71,7 @@ export default function AdminPage() {
   const [productForm, setProductForm] = useState({
     name: '',
     price: 0,
-    monthlyReturn: 0,
-    durationMonths: 12,
+    durationMonths: 3,
     category_id: '',
     description: '',
     is_active: true,
@@ -98,8 +102,21 @@ export default function AdminPage() {
         const { data: witData } = await supabase.from('withdrawals').select('*, profile:profiles(*)').order('created_at', { ascending: false })
         setWithdrawals(witData || [])
 
-        const { data: prodData } = await supabase.from('products').select('*').order('created_at')
+        const { data: prodData, error: productsError } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: true })
+          .order('name', { ascending: true })
+        if (productsError) throw productsError
         setProducts(prodData || [])
+
+        const { data: categoryData, error: categoriesError } = await supabase
+          .from('product_categories')
+          .select('*')
+          .order('order_index', { ascending: true })
+          .order('name', { ascending: true })
+        if (categoriesError) throw categoriesError
+        setCategories(categoryData || [])
 
         const { data: vipData } = await supabase.from('vip_levels').select('*').order('display_order')
         setVipLevels(vipData || [])
@@ -383,41 +400,54 @@ export default function AdminPage() {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const totalReturns = productForm.monthlyReturn * productForm.durationMonths
+      const price = Math.round(Number(productForm.price) * 100) / 100
+      const durationMonths = Number(productForm.durationMonths)
+      if (!Number.isFinite(price) || price <= 0) {
+        toast.error('Le prix doit être supérieur à 0 FC.')
+        return
+      }
+      if (!Number.isInteger(durationMonths) || durationMonths !== 3) {
+        toast.error('La politique actuelle des packs BISO est fixée à 3 mois.')
+        return
+      }
+
+      const contractDays = getContractDayCount({ duration_months: durationMonths }, new Date())
+      const totalReturns = calculateContractGain(price, contractDays)
+      const productData = {
+        name: productForm.name.trim(),
+        price,
+        // Legacy compatibility: this field must never define the financial return.
+        monthly_return: price,
+        duration_months: durationMonths,
+        category_id: productForm.category_id,
+        total_returns: totalReturns,
+        description: productForm.description,
+        is_active: productForm.is_active,
+      }
 
       if (editingProduct) {
         const { error } = await supabase.from('products').update({
-          name: productForm.name,
-          price: productForm.price,
-          monthly_return: productForm.monthlyReturn,
-          duration_months: productForm.durationMonths,
-          category_id: productForm.category_id,
-          description: productForm.description,
-          is_active: productForm.is_active,
+          ...productData,
           updated_at: new Date().toISOString(),
         }).eq('id', editingProduct.id)
         if (error) throw error
         toast.success('Produit mis à jour avec succès.')
       } else {
-        const { error } = await supabase.from('products').insert({
-          name: productForm.name,
-          price: productForm.price,
-          monthly_return: productForm.monthlyReturn,
-          duration_months: productForm.durationMonths,
-          category_id: productForm.category_id,
-          total_returns: totalReturns,
-          description: productForm.description,
-          is_active: productForm.is_active,
-        })
+        const { error } = await supabase.from('products').insert(productData)
         if (error) throw error
         toast.success('Nouveau produit créé avec succès.')
       }
 
       setShowProductModal(false)
       setEditingProduct(null)
-      setProductForm({ name: '', price: 0, monthlyReturn: 0, durationMonths: 12, category_id: '', description: '', is_active: true })
+      setProductForm({ name: '', price: 0, durationMonths: 3, category_id: '', description: '', is_active: true })
 
-      const { data: prodData } = await supabase.from('products').select('*').order('created_at')
+      const { data: prodData, error: reloadError } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .order('name', { ascending: true })
+      if (reloadError) throw reloadError
       setProducts(prodData || [])
     } catch (err: any) {
       toast.error(err.message || 'Erreur lors de la sauvegarde du produit')
@@ -430,7 +460,12 @@ export default function AdminPage() {
       const { error } = await supabase.from('products').delete().eq('id', id)
       if (error) throw error
       toast.success('Produit supprimé.')
-      const { data: prodData } = await supabase.from('products').select('*').order('created_at')
+      const { data: prodData, error: reloadError } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .order('name', { ascending: true })
+      if (reloadError) throw reloadError
       setProducts(prodData || [])
     } catch (err: any) {
       toast.error(err.message || 'Erreur lors de la suppression')
@@ -443,15 +478,14 @@ export default function AdminPage() {
       setProductForm({
         name: product.name,
         price: product.price,
-        monthlyReturn: product.monthly_return,
-        durationMonths: product.duration_months,
+        durationMonths: 3,
         category_id: product.category_id,
         description: product.description || '',
         is_active: product.is_active,
       })
     } else {
       setEditingProduct(null)
-      setProductForm({ name: '', price: 0, monthlyReturn: 0, durationMonths: 12, category_id: '', description: '', is_active: true })
+      setProductForm({ name: '', price: 0, durationMonths: 3, category_id: '', description: '', is_active: true })
     }
     setShowProductModal(true)
   }
@@ -523,27 +557,26 @@ export default function AdminPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Prix (FC)</label>
-                    <input
-                      type="number"
-                      required
-                      value={productForm.price}
-                      onChange={(e) => setProductForm({ ...productForm, price: Number(e.target.value) })}
-                      className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Revenu / Mois (FC)</label>
-                    <input
-                      type="number"
-                      required
-                      value={productForm.monthlyReturn}
-                      onChange={(e) => setProductForm({ ...productForm, monthlyReturn: Number(e.target.value) })}
-                      className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Prix / capital (FC)</label>
+                  <input
+                    type="number"
+                    required
+                    min="0.01"
+                    step="0.01"
+                    value={productForm.price}
+                    onChange={(e) => setProductForm({ ...productForm, price: Number(e.target.value) })}
+                    className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
+                  />
+                </div>
+
+                <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800">
+                  <p className="text-xs font-black">Gain contractuel : 10% du capital par jour</p>
+                  <p className="text-[10px] mt-1">
+                    +{calculateDailyProfit(productForm.price).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC / jour
+                    {' • '}
+                    {calculateContractGain(productForm.price, getContractDayCount({ duration_months: productForm.durationMonths }, new Date())).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC maximum sur le contrat
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -552,6 +585,10 @@ export default function AdminPage() {
                     <input
                       type="number"
                       required
+                      min="3"
+                      max="3"
+                      step="1"
+                       readOnly
                       value={productForm.durationMonths}
                       onChange={(e) => setProductForm({ ...productForm, durationMonths: Number(e.target.value) })}
                       className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
@@ -1250,13 +1287,13 @@ export default function AdminPage() {
                       </button>
                     </div>
                   </div>
-                  <p className="text-xs text-biso-600 font-semibold">{p.price.toLocaleString('fr-FR')} FC</p>
-                  <p className="text-[10px] text-gray-500">Versement: {p.monthly_return.toLocaleString('fr-FR')} FC / mois</p>
+                  <p className="text-xs text-biso-600 font-semibold">{p.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</p>
+                  <p className="text-[10px] text-gray-500">Gain: +{calculateDailyProfit(p.price).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC / jour (10%)</p>
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${p.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                       {p.is_active ? 'Actif' : 'Inactif'}
                     </span>
-                    <span className="text-[9px] text-gray-400">{p.duration_months} mois</span>
+                    <span className="text-[9px] text-gray-400">{Number(p.duration_months) || 3} mois</span>
                   </div>
                 </div>
               ))}

@@ -7,13 +7,28 @@
 --   3. Un retrait est approuvé (type: 'withdrawal')
 -- ============================================================================
 
--- 1. Colonne reference_id pour l'idempotence des notifications
+-- 1. Colonnes de référence pour l'idempotence des notifications
+-- reference_date est la date métier Africa/Kinshasa.  Les notifications
+-- referral/withdrawal gardent reference_date NULL et utilisent l'index historique
+-- (type + référence + user).  Les notifications de profit sont uniques par
+-- investissement et par business_date.
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS reference_id UUID;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS reference_date DATE;
 
--- Index unique partiel : empêche les doublons (type + référence + user)
+-- Index unique partiel historique pour les événements sans date
+-- (référral et retrait).  Les profits sont exclus : un profit doit pouvoir
+-- avoir une notification par business_date.
+DROP INDEX IF EXISTS public.uniq_notif_user_type_ref;
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_notif_user_type_ref
   ON notifications (user_id, type, reference_id)
-  WHERE reference_id IS NOT NULL;
+  WHERE reference_id IS NOT NULL AND type <> 'profit';
+
+-- Index unique partiel explicite pour les bénéfices quotidiens.
+-- Le prédicat doit être repris dans le ON CONFLICT correspondant.
+DROP INDEX IF EXISTS public.uniq_notif_user_type_ref_date;
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_notif_user_type_ref_date
+  ON notifications (user_id, type, reference_id, reference_date)
+  WHERE reference_id IS NOT NULL AND reference_date IS NOT NULL;
 
 
 -- ============================================================================
@@ -112,49 +127,66 @@ CREATE TRIGGER trg_notify_withdrawal_approved
 -- ============================================================================
 -- 5. RPC : Synchroniser les notifications de bénéfices disponibles
 -- ============================================================================
--- Appelé côté client au chargement du dashboard.
--- Pour chaque investissement actif du jour sans profit_claims, insère une
--- notification de type 'profit'. Idempotent via l'index unique.
+-- Appelé côté client au chargement du dashboard.  Le montant et la date sont
+-- calculés côté serveur : 10% du capital snapshot, une fois par date métier
+-- Africa/Kinshasa.  L'index partiel est inféré avec son prédicat exact.
 -- ============================================================================
 CREATE OR REPLACE FUNCTION public.sync_profit_notifications()
 RETURNS JSONB AS $$
 DECLARE
   v_user_id UUID := auth.uid();
+  v_business_date DATE := (NOW() AT TIME ZONE 'Africa/Kinshasa')::date;
+  v_now TIMESTAMP WITH TIME ZONE := NOW();
   v_inv RECORD;
   v_has_claim BOOLEAN;
   v_inserted INT := 0;
+  v_notification_id UUID;
+  v_daily_profit NUMERIC(15,2);
 BEGIN
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION 'Non authentifié';
   END IF;
 
   FOR v_inv IN
-    SELECT i.id, i.monthly_return, i.created_at, i.duration_months
+    SELECT i.id, i.total_amount, i.created_at, i.duration_months
     FROM investments i
     WHERE i.user_id = v_user_id
       AND i.status = 'ACTIVE'
-      AND (i.created_at + (i.duration_months * INTERVAL '1 month')) > NOW()
+      AND i.created_at <= v_now
+      AND (i.created_at + (i.duration_months * INTERVAL '1 month')) > v_now
+      AND ((i.created_at + (i.duration_months * INTERVAL '1 month'))
+           AT TIME ZONE 'Africa/Kinshasa')::date > v_business_date
   LOOP
     SELECT EXISTS(
       SELECT 1 FROM profit_claims pc
       WHERE pc.investment_id = v_inv.id
-        AND pc.profit_date = current_date
+        AND pc.profit_date = v_business_date
     ) INTO v_has_claim;
 
     IF NOT v_has_claim THEN
-      INSERT INTO notifications (user_id, type, title, message, reference_id)
+      v_daily_profit := ROUND(v_inv.total_amount * 0.10, 2);
+
+      INSERT INTO notifications (
+        user_id, type, title, message, reference_id, reference_date
+      )
       VALUES (
         v_user_id,
         'profit',
         'Bénéfice disponible',
-        'Votre bénéfice journalier est prêt à être vendu. Cliquez sur VENDRE.',
-        v_inv.id
+        'Votre bénéfice quotidien de ' || v_daily_profit
+          || ' FC (10% du capital) est prêt à être vendu. Cliquez sur VENDRE.',
+        v_inv.id,
+        v_business_date
       )
-      ON CONFLICT (user_id, type, reference_id) DO NOTHING;
+      ON CONFLICT (user_id, type, reference_id, reference_date)
+        WHERE reference_id IS NOT NULL AND reference_date IS NOT NULL
+        DO NOTHING
+      RETURNING id INTO v_notification_id;
 
-      IF FOUND THEN
+      IF v_notification_id IS NOT NULL THEN
         v_inserted := v_inserted + 1;
       END IF;
+      v_notification_id := NULL;
     END IF;
   END LOOP;
 
@@ -166,6 +198,7 @@ BEGIN
 
   RETURN json_build_object(
     'success', true,
+    'business_date', v_business_date,
     'new_notifications', v_inserted
   );
 END;

@@ -73,24 +73,23 @@ export default function WelcomePopup() {
     async function openPopup(userId: string) {
       if (cancelled) return
       setOpen(true)
-      const now = new Date()
-      const [{ data: categories }, { data: products }] = await Promise.all([
+      const [categoryResult, productResult] = await Promise.all([
         supabase
           .from('product_categories')
           .select('id, name, slug, icon, order_index')
           .order('order_index', { ascending: true }),
         supabase
           .from('products')
-          .select('id, category_id, name, price, monthly_return, duration_months')
+          .select('id, category_id, name, price, duration_months')
           .eq('is_active', true),
       ])
+      if (categoryResult.error || productResult.error) {
+        console.error('Erreur chargement du pop-up de bienvenue:', categoryResult.error || productResult.error)
+        if (!cancelled) setSectors([])
+        return
+      }
       if (cancelled) return
-      const built = buildActiveSectors(
-        categories ?? [],
-        products ?? [],
-        now.getFullYear(),
-        now.getMonth(),
-      )
+      const built = buildActiveSectors(categoryResult.data ?? [], productResult.data ?? [])
       setSectors(built)
     }
 
@@ -155,8 +154,8 @@ export default function WelcomePopup() {
 
         <div className="px-5 py-4">
           <p className="text-sm text-gray-600 leading-relaxed">
-            Découvrez nos secteurs d&apos;investissement et leurs packs officiels. Chaque pack vous
-            verse un revenu mensuel prévu, réparti quotidiennement.
+            Découvrez nos secteurs d&apos;investissement et leurs packs officiels. Chaque pack
+            génère un gain immuable de 10% du capital par jour.
           </p>
 
           {sectors.length === 0 ? (
@@ -196,26 +195,18 @@ export default function WelcomePopup() {
                               </div>
                               <div className="text-right shrink-0">
                                 <p className="text-sm font-extrabold text-emerald-700">
-                                  {pack.price.toLocaleString('fr-FR')} FC
+                                  {pack.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC
                                 </p>
                                 <p className="text-[10px] text-gray-500">Capital</p>
                               </div>
                             </div>
-                            <div className="mt-2 pt-2 border-t border-gray-100 grid grid-cols-3 gap-2">
+                            <div className="mt-2 pt-2 border-t border-gray-100 grid grid-cols-2 gap-2">
                               <div>
                                 <p className="text-[10px] text-gray-400 uppercase font-semibold">
-                                  Revenu / mois
+                                  Gain / jour (10%)
                                 </p>
                                 <p className="text-xs font-bold text-gray-900">
-                                  {pack.monthlyReturn.toLocaleString('fr-FR')} FC
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-[10px] text-gray-400 uppercase font-semibold">
-                                  Revenu / jour
-                                </p>
-                                <p className="text-xs font-bold text-gray-900">
-                                  +{Math.round(pack.dailyRevenue).toLocaleString('fr-FR')} FC
+                                  +{pack.dailyRevenue.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC
                                 </p>
                               </div>
                               <div>

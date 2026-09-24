@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Header from '@/components/Header'
 import WalletCard from '@/components/WalletCard'
 import ProductCard from '@/components/ProductCard'
@@ -12,12 +12,17 @@ import { WalletSkeleton, ProductSkeleton } from '@/components/Skeleton'
 import { supabase } from '@/lib/supabase/client'
 import { Product, Profile, Wallet, Investment, Announcement, ProfitClaim, ProductCategory } from '@/types'
 import { ALLOWED_PACK_PRICES } from '@/utils/constants'
+import {
+  calculateDailyProfit,
+  getBusinessDateKey,
+  getRemainingContractDays,
+} from '@/utils/financial.mjs'
 import { Plus, ArrowUpRight, Package, Users, TrendingUp, Shield, Bell, ChevronRight, HandCoins, CheckCircle2, AlertCircle, Sprout, Beef, Fish, CalendarCheck, BookOpen } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ToastProvider'
 import OpportunityAlert from '@/components/OpportunityAlert'
 import { useRealtimeWallet } from '@/components/RealtimeProvider'
-import PredictionPanel from '@/components/PredictionPanel'
+import { PredictiveEngine } from '@/utils/predictive-engine'
 
 
 
@@ -30,7 +35,7 @@ const SECTOR_ICONS: Record<string, { label: string; icon: typeof Sprout }> = {
 
 export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
-  const { wallet, setWallet, isLoading: walletLoading } = useRealtimeWallet()
+  const { wallet, setWallet } = useRealtimeWallet()
   const [popularProducts, setPopularProducts] = useState<Product[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [activeInvestments, setActiveInvestments] = useState<(Investment & { product?: Product })[]>([])
@@ -41,21 +46,33 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [sellLoading, setSellLoading] = useState<string | null>(null)
   const [sellSuccess, setSellSuccess] = useState<Record<string, boolean>>({})
+  const [claimedBusinessDates, setClaimedBusinessDates] = useState<Record<string, string>>({})
   const toast = useToast()
+  const deterministicProjections = useMemo(
+    () => wallet ? PredictiveEngine.calculateProjections(wallet, activeInvestments) : [],
+    [wallet, activeInvestments],
+  )
 
   const loadDashboard = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError) throw authError
       if (!user) {
         window.location.href = '/auth/login'
         return
       }
 
-      const { data: profileData } = await supabase
+      const { error: finalizeError } = await supabase.rpc('finalize_expired_investments')
+      if (finalizeError) {
+        console.warn('Impossible de finaliser les contrats expirés:', finalizeError)
+      }
+
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single()
+      if (profileError) throw profileError
       setProfile(profileData)
 
       try {
@@ -79,51 +96,64 @@ export default function DashboardPage() {
         console.warn('Erreur check admin dashboard:', adminErr)
       }
 
-      const { data: walletData } = await supabase
+      const { data: walletData, error: walletError } = await supabase
         .from('wallets')
         .select('*')
         .eq('user_id', user.id)
         .single()
+      if (walletError) throw walletError
       setWallet(walletData)
 
-      const { data: prodData } = await supabase
+      const { data: prodData, error: productsError } = await supabase
         .from('products')
         .select('*')
         .eq('is_active', true)
         .in('price', [...ALLOWED_PACK_PRICES])
         .order('price', { ascending: true })
+        .order('name', { ascending: true })
+      if (productsError) throw productsError
       const validPopular = (prodData || []).filter((p: Product) =>
         ALLOWED_PACK_PRICES.includes(p.price as any)
       )
       setPopularProducts(validPopular)
 
-      const { data: annData } = await supabase
+      const { data: annData, error: announcementsError } = await supabase
         .from('announcements')
         .select('*')
         .eq('is_published', true)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .limit(2)
+      if (announcementsError) throw announcementsError
       setAnnouncements(annData || [])
 
-      const { data: catData } = await supabase
+      const { data: catData, error: categoriesError } = await supabase
         .from('product_categories')
         .select('*')
-        .order('order_index')
+        .order('order_index', { ascending: true })
+        .order('id', { ascending: true })
+      if (categoriesError) throw categoriesError
       setCategories(catData || [])
 
-      const { data: invData } = await supabase
+      const { data: invData, error: investmentsError } = await supabase
         .from('investments')
         .select('*, product:products(*)')
         .eq('user_id', user.id)
         .eq('status', 'ACTIVE')
-        .limit(5)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+      if (investmentsError) throw investmentsError
       setActiveInvestments(invData || [])
 
-      const { data: claimData } = await supabase
+      const { data: claimData, error: claimsError } = await supabase
         .from('profit_claims')
         .select('*')
         .eq('user_id', user.id)
         .order('profit_date', { ascending: false })
+        .order('claimed_at', { ascending: false })
+        .order('id', { ascending: false })
         .limit(100)
+      if (claimsError) throw claimsError
       setClaims(claimData || [])
 
       // Sync profit notifications (fire-and-forget)
@@ -157,37 +187,50 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const todayKey = () => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }
-
   const isInvestmentFinished = (inv: Investment) => {
     if (inv.status !== 'ACTIVE') return true
-    const end = new Date(inv.created_at)
-    end.setMonth(end.getMonth() + (inv.duration_months || 12))
-    return new Date() >= end
+    return getRemainingContractDays(inv, new Date()) <= 0
   }
 
   const hasClaimedToday = (invId: string) => {
-    const today = todayKey()
-    return claims.some(c => c.investment_id === invId && c.profit_date === today)
+    const today = getBusinessDateKey()
+    if (!today) return false
+    if (claimedBusinessDates[invId] === today) return true
+    return claims.some(claim => claim.investment_id === invId && claim.profit_date === today)
   }
 
   const handleSell = async (invId: string) => {
     if (sellLoading) return
     setSellLoading(invId)
     try {
-      const { data, error } = await supabase.rpc('claim_daily_profit')
+      const { data, error } = await supabase.rpc('claim_daily_profit', {
+        p_investment_id: invId,
+      })
       if (error) throw error
 
-      if (data?.claimed_amount > 0) {
-        toast.success(`Vente effectuée avec succès — Vous avez reçu : ${data.claimed_amount.toLocaleString('fr-FR')} FC`)
+      const result = (Array.isArray(data) ? data[0] : data) as null | {
+        claimed_amount?: number
+        already_claimed_today?: boolean
+        business_date?: string
+      }
+      if (!result || typeof result.claimed_amount !== 'number' || !Number.isFinite(result.claimed_amount)) {
+        throw new Error('Réponse invalide du service de vente.')
+      }
+      if (result.claimed_amount === 0 && result.already_claimed_today !== true) {
+        throw new Error("Aucun bénéfice n'a pu être vendu pour cet investissement.")
+      }
+
+      const businessDate = getBusinessDateKey(result.business_date) || getBusinessDateKey()
+      if (!businessDate) throw new Error('Date de vente invalide.')
+      setClaimedBusinessDates(current => ({ ...current, [invId]: businessDate }))
+
+      if (result.claimed_amount > 0) {
+        toast.success(`Vente effectuée avec succès — Vous avez reçu : ${result.claimed_amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC`)
       } else {
         toast.info('Bénéfice du jour déjà réclamé. Revenez demain !')
       }
       await loadDashboard()
-      if (data?.claimed_amount > 0) {
+      if (result.claimed_amount > 0) {
         setSellSuccess((s) => ({ ...s, [invId]: true }))
         setTimeout(() => {
           setSellSuccess((s) => {
@@ -291,12 +334,28 @@ export default function DashboardPage() {
 
         <OpportunityAlert />
 
-        <PredictionPanel
-          wallet={wallet}
-          investments={activeInvestments}
-          vipLevels={[]}
-          profile={profile}
-        />
+        <div className="card p-5 space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-emerald-600" aria-hidden="true" />
+              <h3 className="font-black text-gray-900 text-sm">Projections de gains</h3>
+            </div>
+            <span className="text-[10px] font-bold text-gray-400 uppercase">Calcul contractuel</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {deterministicProjections.map(projection => (
+              <div key={projection.period} className="p-3 bg-gray-50 rounded-2xl border border-gray-100 text-center space-y-1">
+                <p className="text-[10px] font-bold text-gray-500">{projection.period}</p>
+                <p className="text-sm font-black text-emerald-600 tabular-nums">
+                  +{projection.estimatedGain.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC
+                </p>
+              </div>
+            ))}
+          </div>
+          {deterministicProjections[0] && (
+            <p className="text-[11px] text-gray-500 italic text-center">{deterministicProjections[0].insight}</p>
+          )}
+        </div>
 
         {/* Carte solde premium */}
         <WalletCard
@@ -358,11 +417,9 @@ export default function DashboardPage() {
             </div>
           ) : (
             <StaggerIn className="space-y-3">
-            {activeInvestments.map((inv) => {
-              const monthlyReturn = (inv.product?.monthly_return || 0) * inv.quantity
-              const now = new Date()
-              const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-              const dailyProfit = monthlyReturn / daysInCurrentMonth
+            {activeInvestments.slice(0, 5).map((inv) => {
+              const dailyProfit = Number(inv.daily_profit) || calculateDailyProfit(inv.total_amount)
+              const durationMonths = Number(inv.duration_months) || 3
               const finished = isInvestmentFinished(inv)
               const claimedToday = hasClaimedToday(inv.id)
               const category = categories.find(c => c.id === inv.product?.category_id)
@@ -377,7 +434,7 @@ export default function DashboardPage() {
                       </span>
                       <div className="min-w-0">
                         <h3 className="font-bold text-gray-900 text-sm truncate">{inv.product?.name || 'Pack Investissement'}</h3>
-                        <p className="text-[11px] text-gray-500 capitalize">{category?.name || 'Secteur'} • {inv.duration_months} mois</p>
+                        <p className="text-[11px] text-gray-500 capitalize">{category?.name || 'Secteur'} • {durationMonths} mois</p>
                       </div>
                     </div>
                     <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${
@@ -392,15 +449,15 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-3 gap-2 bg-gray-50 rounded-xl p-3 text-center">
                     <div>
                       <p className="text-[9px] uppercase text-gray-400 font-semibold">Investi</p>
-                      <p className="text-xs font-black text-gray-900 tabular-nums">{inv.total_amount.toLocaleString('fr-FR')} FC</p>
+                      <p className="text-xs font-black text-gray-900 tabular-nums">{inv.total_amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</p>
                     </div>
                     <div className="border-x border-gray-200">
-                      <p className="text-[9px] uppercase text-gray-400 font-semibold">Revenu mensuel prévu</p>
-                      <p className="text-xs font-black text-emerald-700 tabular-nums">+{monthlyReturn.toLocaleString('fr-FR')} FC</p>
+                      <p className="text-[9px] uppercase text-gray-400 font-semibold">Taux journalier</p>
+                      <p className="text-xs font-black text-emerald-700 tabular-nums">10% / jour</p>
                     </div>
                     <div>
                       <p className="text-[9px] uppercase text-gray-400 font-semibold">Bénéfice du jour</p>
-                      <p className="text-xs font-black text-amber-600 tabular-nums">+{dailyProfit.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC</p>
+                      <p className="text-xs font-black text-amber-600 tabular-nums">+{dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</p>
                     </div>
                   </div>
 

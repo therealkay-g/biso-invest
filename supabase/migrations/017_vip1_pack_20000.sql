@@ -3,13 +3,14 @@
 -- ----------------------------------------------------------------------------
 -- Le seuil d'accès VIP1 est déjà à 20 000 FC (migration 014). On aligne
 -- maintenant le PRIX du pack d'entrée (VIP1) : 20 000 FC d'investissement,
--- 20 000 FC de versement mensuel et 240 000 FC de rendement total sur 12 mois.
+-- 2 000 FC de bénéfice quotidien (10 %) et 180 000 FC sur 90 jours éligibles.
+-- total_returns reste un champ de compatibilité et sera recalculé par la migration 030.
 -- VIP2 (50 000), VIP3 (100 000) et VIP4 (250 000) sont inchangés.
 -- ============================================================================
 
 UPDATE products
 SET price = 20000,
     monthly_return = 20000,
-    total_returns = 240000,
+    total_returns = 180000,
     is_active = true
 WHERE price = 30000;

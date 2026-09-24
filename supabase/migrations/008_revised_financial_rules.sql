@@ -571,16 +571,18 @@ grant execute on function public.purchase_investment(uuid, int, varchar) to auth
 create or replace function public.init_investment_cycles()
 returns trigger as $$
 declare
+  -- Le capital et la durée sont les snapshots de l'investissement.  Ne jamais
+  -- recalculer ce montant depuis products : un produit peut être modifié après
+  -- la souscription.  La règle officielle est 10 % du capital, à 2 décimales.
+  v_total_cost numeric;
   v_daily_profit numeric;
-  v_monthly_return numeric;
   v_start_date date;
   v_days_in_month int;
 begin
-  select monthly_return * new.quantity into v_monthly_return from products where id = new.product_id;
-
-  v_start_date := new.created_at::date;
+  v_total_cost := new.total_amount;
+  v_start_date := (new.created_at at time zone 'Africa/Kinshasa')::date;
   v_days_in_month := public.get_days_in_month(v_start_date);
-  v_daily_profit := round(v_monthly_return / v_days_in_month, 4);
+  v_daily_profit := round(v_total_cost * 0.10, 2);
 
   insert into investment_cycles (
     investment_id, cycle_number, cycle_start_date, cycle_end_date,

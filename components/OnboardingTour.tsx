@@ -33,13 +33,13 @@ const STEPS: OnboardingStep[] = [
   },
   {
     title: 'Investir dans un pack',
-    description: 'Onglet Investir : choisissez parmi 3 secteurs (Agriculture, Élevage, Pisciculture). Chaque secteur propose 4 packs à 20 000, 50 000, 100 000 et 250 000 FC, sur 3 mois, avec un revenu mensuel égal à votre investissement.',
+    description: 'Onglet Investir : choisissez parmi 3 secteurs (Agriculture, Élevage, Pisciculture). Chaque secteur propose 4 packs à 20 000, 50 000, 100 000 et 250 000 FC, sur un contrat de 3 mois. Le bénéfice est de 10 % du capital investi par jour éligible.',
     icon: TrendingUp,
     color: 'bg-amber-500',
   },
   {
     title: 'Vos bénéfices quotidiens',
-    description: 'Chaque jour, votre revenu mensuel est réparti selon les jours réels du mois (28, 29, 30 ou 31). Cliquez sur le bouton VENDRE chaque jour pour récupérer votre bénéfice — attention, un bénéfice non réclamé est perdu, il ne se reporte jamais.',
+    description: 'Chaque jour éligible, récupérez 10 % de votre capital investi, arrondis à 2 décimales (20 000 FC → 2 000 FC par jour, 50 000 FC → 5 000 FC, 250 000 FC → 25 000 FC). Cliquez sur VENDRE chaque jour : un bénéfice non réclamé est définitivement perdu et ne se reporte jamais.',
     icon: HandCoins,
     color: 'bg-teal-500',
   },

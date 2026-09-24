@@ -14,23 +14,23 @@ const FAQ_DATABASE: FAQItem[] = [
   {
     category: 'General',
     question: 'C\'est quoi BISO INVEST ?',
-    answer: 'BISO INVEST est une plateforme d\'investissement dans l\'économie réelle en RDC, spécialisée dans l\'agriculture et la pisciculture. Nous permettons aux particuliers de financer des projets productifs et de percevoir des revenus mensuels.',
+    answer: 'BISO INVEST est une plateforme d\'investissement dans l\'économie réelle en RDC, spécialisée dans l\'agriculture et la pisciculture. Nous permettons aux particuliers de financer des projets productifs et de percevoir un bénéfice quotidien de 10 % du capital investi, pour chaque jour éligible du contrat de 3 mois.',
   },
   {
     category: 'Investment',
     question: 'Comment investir ?',
-    answer: 'C\'est simple ! Allez dans l\'onglet "Investir", choisissez un pack qui correspond à votre budget (ex: Pack Pisciculture), validez le paiement et vos gains commenceront à être générés quotidiennement.',
+    answer: 'C\'est simple ! Allez dans l\'onglet "Investir", choisissez un pack qui correspond à votre budget (ex: Pack Pisciculture), validez le paiement et votre bénéfice de 10 % du capital investi sera disponible chaque jour éligible pendant le contrat de 3 mois.',
   },
   {
     category: 'Investment',
     question: 'Quand suis-je payé ?',
-    answer: 'Les revenus sont calculés mensuellement mais sont mis à disposition quotidiennement dans votre wallet. Vous pouvez "vendre" vos bénéfices chaque jour.',
+    answer: 'Chaque jour éligible, votre bénéfice est de 10 % du capital investi, arrondi à 2 décimales, et est disponible dans votre wallet. Vous pouvez "vendre" votre bénéfice chaque jour ; un jour non réclamé est perdu.',
   },
   {
     category: 'Wallet',
     question: 'Comment retirer mon argent ?',
     // Note: The user's app has specific withdrawal logic
-    answer: 'Rendez-vous dans "Mon Portefeuille", ajoutez un compte Mobile Money (Airtel, Orange, M-Pesa) et demandez un retrait. Le montant minimum est de 30 000 FC.',
+    answer: 'Rendez-vous dans "Mon Portefeuille", ajoutez un compte Mobile Money (Airtel, Orange, M-Pesa) et demandez un retrait. Le montant minimum est de 5 000 FC.',
   },
   {
     category: 'KYC',

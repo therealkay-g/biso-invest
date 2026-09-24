@@ -11,6 +11,11 @@ import PageEnter from '@/components/PageEnter'
 import { RippleButton } from '@/components/RippleButton'
 import { ArrowLeft, ShieldCheck, CheckCircle2, TrendingUp, Clock, Award, Wallet as WalletIcon, Minus, Plus, Lock, HandCoins } from 'lucide-react'
 import { getVipTierForPrice } from '@/utils/constants'
+import {
+  calculateContractGain,
+  calculateDailyProfit,
+  getContractDayCount,
+} from '@/utils/financial.mjs'
 import Link from 'next/link'
 
 export default function ProductDetailPage() {
@@ -29,23 +34,26 @@ export default function ProductDetailPage() {
   useEffect(() => {
     async function loadDetail() {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError) throw authError
         if (!user) {
           router.push('/auth/login')
           return
         }
 
-        const { data: prodData } = await supabase
+        const { data: prodData, error: productError } = await supabase
           .from('products')
           .select('*')
           .eq('id', productId)
           .single()
+        if (productError) throw productError
 
-        const { data: walletData } = await supabase
+        const { data: walletData, error: walletError } = await supabase
           .from('wallets')
           .select('*')
           .eq('user_id', user.id)
           .single()
+        if (walletError) throw walletError
 
         setProduct(prodData)
         setWallet(walletData)
@@ -127,11 +135,12 @@ export default function ProductDetailPage() {
   }
 
   const now = new Date()
-  const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const durationMonths = Number(product.duration_months) || 3
   const totalCost = product.price * quantity
-  const totalMonthlyReturn = product.monthly_return * quantity
-  const dailyProfit = totalMonthlyReturn / daysInCurrentMonth
-  const totalExpectedReturn = product.total_returns * quantity
+  const dailyProfitPerPack = calculateDailyProfit(product.price)
+  const dailyProfit = calculateDailyProfit(totalCost)
+  const contractDays = getContractDayCount({ duration_months: durationMonths }, now)
+  const totalExpectedReturn = calculateContractGain(totalCost, contractDays)
   const vipTier = getVipTierForPrice(product.price)
 
   return (
@@ -165,7 +174,7 @@ export default function ProductDetailPage() {
             )}
             <span className="absolute top-3 right-3 bg-white/90 backdrop-blur-md text-emerald-900 font-extrabold text-xs px-3 py-1.5 rounded-full border border-emerald-200 flex items-center space-x-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
-              <span>Contrat {product.duration_months} mois</span>
+              <span>Contrat {durationMonths} mois</span>
             </span>
           </div>
 
@@ -184,20 +193,20 @@ export default function ProductDetailPage() {
             <div className="grid grid-cols-3 gap-2 bg-gray-50 rounded-2xl p-3.5 text-center">
               <div>
                 <p className="text-[9px] uppercase text-gray-400 font-bold">Montant</p>
-                <p className="font-black text-gray-900 text-sm tabular-nums mt-0.5">{product.price.toLocaleString('fr-FR')} FC</p>
+                <p className="font-black text-gray-900 text-sm tabular-nums mt-0.5">{product.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</p>
               </div>
               <div className="border-x border-gray-200">
-                <p className="text-[9px] uppercase text-gray-400 font-bold">Revenu mensuel prévu</p>
+                <p className="text-[9px] uppercase text-gray-400 font-bold">Gain / jour</p>
                 <p className="font-black text-emerald-700 text-sm tabular-nums mt-0.5 inline-flex items-center">
                   <TrendingUp className="w-3.5 h-3.5 mr-0.5" aria-hidden="true" />
-                  {product.monthly_return.toLocaleString('fr-FR')} FC
+                  +{dailyProfitPerPack.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC
                 </p>
               </div>
               <div>
                 <p className="text-[9px] uppercase text-gray-400 font-bold">Durée</p>
                 <p className="font-black text-gray-900 text-sm tabular-nums mt-0.5 inline-flex items-center">
                   <Clock className="w-3.5 h-3.5 mr-0.5 text-amber-600" aria-hidden="true" />
-                  {product.duration_months} mois
+                  {durationMonths} mois
                 </p>
               </div>
             </div>
@@ -213,7 +222,7 @@ export default function ProductDetailPage() {
                 </span>
                 <div>
                   <p className="text-[10px] uppercase text-emerald-700 font-bold tracking-wider">Solde wallet disponible</p>
-                  <p className="font-black text-emerald-950 tabular-nums text-sm">{(wallet?.balance || 0).toLocaleString('fr-FR')} FC</p>
+                  <p className="font-black text-emerald-950 tabular-nums text-sm">{(wallet?.balance || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</p>
                 </div>
               </div>
               <span className="text-[11px] font-bold text-emerald-700 bg-white border border-emerald-200 px-3 py-2 rounded-xl">
@@ -226,7 +235,7 @@ export default function ProductDetailPage() {
               <div>
                 <p className="text-[10px] uppercase text-gray-400 font-bold">Nombre de packs</p>
                 <p className="font-black text-gray-900 text-sm tabular-nums mt-0.5">
-                  {quantity} pack{quantity > 1 ? 's' : ''} — <span className="text-emerald-700">{totalCost.toLocaleString('fr-FR')} FC</span>
+                  {quantity} pack{quantity > 1 ? 's' : ''} — <span className="text-emerald-700">{totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</span>
                 </p>
               </div>
               <div className="flex items-center space-x-2">
@@ -262,20 +271,20 @@ export default function ProductDetailPage() {
           </h3>
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="bg-gray-50 rounded-2xl p-3.5">
-              <span className="block text-gray-500 text-[10px] uppercase font-bold">Revenu mensuel prévu</span>
-              <span className="font-black text-emerald-700 tabular-nums block mt-0.5">+{totalMonthlyReturn.toLocaleString('fr-FR')} FC</span>
+              <span className="block text-gray-500 text-[10px] uppercase font-bold">Gain / pack / jour</span>
+              <span className="font-black text-emerald-700 tabular-nums block mt-0.5">+{dailyProfitPerPack.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</span>
             </div>
             <div className="bg-gray-50 rounded-2xl p-3.5">
-              <span className="block text-gray-500 text-[10px] uppercase font-bold">Bénéfice quotidien</span>
-              <span className="font-black text-amber-700 tabular-nums block mt-0.5">+{dailyProfit.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC / j</span>
+              <span className="block text-gray-500 text-[10px] uppercase font-bold">Gain total / jour</span>
+              <span className="font-black text-amber-700 tabular-nums block mt-0.5">+{dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</span>
             </div>
             <div className="bg-gray-50 rounded-2xl p-3.5">
-              <span className="block text-gray-500 text-[10px] uppercase font-bold">Total attendu ({product.duration_months} mois)</span>
-              <span className="font-black text-gray-900 tabular-nums block mt-0.5">{totalExpectedReturn.toLocaleString('fr-FR')} FC</span>
+              <span className="block text-gray-500 text-[10px] uppercase font-bold">Jours éligibles</span>
+              <span className="font-black text-gray-900 tabular-nums block mt-0.5">{contractDays} jours</span>
             </div>
             <div className="bg-emerald-700 rounded-2xl p-3.5 text-white">
-              <span className="block text-emerald-200 text-[10px] uppercase font-bold">Revenu net estimé</span>
-              <span className="font-black text-white tabular-nums block mt-0.5">+{(totalExpectedReturn - totalCost).toLocaleString('fr-FR')} FC</span>
+              <span className="block text-emerald-200 text-[10px] uppercase font-bold">Gain maximum estimé</span>
+              <span className="font-black text-white tabular-nums block mt-0.5">+{totalExpectedReturn.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</span>
             </div>
           </div>
         </div>
@@ -285,11 +294,11 @@ export default function ProductDetailPage() {
           <h3 className="font-black text-gray-900 text-sm">Comment ça fonctionne ?</h3>
           <ol className="space-y-3">
             {[
-              { title: '1. Souscrivez votre pack', text: `Investissez ${product.price.toLocaleString('fr-FR')} FC (× quantité) depuis votre portefeuille.` },
-              { title: '2. Gagnez chaque jour', text: `Un bénéfice de +${dailyProfit.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC/jour se génère automatiquement.` },
+              { title: '1. Souscrivez votre pack', text: `Investissez ${product.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC (× quantité) depuis votre portefeuille.` },
+              { title: '2. Gagnez 10% par jour', text: `Un bénéfice de +${dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC/jour se génère automatiquement.` },
               { title: '3. Vendez votre bénéfice quotidien', text: 'Cliquez sur VENDRE chaque jour depuis « Mes investissements » pour créditer votre solde.' },
               { title: '4. Bénéfice non réclamé', text: 'Un bénéfice non vendu le jour même est perdu et ne sera jamais reporté.' },
-              { title: `5. Cycle de ${product.duration_months} mois`, text: `Au terme des ${product.duration_months} mois, votre contrat est complété.` },
+              { title: `5. Cycle de ${durationMonths} mois`, text: `Au terme des ${durationMonths} mois et ${contractDays} jours éligibles, votre contrat est complété.` },
             ].map((step) => (
               <li key={step.title} className="flex space-x-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" aria-hidden="true" />
@@ -308,7 +317,7 @@ export default function ProductDetailPage() {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <span className="text-[11px] text-gray-400 font-semibold uppercase">Total investissement</span>
-            <p className="text-lg font-black text-gray-900 tabular-nums truncate">{totalCost.toLocaleString('fr-FR')} FC</p>
+            <p className="text-lg font-black text-gray-900 tabular-nums truncate">{totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</p>
           </div>
           <RippleButton
             onClick={() => setShowConfirm(true)}
@@ -330,29 +339,29 @@ export default function ProductDetailPage() {
               <h4 className="text-base font-black text-gray-900">Confirmer l&apos;investissement</h4>
               <p className="text-xs text-gray-500 mt-1">
                 Vous vous apprêtez à souscrire <strong>{quantity}x {product.name}</strong> pour un total de{' '}
-                <strong className="text-emerald-700">{totalCost.toLocaleString('fr-FR')} FC</strong>.
+                <strong className="text-emerald-700">{totalCost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</strong>.
               </p>
             </div>
 
             <div className="bg-gray-50 p-3.5 rounded-2xl text-xs space-y-1.5 text-left border border-gray-100">
               <div className="flex justify-between">
-                <span className="text-gray-500">Revenu mensuel prévu :</span>
-                <span className="font-bold text-emerald-700 tabular-nums">+{totalMonthlyReturn.toLocaleString('fr-FR')} FC / mois</span>
+                <span className="text-gray-500">Gain quotidien :</span>
+                <span className="font-bold text-emerald-700 tabular-nums">+{dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC / jour</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Durée du contrat :</span>
-                <span className="font-bold text-gray-800">{product.duration_months} mois</span>
+                <span className="font-bold text-gray-800">{durationMonths} mois</span>
               </div>
               <div className="flex justify-between border-t border-gray-200 pt-1.5">
-                <span className="text-gray-800 font-bold">Total des gains attendus :</span>
-                <span className="font-black text-emerald-700 tabular-nums">{totalExpectedReturn.toLocaleString('fr-FR')} FC</span>
+                <span className="text-gray-800 font-bold">Gain maximum estimé :</span>
+                <span className="font-black text-emerald-700 tabular-nums">{totalExpectedReturn.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</span>
               </div>
             </div>
 
             {wallet && wallet.balance < totalCost && (
               <div className="bg-red-50 border border-red-200 p-3 rounded-xl text-[11px] text-red-700 flex items-center space-x-2">
                 <Lock className="w-4 h-4 shrink-0" aria-hidden="true" />
-                <span>Solde insuffisant ({wallet.balance.toLocaleString('fr-FR')} FC). Rechargez votre portefeuille.</span>
+                <span>Solde insuffisant ({wallet.balance.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC). Rechargez votre portefeuille.</span>
               </div>
             )}
 

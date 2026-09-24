@@ -3,6 +3,7 @@
 import { TrendingUp, Clock, Award } from 'lucide-react'
 import { Product } from '@/types'
 import { getVipTierForPrice } from '@/utils/constants'
+import { calculateDailyProfit } from '@/utils/financial.mjs'
 import { RippleLink } from './RippleButton'
 
 interface ProductCardProps {
@@ -13,12 +14,14 @@ interface ProductCardProps {
  * Carte pack compacte (~120-160px de haut) :
  * ligne 1 : image 48px + nom + badge VIP
  * ligne 2 : montant investi
- * ligne 3 : revenu mensuel prévu + durée
+ * ligne 3 : gain quotidien (10% du prix) + durée
  * bouton INVESTIR compact.
  * Hover : scale 1.02 — Clic : scale 0.98.
  */
 export default function ProductCard({ product }: ProductCardProps) {
   const vipTier = getVipTierForPrice(product.price)
+  const dailyProfit = calculateDailyProfit(product.price)
+  const durationMonths = Number(product.duration_months) || 3
 
   return (
     <div className="card pressable overflow-hidden flex flex-col justify-between animate-fade-in group">
@@ -47,19 +50,19 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         {/* Ligne 2 : montant investi */}
         <p className="mt-2.5 text-sm font-black text-gray-900 tabular-nums">
-          {product.price.toLocaleString('fr-FR')} FC
+          {product.price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC
         </p>
 
-        {/* Ligne 3 : revenu mensuel + durée */}
+        {/* Ligne 3 : gain quotidien + durée */}
         <div className="flex items-center justify-between mt-1 gap-2 text-[11px]">
           <span className="text-gray-600 font-semibold inline-flex items-center min-w-0">
             <TrendingUp className="w-3 h-3 mr-1 text-emerald-600 shrink-0" aria-hidden="true" />
-            <span className="tabular-nums truncate">{product.monthly_return.toLocaleString('fr-FR')} FC</span>
-            <span className="text-gray-400 ml-1 shrink-0">/ mois</span>
+            <span className="tabular-nums truncate">+{dailyProfit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC</span>
+            <span className="text-gray-400 ml-1 shrink-0">/ jour</span>
           </span>
           <span className="text-gray-600 font-semibold inline-flex items-center shrink-0">
             <Clock className="w-3 h-3 mr-1 text-amber-600" aria-hidden="true" />
-            {product.duration_months} mois
+            {durationMonths} mois
           </span>
         </div>
       </div>

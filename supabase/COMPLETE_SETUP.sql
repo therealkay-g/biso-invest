@@ -1,7 +1,10 @@
 -- ============================================================================
--- BISO INVEST - COMPLETE SETUP SQL
--- Single idempotent execution file for Supabase SQL Editor
--- Merged from all migrations (001 through 011)
+-- BISO INVEST - LEGACY COMPLETE SETUP SQL
+-- ---------------------------------------------------------------------------
+-- ATTENTION : fichier historique à ne plus utiliser pour une nouvelle base.
+-- La source de vérité est désormais supabase/migrations/ dans l'ordre, avec
+-- 030_daily_profit_10_percent.sql comme dernière étape financière.
+-- Règle officielle : bénéfice quotidien = 10 % du capital investi.
 -- ============================================================================
 
 -- ============================================================================
@@ -77,7 +80,7 @@ create table if not exists products (
   name varchar(150) not null,
   price numeric(15,2) not null,
   monthly_return numeric(15,2) not null,
-  duration_months int default 12 not null,
+  duration_months int default 3 not null,
   total_returns numeric(15,2) not null,
   purchase_limit int default 10 not null,
   description text,
@@ -95,7 +98,7 @@ create table if not exists investments (
   quantity int default 1 not null,
   total_amount numeric(15,2) not null,
   monthly_return numeric(15,2) not null,
-  duration_months int default 12 not null,
+  duration_months int default 3 not null,
   paid_installments int default 0 not null,
   remaining_installments int default 12 not null,
   next_payment_date timestamp with time zone not null,
@@ -1207,7 +1210,7 @@ begin
 
   v_start_date := new.created_at::date;
   v_days_in_month := public.get_days_in_month(v_start_date);
-  v_daily_profit := round(v_monthly_return / v_days_in_month, 4);
+  v_daily_profit := round(new.total_amount * 0.10, 2);
 
   insert into investment_cycles (
     investment_id, cycle_number, cycle_start_date, cycle_end_date,
@@ -1217,7 +1220,7 @@ begin
     new.id,
     1,
     new.created_at,
-    new.created_at + (v_days_in_month || ' days')::interval,
+    new.created_at + interval '1 month',
     v_daily_profit,
     0.00,
     0.00,
@@ -1242,7 +1245,7 @@ declare
   v_cycle record;
   v_now timestamp with time zone := now();
   v_days_diff int;
-  v_max_cycles int := 12;
+  v_max_cycles int := 3;
 begin
   select * into v_inv from investments where id = p_investment_id for update;
   if not found or v_inv.status != 'ACTIVE' then
@@ -1259,7 +1262,7 @@ begin
       v_days_diff := extract(day from (v_cycle.cycle_end_date - v_cycle.last_accrual_date))::int;
       if v_days_diff > 0 then
         update investment_cycles set
-          accumulated_profit = accumulated_profit + (v_days_diff * daily_profit),
+          accumulated_profit = accumulated_profit + (v_days_diff * v_cycle.daily_profit),
           last_accrual_date = v_cycle.cycle_end_date
         where id = v_cycle.id;
       end if;
@@ -1287,7 +1290,7 @@ begin
       v_days_diff := extract(day from (v_now - v_cycle.last_accrual_date))::int;
       if v_days_diff > 0 then
         update investment_cycles set
-          accumulated_profit = accumulated_profit + (v_days_diff * daily_profit),
+          accumulated_profit = accumulated_profit + (v_days_diff * v_cycle.daily_profit),
           last_accrual_date = v_now
         where id = v_cycle.id;
       end if;
@@ -1623,25 +1626,25 @@ WHERE category_id = (SELECT id FROM product_categories WHERE slug = 'piscicultur
 
 UPDATE products
 SET is_active = true,
-    price = 20000, monthly_return = 20000, duration_months = 12, total_returns = 240000, purchase_limit = 10
+    price = 20000, monthly_return = 20000, duration_months = 3, total_returns = 180000, purchase_limit = 10
 WHERE category_id = (SELECT id FROM product_categories WHERE slug = 'pisciculture')
   AND name = 'Tilapia';
 
 UPDATE products
 SET is_active = true,
-    price = 50000, monthly_return = 50000, duration_months = 12, total_returns = 600000, purchase_limit = 10
+    price = 50000, monthly_return = 50000, duration_months = 3, total_returns = 450000, purchase_limit = 10
 WHERE category_id = (SELECT id FROM product_categories WHERE slug = 'pisciculture')
   AND name = 'Silure';
 
 UPDATE products
 SET is_active = true,
-    price = 100000, monthly_return = 100000, duration_months = 12, total_returns = 1200000, purchase_limit = 10
+    price = 100000, monthly_return = 100000, duration_months = 3, total_returns = 900000, purchase_limit = 10
 WHERE category_id = (SELECT id FROM product_categories WHERE slug = 'pisciculture')
   AND name = 'Anguille';
 
 UPDATE products
 SET is_active = true,
-    price = 250000, monthly_return = 250000, duration_months = 12, total_returns = 3000000, purchase_limit = 10
+    price = 250000, monthly_return = 250000, duration_months = 3, total_returns = 2250000, purchase_limit = 10
 WHERE category_id = (SELECT id FROM product_categories WHERE slug = 'pisciculture')
   AND name = 'Carpe';
 
@@ -1674,7 +1677,7 @@ create policy "Users can view own profit claims"
 
 grant select on profit_claims to authenticated;
 
-create or replace function public.claim_daily_profit()
+create or replace function public.claim_daily_profit(p_investment_id uuid)
 returns jsonb as $$
 declare
   v_user_id uuid;
@@ -1705,9 +1708,10 @@ begin
   v_ref := 'DAILY-' || upper(substring(md5(random()::text || clock_timestamp()::text) from 1 for 10));
 
   for v_inv in
-    select i.id, i.monthly_return, i.status
+    select i.id, i.total_amount, i.status
     from investments i
     where i.user_id = v_user_id
+      and i.id = p_investment_id
       and i.status = 'ACTIVE'
       and (i.created_at + (i.duration_months * interval '1 month')) > now()
     order by i.created_at asc
@@ -1720,7 +1724,7 @@ begin
     order by c.cycle_number asc
     limit 1;
 
-    v_daily := round(v_inv.monthly_return / v_days, 2);
+    v_daily := round(v_inv.total_amount * 0.10, 2);
 
     v_amt := null;
     insert into profit_claims (user_id, investment_id, cycle_id, profit_date, amount, claimed_at, transaction_id)
@@ -1773,7 +1777,7 @@ begin
 end;
 $$ language plpgsql security definer set search_path = public, pg_temp;
 
-grant execute on function public.claim_daily_profit() to authenticated;
+grant execute on function public.claim_daily_profit(uuid) to authenticated;
 
 -- ============================================================================
 -- 19. TÂCHES D'INVITATION (from 015 — remplace le parrainage A/B/C/D)

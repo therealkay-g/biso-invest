@@ -37,6 +37,7 @@ export interface Wallet {
   total_invested: number
   total_earned: number
   today_earned: number
+  today_earned_date?: string | null
   team_earned: number
   total_assets: number
   updated_at: string
@@ -110,6 +111,7 @@ export interface Investment {
   product_id: string
   quantity: number
   total_amount: number
+  daily_profit: number
   monthly_return: number
   duration_months: number
   paid_installments: number
@@ -118,6 +120,7 @@ export interface Investment {
   total_expected: number
   status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
   created_at: string
+  ends_at?: string | null
   product?: Product
 }
 
@@ -307,6 +310,8 @@ export interface NotificationItem {
   message: string
   type: string
   is_read: boolean
+  reference_id?: string | null
+  reference_date?: string | null
   created_at: string
 }
 

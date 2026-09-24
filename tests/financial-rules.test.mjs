@@ -6,6 +6,13 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import {
+  addBusinessMonths,
+  calculateDailyProfit,
+  DEFAULT_DURATION_MONTHS,
+  getBusinessDateKey,
+  getContractDayCount,
+} from '../utils/financial.mjs';
 
 // ============================================================
 // Utilitaires de simulation financiÃ¨re (Miroir exact des RPC SQL)
@@ -19,13 +26,9 @@ function calculateNetAmount(grossAmount) {
   return grossAmount - calculateFee(grossAmount);
 }
 
-function getDaysInMonth(year, month) {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function calculateDailyRevenue(monthlyReturn, year, month) {
-  const days = getDaysInMonth(year, month);
-  return monthlyReturn / days;
+function calculateDailyGain(totalAmount) {
+  // Utilise la règle de production commune à tous les calculs de bénéfice.
+  return calculateDailyProfit(totalAmount);
 }
 
 // Simulation du systÃ¨me VIP (Paliers officiels : VIP1=20 000 FC, VIP2=50 000 FC, VIP3=100 000 FC, VIP4=250 000 FC)
@@ -141,34 +144,41 @@ describe("2. Frais de retrait de 15% et montants net", () => {
 });
 
 // ============================================================
-// SUITE 3 : Revenu journalier basÃ© sur les jours rÃ©els du mois
+// SUITE 3 : Bénéfice quotidien = 10 % du capital investi
 // ============================================================
-describe("3. Revenu journalier basÃ© sur les jours rÃ©els du mois", () => {
-  it("GÃ¨re correctement 31 jours pour janvier, mars, mai, juillet, aoÃ»t, octobre, dÃ©cembre", () => {
-    const months31 = [0, 2, 4, 6, 7, 9, 11];
-    for (const m of months31) {
-      assert.equal(getDaysInMonth(2024, m), 31);
-      assert.ok(Math.abs(calculateDailyRevenue(31000, 2024, m) - 1000) < 0.01);
-    }
+describe("3. Bénéfice quotidien de 10 % du capital investi", () => {
+  it("20 000 FC investis donnent 2 000 FC par jour éligible", () => {
+    assert.equal(calculateDailyGain(20000), 2000);
   });
 
-  it("GÃ¨re correctement 30 jours pour avril, juin, septembre, novembre", () => {
-    const months30 = [3, 5, 8, 10];
-    for (const m of months30) {
-      assert.equal(getDaysInMonth(2024, m), 30);
-      assert.ok(Math.abs(calculateDailyRevenue(30000, 2024, m) - 1000) < 0.01);
-    }
+  it("50 000 FC investis donnent 5 000 FC par jour éligible", () => {
+    assert.equal(calculateDailyGain(50000), 5000);
   });
 
-  it("Distingue les annÃ©es bissextiles (fÃ©vrier 29 j) et non bissextiles (fÃ©vrier 28 j)", () => {
-    assert.equal(getDaysInMonth(2024, 1), 29); // 2024 bissextile
-    assert.equal(getDaysInMonth(2023, 1), 28); // 2023 standard
-    assert.ok(Math.abs(calculateDailyRevenue(28000, 2023, 1) - 1000) < 0.01);
+  it("250 000 FC investis donnent 25 000 FC par jour éligible", () => {
+    assert.equal(calculateDailyGain(250000), 25000);
   });
 
-  it("Interdit formellement un diviseur fixe de 30 jours pour fÃ©vrier", () => {
-    const dailyFeb = calculateDailyRevenue(30000, 2023, 1);
-    assert.notEqual(dailyFeb, 30000 / 30); // 1071.43 â‰  1000
+  it("arrondit le bénéfice à deux décimales", () => {
+    assert.equal(calculateDailyGain(12345.67), 1234.57);
+    assert.equal(calculateDailyGain(0.1), 0.01);
+  });
+
+  it("ne varie pas selon la longueur du mois", () => {
+    const february = calculateDailyGain(50000);
+    const january = calculateDailyGain(50000);
+    assert.equal(february, 5000);
+    assert.equal(january, 5000);
+  });
+
+  it("utilise la date métier Africa/Kinshasa et gère les fins de mois", () => {
+    assert.equal(getBusinessDateKey('2024-01-31'), '2024-01-31');
+    assert.equal(getBusinessDateKey('2024-01-31T23:30:00Z'), '2024-02-01');
+    assert.equal(addBusinessMonths('2024-01-31', 1), '2024-02-29');
+    assert.equal(getContractDayCount({
+      created_at: '2024-01-31T10:00:00Z',
+      duration_months: 3,
+    }), 90);
   });
 });
 
@@ -454,14 +464,13 @@ it("Rejette tout code prÃ©sentÃ© au-delÃ  de 10 minutes (expiration)", () 
 // SUITE 12 : Validation quotidienne du bÃ©nÃ©fice (bouton VENDRE)
 // ============================================================
 
-// Miroir exact de la RPC claim_daily_profit()
+// Miroir de la logique de la RPC claim_daily_profit()
 // claims : tableau partagÃ© { user_id, investment_id, profit_date, amount, claimed_at }
 function todayKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function simulateClaimDailyProfit(userId, investments, claims, balance, today, getDaysFn) {
-  const daysInMonth = getDaysFn(today.getFullYear(), today.getMonth());
+function simulateClaimDailyProfit(userId, investments, claims, balance, today, investmentId = null) {
   const todayStr = todayKey(today);
   let total = 0;
   let claimCount = 0;
@@ -472,14 +481,17 @@ function simulateClaimDailyProfit(userId, investments, claims, balance, today, g
     if (inv.user_id !== userId) continue;
     // 11. Uniquement les investissements actifs
     if (inv.status !== 'ACTIVE') continue;
-    // 10. Encore dans la pÃ©riode (durÃ©e en mois), sinon Â« terminÃ© Â»
+    // Le contrat actuel dure trois mois.
     const periodEnd = new Date(inv.created_at);
-    periodEnd.setMonth(periodEnd.getMonth() + (inv.duration_months || 3));
+    periodEnd.setMonth(periodEnd.getMonth() + (inv.duration_months || DEFAULT_DURATION_MONTHS));
     if (today.getTime() >= periodEnd.getTime()) continue;
-    // 2/3/5/9. DÃ©jÃ  rÃ©clamÃ© aujourd'hui ? Aucun crÃ©dit possible
+    // 2/3/5/9. DÃ©jÃ  rÃ©clamÃ© aujourd'hui ? Aucun crÃ©dit possible pour cet investissement.
+    if (investmentId && inv.id !== investmentId) continue;
     if (claims.some((c) => c.investment_id === inv.id && c.profit_date === todayStr)) continue;
 
-    const daily = Math.round((inv.monthly_return / daysInMonth) * 100) / 100;
+    // Chaque investissement calcule son propre bénéfice : 10 % de son capital,
+    // arrondi à deux décimales. Un jour non réclamé n'est pas accumulé.
+    const daily = calculateDailyGain(inv.total_amount);
     const claim = { user_id: userId, investment_id: inv.id, profit_date: todayStr, amount: daily, claimed_at: new Date(today) };
     claims.push(claim);
     created.push(claim);
@@ -502,36 +514,68 @@ function makeInvestment(overrides = {}) {
   return {
     id: 'inv-1',
     user_id: 'user-1',
-    monthly_return: 30000,
+    total_amount: 30000,
     created_at: new Date(2024, 0, 5),
-    duration_months: 3,
+    duration_months: DEFAULT_DURATION_MONTHS,
     status: 'ACTIVE',
     ...overrides,
   };
 }
 
 describe("12. Validation quotidienne du bÃ©nÃ©fice (bouton VENDRE)", () => {
-  it("1. RÃ©clamation normale du jour (30 jours â†’ 1 000 FC)", () => {
+  it("1. RÃ©clamation normale du jour (capital 30 000 FC → 3 000 FC)", () => {
     const claims = [];
     const inv = makeInvestment();
-    const day = new Date(2024, 3, 1); // Avril 2024 = 30 jours
-    const res = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day, getDaysInMonth);
+    const day = new Date(2024, 3, 1); // Une date éligible quelconque
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day);
 
     assert.equal(res.success, true);
-    assert.equal(res.claimed_amount, 1000); // 30 000 / 30
-    assert.equal(res.new_balance, 51000);   // wallet avant/aprÃ¨s
+    assert.equal(res.claimed_amount, 3000); // 30 000 × 10 %
+    assert.equal(res.new_balance, 53000);   // wallet avant/aprÃ¨s
     assert.equal(res.transactions, 1);      // une seule Ã©criture ledger
     assert.equal(claims.length, 1);
+  });
+
+  it("Calcule le bénéfice séparément pour chaque investissement", () => {
+    const claims = [];
+    const investments = [
+      makeInvestment({ id: 'inv-20k', total_amount: 20000 }),
+      makeInvestment({ id: 'inv-50k', total_amount: 50000 }),
+      makeInvestment({ id: 'inv-250k', total_amount: 250000 }),
+    ];
+    const day = new Date(2024, 3, 1);
+    const res = simulateClaimDailyProfit('user-1', investments, claims, 0, day);
+
+    assert.equal(res.claimed_amount, 32000);
+    assert.deepEqual(claims.map((c) => [c.investment_id, c.amount]), [
+      ['inv-20k', 2000],
+      ['inv-50k', 5000],
+      ['inv-250k', 25000],
+    ]);
+  });
+
+  it("Le bouton VENDRE ne credite que l'investissement selectionne", () => {
+    const claims = [];
+    const investments = [
+      makeInvestment({ id: 'inv-20k', total_amount: 20000 }),
+      makeInvestment({ id: 'inv-50k', total_amount: 50000 }),
+    ];
+    const day = new Date(2024, 3, 1);
+    const res = simulateClaimDailyProfit('user-1', investments, claims, 0, day, 'inv-20k');
+
+    assert.equal(res.claimed_amount, 2000);
+    assert.equal(claims.length, 1);
+    assert.equal(claims[0].investment_id, 'inv-20k');
   });
 
   it("2. Deux clics le mÃªme jour â†’ une seule transaction", () => {
     const claims = [];
     const inv = makeInvestment();
     const day = new Date(2024, 3, 1);
-    const r1 = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day, getDaysInMonth);
-    const r2 = simulateClaimDailyProfit('user-1', [inv], claims, r1.new_balance, day, getDaysInMonth);
+    const r1 = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day);
+    const r2 = simulateClaimDailyProfit('user-1', [inv], claims, r1.new_balance, day);
 
-    assert.equal(r1.claimed_amount, 1000);
+    assert.equal(r1.claimed_amount, 3000);
     assert.equal(r2.claimed_amount, 0);
     assert.equal(r2.already_claimed_today, true);
     assert.equal(claims.length, 1); // aucune rÃ©clamation en double
@@ -541,12 +585,12 @@ describe("12. Validation quotidienne du bÃ©nÃ©fice (bouton VENDRE)", () => {
     const claims = [];
     const inv = makeInvestment();
     const day = new Date(2024, 3, 1);
-    const r1 = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day, getDaysInMonth);
-    const r3 = simulateClaimDailyProfit('user-1', [inv], claims, r1.new_balance, day, getDaysInMonth);
+    const r1 = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day);
+    const r3 = simulateClaimDailyProfit('user-1', [inv], claims, r1.new_balance, day);
 
     assert.equal(r3.claimed_amount, 0);
     assert.equal(r3.transactions, 0);
-    assert.equal(r3.new_balance, 51000); // strictement inchangÃ©
+    assert.equal(r3.new_balance, 53000); // strictement inchangÃ©
   });
 
   it("4. Jour non rÃ©clamÃ© â†’ bÃ©nÃ©fice perdu (jamais reportÃ©)", () => {
@@ -555,67 +599,67 @@ describe("12. Validation quotidienne du bÃ©nÃ©fice (bouton VENDRE)", () => {
     const day1 = new Date(2024, 3, 1);
     const day3 = new Date(2024, 3, 3);
 
-    const r1 = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day1, getDaysInMonth);
+    const r1 = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day1);
     // Jour 2 : l'utilisateur ne clique pas -> rien
-    const r2 = simulateClaimDailyProfit('user-1', [inv], claims, r1.new_balance, day3, getDaysInMonth);
+    const r2 = simulateClaimDailyProfit('user-1', [inv], claims, r1.new_balance, day3);
 
-    assert.equal(r1.claimed_amount, 1000);
-    assert.equal(r2.claimed_amount, 1000); // UNIQUEMENT le jour 3
-    assert.equal(r2.new_balance, 52000);   // le jour 2 (1 000 FC) manque dÃ©finitivement
+    assert.equal(r1.claimed_amount, 3000);
+    assert.equal(r2.claimed_amount, 3000); // UNIQUEMENT le jour 3
+    assert.equal(r2.new_balance, 56000);   // le jour 2 (3 000 FC) manque dÃ©finitivement
     assert.deepEqual(claims.map((c) => c.profit_date), ['2024-04-01', '2024-04-03']);
   });
 
   it("5. RÃ©clamation le lendemain â†’ uniquement le bÃ©nÃ©fice du lendemain", () => {
     const claims = [];
-    const inv = makeInvestment({ monthly_return: 30000 });
+    const inv = makeInvestment({ total_amount: 30000 });
     const day1 = new Date(2024, 3, 1);
     const day2 = new Date(2024, 3, 2);
-    const r1 = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day1, getDaysInMonth);
-    const r2 = simulateClaimDailyProfit('user-1', [inv], claims, r1.new_balance, day2, getDaysInMonth);
+    const r1 = simulateClaimDailyProfit('user-1', [inv], claims, 50000, day1);
+    const r2 = simulateClaimDailyProfit('user-1', [inv], claims, r1.new_balance, day2);
 
-    assert.equal(r1.claimed_amount, 1000);
-    assert.equal(r2.claimed_amount, 1000); // 30 000 / 30 pour le jour 2 uniquement
+    assert.equal(r1.claimed_amount, 3000);
+    assert.equal(r2.claimed_amount, 3000); // 10 % du capital pour le jour 2 uniquement
     assert.equal(r2.transactions, 1);
-    assert.equal(r2.new_balance, 52000);
+    assert.equal(r2.new_balance, 56000);
   });
 
-  it("6. FÃ©vrier 28 jours (30 000 / 28 = 1 071,43 FC)", () => {
+  it("6. La longueur de février ne change pas le bénéfice quotidien", () => {
+    const claims = [];
+    const inv = makeInvestment({ created_at: new Date(2023, 0, 1) });
+    const feb28 = new Date(2023, 1, 10); // Date dans un mois de 28 jours
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, 0, feb28);
+    assert.equal(res.claimed_amount, 3000);
+  });
+
+  it("7. Une année bissextile ne change pas le bénéfice quotidien", () => {
     const claims = [];
     const inv = makeInvestment();
-    const feb28 = new Date(2023, 1, 10); // 2023 non bissextile â†’ 28 jours
-    const res = simulateClaimDailyProfit('user-1', [inv], claims, 0, feb28, getDaysInMonth);
-    assert.equal(res.claimed_amount, 1071.43);
+    const feb29 = new Date(2024, 1, 10); // Date dans un mois de 29 jours
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, 0, feb29);
+    assert.equal(res.claimed_amount, 3000);
   });
 
-  it("7. FÃ©vrier 29 jours (30 000 / 29 = 1 034,48 FC)", () => {
-    const claims = [];
-    const inv = makeInvestment();
-    const feb29 = new Date(2024, 1, 10); // 2024 bissextile â†’ 29 jours
-    const res = simulateClaimDailyProfit('user-1', [inv], claims, 0, feb29, getDaysInMonth);
-    assert.equal(res.claimed_amount, 1034.48);
-  });
-
-  it("8. Mois de 30 jours (30 000 / 30 = 1 000 FC)", () => {
+  it("8. Un mois de 30 jours verse exactement 10 % du capital", () => {
     const claims = [];
     const inv = makeInvestment({ created_at: new Date(2024, 3, 1) });
     const day = new Date(2024, 3, 15);
-    const res = simulateClaimDailyProfit('user-1', [inv], claims, 0, day, getDaysInMonth);
-    assert.equal(res.claimed_amount, 1000);
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, 0, day);
+    assert.equal(res.claimed_amount, 3000);
   });
 
-  it("9. Mois de 31 jours (30 000 / 31 = 967,74 FC)", () => {
+  it("9. Un mois de 31 jours verse exactement 10 % du capital", () => {
     const claims = [];
     const inv = makeInvestment();
-    const day = new Date(2024, 0, 15); // Janvier 2024 = 31 jours
-    const res = simulateClaimDailyProfit('user-1', [inv], claims, 0, day, getDaysInMonth);
-    assert.equal(res.claimed_amount, 967.74);
+    const day = new Date(2024, 0, 15); // Date dans un mois de 31 jours
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, 0, day);
+    assert.equal(res.claimed_amount, 3000);
   });
 
   it("10. Investissement arrivÃ© Ã  expiration â†’ aucune vente possible", () => {
     const claims = [];
-    const expired = makeInvestment({ id: 'exp', created_at: new Date(2023, 0, 1), duration_months: 12 });
-    const now = new Date(2024, 1, 15); // aprÃ¨s le 01/01/2024 (fin de pÃ©riode)
-    const res = simulateClaimDailyProfit('user-1', [expired], claims, 5000, now, getDaysInMonth);
+    const expired = makeInvestment({ id: 'exp', created_at: new Date(2023, 0, 1), duration_months: 3 });
+    const now = new Date(2024, 3, 1); // Fin du contrat de 3 mois
+    const res = simulateClaimDailyProfit('user-1', [expired], claims, 5000, now);
 
     assert.equal(res.claimed_amount, 0);
     assert.equal(res.already_claimed_today, true);
@@ -626,7 +670,7 @@ describe("12. Validation quotidienne du bÃ©nÃ©fice (bouton VENDRE)", () => {
   it("11. Utilisateur sans investissement â†’ 0 crÃ©ditÃ©, aucune Ã©criture", () => {
     const claims = [];
     const day = new Date(2024, 3, 1);
-    const res = simulateClaimDailyProfit('user-1', [], claims, 1000, day, getDaysInMonth);
+    const res = simulateClaimDailyProfit('user-1', [], claims, 1000, day);
 
     assert.equal(res.claimed_amount, 0);
     assert.equal(res.transactions, 0);
@@ -639,9 +683,9 @@ describe("12. Validation quotidienne du bÃ©nÃ©fice (bouton VENDRE)", () => {
     const invB = makeInvestment({ id: 'inv-b', user_id: 'user-2', created_at: new Date(2024, 0, 5) });
     const day = new Date(2024, 3, 1);
 
-    const res = simulateClaimDailyProfit('user-1', [invA, invB], claims, 50000, day, getDaysInMonth);
+    const res = simulateClaimDailyProfit('user-1', [invA, invB], claims, 50000, day);
 
-    assert.equal(res.claimed_amount, 1000);     // uniquement l'investissement de user-1
+    assert.equal(res.claimed_amount, 3000);     // uniquement l'investissement de user-1
     assert.equal(claims.length, 1);
     assert.equal(claims[0].investment_id, 'inv-a');
     assert.equal(claims[0].user_id, 'user-1');
@@ -654,7 +698,7 @@ describe("12. Validation quotidienne du bÃ©nÃ©fice (bouton VENDRE)", () => {
     const inv = makeInvestment();
     const balanceBefore = 25000;
     const day = new Date(2024, 3, 1);
-    const res = simulateClaimDailyProfit('user-1', [inv], claims, balanceBefore, day, getDaysInMonth);
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, balanceBefore, day);
 
     assert.equal(res.transaction.balance_before, balanceBefore);
     assert.equal(res.transaction.balance_after, balanceBefore + res.claimed_amount);
@@ -664,29 +708,29 @@ describe("12. Validation quotidienne du bÃ©nÃ©fice (bouton VENDRE)", () => {
 
   it("14. VÃ©rification de wallet_transactions (une Ã©criture DAILY_PROFIT)", () => {
     const claims = [];
-    const inv = makeInvestment({ monthly_return: 30000 });
+    const inv = makeInvestment({ total_amount: 30000 });
     const day = new Date(2024, 3, 1);
-    const res = simulateClaimDailyProfit('user-1', [inv], claims, 100000, day, getDaysInMonth);
+    const res = simulateClaimDailyProfit('user-1', [inv], claims, 100000, day);
 
     assert.equal(res.transactions, 1);
     assert.equal(res.transaction.type, 'DAILY_PROFIT');
-    assert.equal(res.transaction.amount, 1000);
+    assert.equal(res.transaction.amount, 3000);
     assert.equal(res.transaction.status, 'COMPLETED');
   });
 
   it("15. Historique complet des rÃ©clamations", () => {
     const claims = [];
-    const inv = makeInvestment({ id: 'inv-hist', monthly_return: 30000 });
+    const inv = makeInvestment({ id: 'inv-hist', total_amount: 30000 });
     const day1 = new Date(2024, 3, 1);
     const day2 = new Date(2024, 3, 2);
-    simulateClaimDailyProfit('user-1', [inv], claims, 50000, day1, getDaysInMonth);
-    simulateClaimDailyProfit('user-1', [inv], claims, 51000, day2, getDaysInMonth);
+    simulateClaimDailyProfit('user-1', [inv], claims, 50000, day1);
+    simulateClaimDailyProfit('user-1', [inv], claims, 53000, day2);
 
     assert.equal(claims.length, 2);
     for (const c of claims) {
       assert.equal(c.user_id, 'user-1');
       assert.equal(c.investment_id, 'inv-hist');
-      assert.equal(c.amount, 1000);
+      assert.equal(c.amount, 3000);
       assert.ok(c.profit_date);
       assert.ok(c.claimed_at instanceof Date);
     }
@@ -991,7 +1035,7 @@ import { fileURLToPath } from 'node:url';
 describe("Suite 14 : Pop-up de bienvenue BISO INVEST (missions pop-up)", () => {
   const PROJECT_URL = new URL('..', import.meta.url);
 
-  // --- Miroir exact de lib/welcome-popup.ts ---
+  // --- Miroir de la structure de lib/welcome-popup.ts, avec la règle financière actuelle ---
   const WELCOME_KEY = 'biso_welcome_shown_for_user';
   const EXCLUDED_SLUGS = ['energie-solaire', 'commerce', 'industrie-transformation', 'transport-logistique', 'restauration'];
   const VIP_BY_PRICE = new Map([[20000, 'VIP1'], [50000, 'VIP2'], [100000, 'VIP3'], [250000, 'VIP4']]);
@@ -1005,7 +1049,7 @@ describe("Suite 14 : Pop-up de bienvenue BISO INVEST (missions pop-up)", () => {
     };
   };
 
-  function buildWelcomeSectors(categories, products, year, month) {
+  function buildWelcomeSectors(categories, products) {
     const active = products.filter((p) => p.is_active !== false);
     return categories
       .filter((c) => !EXCLUDED_SLUGS.includes(c.slug))
@@ -1024,7 +1068,7 @@ describe("Suite 14 : Pop-up de bienvenue BISO INVEST (missions pop-up)", () => {
             monthlyReturn: p.monthly_return,
             durationMonths: p.duration_months,
             vipLevel: vipForPrice(p.price),
-            dailyRevenue: calculateDailyRevenue(p.monthly_return, year, month),
+            dailyRevenue: calculateDailyGain(p.price),
           }))
           .sort((a, b) => a.price - b.price),
       }))
@@ -1063,20 +1107,20 @@ describe("Suite 14 : Pop-up de bienvenue BISO INVEST (missions pop-up)", () => {
     { id: 'es', name: 'Énergie solaire', slug: 'energie-solaire', icon: 'Sun', order_index: 4 },
   ];
   const PRODUCTS_FIXTURE = [
-    { id: 'm1', category_id: 'ag', name: 'Pack Maïs', price: 20000, monthly_return: 20000, duration_months: 12, is_active: true },
-    { id: 'm2', category_id: 'ag', name: 'Pack Riz', price: 50000, monthly_return: 50000, duration_months: 12, is_active: true },
-    { id: 'm3', category_id: 'ag', name: 'Pack Manioc', price: 100000, monthly_return: 100000, duration_months: 12, is_active: true },
-    { id: 'm4', category_id: 'ag', name: 'Pack Soja', price: 250000, monthly_return: 250000, duration_months: 12, is_active: true },
-    { id: 'p1', category_id: 'el', name: 'Pack Poulets', price: 20000, monthly_return: 20000, duration_months: 12, is_active: true },
-    { id: 't1', category_id: 'pi', name: 'Tilapia', price: 20000, monthly_return: 20000, duration_months: 12, is_active: true },
-    { id: 't2', category_id: 'pi', name: 'Silure', price: 50000, monthly_return: 50000, duration_months: 12, is_active: true },
-    { id: 't3', category_id: 'pi', name: 'Anguille', price: 100000, monthly_return: 100000, duration_months: 12, is_active: true },
-    { id: 't4', category_id: 'pi', name: 'Carpe', price: 250000, monthly_return: 250000, duration_months: 12, is_active: true },
-    { id: 't5', category_id: 'pi', name: 'Tilapia (ancien)', price: 30000, monthly_return: 30000, duration_months: 12, is_active: false },
-    { id: 'es1', category_id: 'es', name: 'Pack Solaire', price: 50000, monthly_return: 50000, duration_months: 12, is_active: true },
-    { id: 'in1', category_id: 'ag', name: 'Ancien pack', price: 30000, monthly_return: 30000, duration_months: 12, is_active: false },
+    { id: 'm1', category_id: 'ag', name: 'Pack Maïs', price: 20000, monthly_return: 20000, duration_months: 3, is_active: true },
+    { id: 'm2', category_id: 'ag', name: 'Pack Riz', price: 50000, monthly_return: 50000, duration_months: 3, is_active: true },
+    { id: 'm3', category_id: 'ag', name: 'Pack Manioc', price: 100000, monthly_return: 100000, duration_months: 3, is_active: true },
+    { id: 'm4', category_id: 'ag', name: 'Pack Soja', price: 250000, monthly_return: 250000, duration_months: 3, is_active: true },
+    { id: 'p1', category_id: 'el', name: 'Pack Poulets', price: 20000, monthly_return: 20000, duration_months: 3, is_active: true },
+    { id: 't1', category_id: 'pi', name: 'Tilapia', price: 20000, monthly_return: 20000, duration_months: 3, is_active: true },
+    { id: 't2', category_id: 'pi', name: 'Silure', price: 50000, monthly_return: 50000, duration_months: 3, is_active: true },
+    { id: 't3', category_id: 'pi', name: 'Anguille', price: 100000, monthly_return: 100000, duration_months: 3, is_active: true },
+    { id: 't4', category_id: 'pi', name: 'Carpe', price: 250000, monthly_return: 250000, duration_months: 3, is_active: true },
+    { id: 't5', category_id: 'pi', name: 'Tilapia (ancien)', price: 30000, monthly_return: 30000, duration_months: 3, is_active: false },
+    { id: 'es1', category_id: 'es', name: 'Pack Solaire', price: 50000, monthly_return: 50000, duration_months: 3, is_active: true },
+    { id: 'in1', category_id: 'ag', name: 'Ancien pack', price: 30000, monthly_return: 30000, duration_months: 3, is_active: false },
   ];
-  const JULY_2026 = buildWelcomeSectors(CATEGORIES_FIXTURE, PRODUCTS_FIXTURE, 2026, 6);
+  const JULY_2026 = buildWelcomeSectors(CATEGORIES_FIXTURE, PRODUCTS_FIXTURE);
 
   it('1. Connexion réussie → le pop-up de bienvenue s\u2019affiche automatiquement', () => {
     const s = createAuthenticatedWelcomeSession();
@@ -1123,8 +1167,6 @@ describe("Suite 14 : Pop-up de bienvenue BISO INVEST (missions pop-up)", () => {
     const variant = buildWelcomeSectors(
       CATEGORIES_FIXTURE,
       PRODUCTS_FIXTURE.map((p) => (p.id === 't1' ? { ...p, price: 25000, monthly_return: 25000 } : p)),
-      2026,
-      6,
     );
     const variantTilapia = variant.find((s) => s.slug === 'pisciculture').packs.find((p) => p.name === 'Tilapia');
     assert.equal(variantTilapia.price, 25000, 'le prix affiché suit la donnée Supabase, pas une constante codée en dur');
@@ -1179,13 +1221,12 @@ describe("Suite 14 : Pop-up de bienvenue BISO INVEST (missions pop-up)", () => {
     assert.equal(JULY_2026.find((s) => s.slug === 'pisciculture').packs[3].vipLevel, 'VIP4');
   });
 
-  it('16. Revenu quotidien = revenu mensuel ÷ jours réels du mois (28/29/30/31)', () => {
-    assert.equal(calculateDailyRevenue(20000, 2025, 0), 20000 / 31);
-    assert.equal(calculateDailyRevenue(20000, 2025, 8), 20000 / 30);
-    assert.equal(calculateDailyRevenue(20000, 2024, 1), 20000 / 29);
-    assert.equal(calculateDailyRevenue(20000, 2026, 1), 20000 / 28);
+  it('16. Bénéfice quotidien = 10 % du capital, indépendant du mois', () => {
+    assert.equal(calculateDailyGain(20000), 2000);
+    assert.equal(calculateDailyGain(50000), 5000);
+    assert.equal(calculateDailyGain(250000), 25000);
     const tilapia = JULY_2026.find((s) => s.slug === 'pisciculture').packs[0];
-    assert.equal(tilapia.dailyRevenue, 20000 / 31, 'juillet 2026 = 31 jours réels');
+    assert.equal(tilapia.dailyRevenue, 2000, '20 000 FC de capital donnent 2 000 FC par jour');
   });
 
   it('17. Design mobile : carte scrollable, pleine largeur, actions figées (contrat vérifié)', () => {
@@ -1210,7 +1251,7 @@ describe("Suite 14 : Pop-up de bienvenue BISO INVEST (missions pop-up)", () => {
     }
     const snapshotCat = JSON.stringify(CATEGORIES_FIXTURE);
     const snapshotProd = JSON.stringify(PRODUCTS_FIXTURE);
-    buildWelcomeSectors(CATEGORIES_FIXTURE, PRODUCTS_FIXTURE, 2026, 6);
+    buildWelcomeSectors(CATEGORIES_FIXTURE, PRODUCTS_FIXTURE);
     assert.equal(JSON.stringify(CATEGORIES_FIXTURE), snapshotCat, 'les entrées ne sont pas mutées');
     assert.equal(JSON.stringify(PRODUCTS_FIXTURE), snapshotProd, 'les entrées ne sont pas mutées');
   });
@@ -1233,6 +1274,33 @@ describe("Suite 14 : Pop-up de bienvenue BISO INVEST (missions pop-up)", () => {
     s.close();
     s.mountCheck();
     assert.equal(s.isOpen(), false, 'un rechargement avec clé présente ne réaffiche pas');
+  });
+});
+
+describe("Suite 15 : contrat SQL quotidien 10 %", () => {
+  const migrationUrl = new URL('../supabase/migrations/030_daily_profit_10_percent.sql', import.meta.url);
+  const migration = readFileSync(migrationUrl, 'utf8');
+  const projectUrl = new URL('..', import.meta.url);
+  const dashboard = readFileSync(fileURLToPath(new URL('app/dashboard/page.tsx', projectUrl)), 'utf8');
+  const investments = readFileSync(fileURLToPath(new URL('app/investments/page.tsx', projectUrl)), 'utf8');
+
+  it('la RPC production est par investissement et idempotente', () => {
+    assert.match(migration, /claim_daily_profit\(p_investment_id uuid\)/);
+    assert.match(migration, /ON CONFLICT \(investment_id, profit_date\) DO NOTHING/);
+    assert.match(migration, /DROP FUNCTION IF EXISTS public\.claim_daily_profit\(\);/);
+  });
+
+  it('le calcul serveur utilise exactement 10 % du capital et Africa/Kinshasa', () => {
+    assert.match(migration, /daily_profit = round\(investments\.total_amount \* 0\.10, 2\)/);
+    assert.match(migration, /v_amount := round\(coalesce\(v_inv\.daily_profit, round\(v_inv\.total_amount \* 0\.10, 2\)\), 2\)/);
+    assert.match(migration, /Africa\/Kinshasa/);
+  });
+
+  it('les deux boutons frontend transmettent investment_id', () => {
+    for (const source of [dashboard, investments]) {
+      assert.match(source, /claim_daily_profit/);
+      assert.match(source, /p_investment_id:\s*invId/);
+    }
   });
 });
 

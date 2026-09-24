@@ -1,4 +1,7 @@
 import { getVipTierForPrice } from '@/utils/constants'
+import { calculateDailyProfit } from '@/utils/financial.mjs'
+
+export { getDaysInMonth } from '@/utils/financial.mjs'
 
 // Clé de session pour afficher le pop-up UNE SEULE FOIS par connexion.
 // La clé est effacée à la déconnexion : une nouvelle connexion réaffiche le pop-up.
@@ -33,7 +36,7 @@ export interface WelcomeProductRow {
   category_id: string
   name: string
   price: number
-  monthly_return: number
+  monthly_return?: number // Legacy database field; intentionally ignored.
   duration_months: number
   is_active?: boolean | null
 }
@@ -42,6 +45,7 @@ export interface WelcomePack {
   id: string
   name: string
   price: number
+  /** @deprecated Kept only for compatibility with legacy consumers. */
   monthlyReturn: number
   durationMonths: number
   vipLevel: string
@@ -58,15 +62,9 @@ export interface WelcomeSector {
   packs: WelcomePack[]
 }
 
-// Nombre réel de jours du mois (28/29/30/31).
-export function getDaysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate()
-}
-
-// Revenu quotidien = revenu mensuel ÷ jours réels du mois.
-export function calculateDailyRevenue(monthlyReturn: number, year: number, month: number): number {
-  const days = getDaysInMonth(year, month)
-  return monthlyReturn / days
+// Compatibility helper: the parameter is now invested capital, not a monthly return.
+export function calculateDailyRevenue(capital: number): number {
+  return calculateDailyProfit(capital)
 }
 
 export function markWelcomeShown(storage: Storage, userId: string): void {
@@ -85,8 +83,8 @@ export function clearWelcomeShown(storage: Storage): void {
 export function buildActiveSectors(
   categories: WelcomeCategoryRow[],
   products: WelcomeProductRow[],
-  year: number,
-  month: number,
+  _year?: number,
+  _month?: number,
 ): WelcomeSector[] {
   const active = products.filter((p) => p.is_active !== false)
   const byId = new Map(categories.map((c) => [c.id, c]))
@@ -102,11 +100,11 @@ export function buildActiveSectors(
             id: p.id,
             name: p.name,
             price: p.price,
-            monthlyReturn: p.monthly_return,
-            durationMonths: p.duration_months,
+            monthlyReturn: calculateDailyProfit(p.price),
+            durationMonths: Number(p.duration_months) || 3,
             vipLevel: tier ? tier.level : 'VIP0',
             vipName: tier ? tier.name : `Pack ${p.price.toLocaleString('fr-FR')} FC`,
-            dailyRevenue: calculateDailyRevenue(p.monthly_return, year, month),
+            dailyRevenue: calculateDailyProfit(p.price),
           }
         })
         .sort((a, b) => a.price - b.price)

@@ -15,9 +15,9 @@ Investir, c'est placer votre argent dans un projet concret qui le fait travaille
 
 ## Les packs en un coup d'œil
 
-Chaque secteur propose des packs de **20 000, 50 000, 100 000 et 250 000 FC**, pour une durée de **12 mois**.
+Chaque secteur propose des packs de **20 000, 50 000, 100 000 et 250 000 FC**, pour une durée de **3 mois**.
 
-Le principe est simple : votre revenu mensuel est **égal à votre investissement**. Par exemple, un pack de 50 000 FC vous rapporte 50 000 FC par mois pendant 12 mois, soit 600 000 FC au total.
+Le principe est simple : chaque bénéfice quotidien représente **10 % du capital investi**. Par exemple, un pack de 50 000 FC rapporte **5 000 FC par jour**. Sur 90 jours éligibles, cela représente 450 000 FC, à condition de vendre le bénéfice chaque jour.
 
 ## Ce que vous devez retenir
 
@@ -87,17 +87,17 @@ Dans l''onglet **Investir**, vous découvrez les **3 secteurs** : Agriculture, �
 
 ## Les 4 paliers disponibles
 
-| Investissement | Revenu mensuel | Sur 12 mois |
-|----------------|----------------|-------------|
-| 20 000 FC      | 20 000 FC      | 240 000 FC  |
-| 50 000 FC      | 50 000 FC      | 600 000 FC  |
-| 100 000 FC     | 100 000 FC     | 1 200 000 FC|
-| 250 000 FC     | 250 000 FC     | 3 000 000 FC|
+| Investissement | Bénéfice quotidien (10 %) | Sur 90 jours éligibles |
+|----------------|---------------------------|-------------------------|
+| 20 000 FC      | 2 000 FC                  | 180 000 FC               |
+| 50 000 FC      | 5 000 FC                  | 450 000 FC               |
+| 100 000 FC     | 10 000 FC                 | 900 000 FC               |
+| 250 000 FC     | 25 000 FC                 | 2 250 000 FC             |
 
 ## Comment bien choisir
 
 - **Débutant** : commencez par le pack le plus accessible que vous pouvez confortablement financer.
-- **Objectif régularité** : investissez des montants que vous pouvez maintenir sur les 12 mois.
+- **Objectif régularité** : investissez des montants dont vous pouvez accepter le calendrier de vente quotidienne pendant les 3 mois du contrat.
 - **Niveau VIP** : chaque palier vous fait aussi progresser en niveau VIP, ce qui augmente votre plafond de packs actifs.
 
 ## Bonus
@@ -112,20 +112,22 @@ INSERT INTO public.academy_lessons (course_id, title, content, duration_minutes,
 SELECT c.id, 'Leçon 5 - Comprendre les bénéfices quotidiens', $content$
 ## Comment votre bénéfice est calculé
 
-Votre revenu mensuel est distribué **chaque jour**, en divisant le revenu mensuel par le nombre de jours réels du mois (28, 29, 30 ou 31).
+Votre bénéfice quotidien correspond à **10 % du capital total investi**, quel que soit le nombre de jours du mois.
 
-Exemple avec un pack de 50 000 FC sur un mois de 30 jours :
-- 50 000 ÷ 30 = environ **1 666 FC par jour**.
+Exemples :
+- pack de 20 000 FC : **2 000 FC par jour** ;
+- pack de 50 000 FC : **5 000 FC par jour** ;
+- pack de 250 000 FC : **25 000 FC par jour**.
 
 ## Le bouton VENDRE
 
 Chaque jour, votre bénéfice du jour devient disponible. Vous devez cliquer sur **VENDRE** pour le récupérer sur votre solde.
 
-Règle d'or : **un bénéfice non réclamé est perdu** ? Il ne se reporte jamais le lendemain. Pensez à venir chaque jour, ou au minimum enchaînez vos visites sans laisser passer plusieurs jours.
+Règle d'or : **un bénéfice non réclamé est perdu**. Il ne se reporte jamais au lendemain. Pensez à venir chaque jour afin de ne laisser passer aucune journée.
 
-## Vos gains mensuels cumulés
+## Vos gains quotidiens cumulés
 
-Chaque pack affiche ce que vous avez déjà gagné depuis l'ouverture. Petit à petit, le total grandit : à la fin des 12 mois, vous aurez récupéré votre investissement multiplié par 12.
+Chaque pack affiche ce que vous avez déjà gagné depuis l'ouverture. Le total grandit lorsque vous vendez chaque jour. Sur un contrat de 3 mois, le nombre de jours éligibles dépend de la date réelle de fin du contrat.
 
 ## Les 3 règles à retenir
 
@@ -208,7 +210,7 @@ En début de parcours, une méthode simple : **un tiers dans chaque secteur** d�
 
 ## Ce qui ne change pas
 
-Quel que soit le secteur, tous les packs suivent les mêmes règles : 12 mois, revenu mensuel égal à l'investissement, bénéfices quotidiens, vente obligatoire chaque jour.
+Quel que soit le secteur, tous les packs suivent les mêmes règles : 3 mois, bénéfice quotidien égal à 10 % du capital investi et vente obligatoire chaque jour.
 
 La diversification est la première protection d'un investisseur sérieux.
 $content$, 9, 2

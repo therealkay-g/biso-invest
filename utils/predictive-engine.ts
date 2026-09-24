@@ -1,6 +1,11 @@
 'use client'
 
 import { Wallet, Investment, Product } from '@/types'
+import {
+  getRemainingContractDays,
+  projectContractGains,
+  roundToTwoDecimals,
+} from './financial.mjs'
 
 export interface Prediction {
   period: string
@@ -18,75 +23,60 @@ export interface VipPrediction {
 
 export const PredictiveEngine = {
   /**
-   * Estimates future gains based on current active investments.
+   * Deterministic projections based on real remaining contract dates and the
+   * immutable 10% daily rule. Every horizon is capped by the contract end.
    */
   calculateProjections(wallet: Wallet, investments: (Investment & { product?: Product })[]): Prediction[] {
+    const now = new Date()
     const periods = [
       { label: '3 Mois', months: 3 },
       { label: '6 Mois', months: 6 },
       { label: '1 An', months: 12 },
     ]
+    const projected = projectContractGains(investments, now, periods.map(period => period.months))
+    const activeInvestments = investments.filter(investment => {
+      if (investment.status !== 'ACTIVE') return false
+      return getRemainingContractDays(investment, now) > 0
+    })
 
-    return periods.map(period => {
-      let totalEstimatedGain = 0
-
-      investments.forEach(inv => {
-        const monthlyReturn = (inv.product?.monthly_return || 0) * inv.quantity
-        const remainingMonths = inv.duration_months - (inv.paid_installments || 0)
-        const activeMonths = Math.min(period.months, remainingMonths)
-
-        if (activeMonths > 0) {
-          totalEstimatedGain += monthlyReturn * activeMonths
-        }
-      })
-
-      // Add a "confidence" factor based on how many investments are near completion
-      const confidence = investments.length > 0 ? 95 : 0
-
+    return periods.map((period, index) => {
+      const estimatedGain = roundToTwoDecimals(projected[index]?.estimatedGain || 0)
       return {
         period: period.label,
-        estimatedGain: totalEstimatedGain,
-        confidence,
-        insight: totalEstimatedGain > 0
-          ? `Basé sur vos ${investments.length} investissements actifs.`
-          : 'Aucun investissement actif pour le moment.'
+        estimatedGain,
+        confidence: activeInvestments.length > 0 ? 100 : 0,
+        insight: estimatedGain > 0
+          ? `Calcul déterministe sur vos ${activeInvestments.length} investissement${activeInvestments.length > 1 ? 's' : ''} actif${activeInvestments.length > 1 ? 's' : ''}.`
+          : 'Aucun investissement actif pour le moment.',
       }
     })
   },
 
   /**
-   * Predicts when the user will reach the next VIP level.
+   * VIP depends on invested capital (including any explicit reinvestment), not
+   * on daily earnings. No time-to-VIP estimate is therefore invented here.
    */
-  predictNextVip(profile: any, wallet: Wallet, vipLevels: any[]) {
-    const sortedLevels = [...vipLevels].sort((a, b) => a.display_order - b.display_order)
-    const currentIdx = sortedLevels.findIndex(l => l.level_name === profile.current_vip)
+  predictNextVip(profile: any, wallet: Wallet, vipLevels: any[]): VipPrediction | null {
+    if (!profile?.current_vip || !Array.isArray(vipLevels) || vipLevels.length === 0) return null
 
-    if (currentIdx === -1 || currentIdx === sortedLevels.length - 1) {
-      return null
-    }
+    const sortedLevels = [...vipLevels].sort((a, b) => {
+      const orderDifference = Number(a.display_order || 0) - Number(b.display_order || 0)
+      return orderDifference || String(a.level_name).localeCompare(String(b.level_name))
+    })
+    const currentIdx = sortedLevels.findIndex(level => level.level_name === profile.current_vip)
+    if (currentIdx === -1 || currentIdx === sortedLevels.length - 1) return null
 
     const nextLevel = sortedLevels[currentIdx + 1]
-    const targetAmount = nextLevel.min_investment
-    const currentInvested = wallet.total_invested
-    const missing = targetAmount - currentInvested
-
-    if (missing <= 0) return null
-
-    // Estimate days based on current daily profit (avg)
-    // We'll simulate daily profit as (total monthly return / 30)
-    // This is a simplification for the prediction
-    const monthlyReturn = 5000 // Default fallback or calculated from actuals
-    const dailyProfit = monthlyReturn / 30
-
-    const daysToReach = dailyProfit > 0 ? Math.ceil(missing / dailyProfit) : Infinity
+    const targetAmount = Number(nextLevel.min_investment) || 0
+    const currentInvested = Number(wallet.total_invested) || 0
+    const missingAmount = roundToTwoDecimals(Math.max(0, targetAmount - currentInvested))
+    if (missingAmount <= 0) return null
 
     return {
       targetLevel: nextLevel.level_name,
-      estimatedDays: daysToReach,
-      missingAmount: missing,
-      suggestion: dailyProfit > 0
-        ? `À votre rythme actuel, vous atteindrez ${nextLevel.level_name} dans environ ${Math.ceil(missing / dailyProfit)} jours.`
-        : `Pour atteindre ${nextLevel.level_name}, un dépôt complémentaire de ${missing.toLocaleString()} FC est recommandé.`
+      estimatedDays: Infinity,
+      missingAmount,
+      suggestion: `Le niveau ${nextLevel.level_name} dépend du capital investi, pas des bénéfices journaliers. Un dépôt complémentaire de ${missingAmount.toLocaleString('fr-FR')} FC est nécessaire.`,
     }
-  }
+  },
 }
