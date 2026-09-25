@@ -15,10 +15,13 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 // Créé paresseusement pour éviter un crash au build si la clé est absente.
 let serviceClient: ReturnType<typeof createServiceClient> | null = null
 function getService() {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  // Nouveau format Supabase (SUPABASE_SECRET_KEY) puis format historique
+  // (SUPABASE_SERVICE_ROLE_KEY).
+  const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!key) return null
   if (!serviceClient) {
-    serviceClient = createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, key)
+    const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!
+    serviceClient = createServiceClient(url, key)
   }
   return serviceClient
 }
