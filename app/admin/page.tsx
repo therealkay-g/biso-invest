@@ -13,8 +13,25 @@ import {
   formatContractDuration,
   formatDailyProfitRate,
   getContractDailyRate,
-  getContractDayCount,
 } from '@/utils/financial.mjs'
+
+/**
+ * Grille officielle par secteur (migration 033) : durée en jours + taux
+ * quotidien. Le formulaire produit verrouille ces valeurs dès qu'une
+ * catégorie sectorielle est choisie — aucun pack hors grille ne peut
+ * être créé, et l'option « 3 mois » (qui produirait un contrat à ~900 %)
+ * est retirée du catalogue.
+ */
+const SECTOR_GRID: Record<string, { days: number; rate: number }> = {
+  agriculture: { days: 15, rate: 0.10 },
+  elevage: { days: 18, rate: 0.15 },
+  pisciculture: { days: 10, rate: 0.20 },
+}
+
+/** Clé de secteur normalisée (minuscules, sans accents) à partir d'un nom de catégorie. */
+function getSectorKey(name?: string | null) {
+  return (name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
 
 export default function AdminPage() {
   const router = useRouter()
@@ -410,24 +427,12 @@ export default function AdminPage() {
    */
   const handleProductCategoryChange = (categoryId: string) => {
     const category = categories.find((c) => c.id === categoryId)
-    const normalizedName = (category?.name || '')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-    const durationBySector: Record<string, number> = {
-      agriculture: 15,
-      elevage: 18,
-      pisciculture: 10,
-    }
-    const sectorDays = durationBySector[normalizedName] ?? 0
-    const categoryRate = Number(category?.daily_rate)
+    const sector = SECTOR_GRID[getSectorKey(category?.name)] || null
     setProductForm((prev) => ({
       ...prev,
       category_id: categoryId,
-      durationDays: sectorDays,
-      dailyRate: Number.isFinite(categoryRate) && categoryRate > 0
-        ? Math.round(categoryRate * 100)
-        : 10,
+      durationDays: sector ? sector.days : prev.durationDays,
+      dailyRate: sector ? Math.round(sector.rate * 100) : prev.dailyRate,
     }))
   }
 
@@ -436,15 +441,41 @@ export default function AdminPage() {
     try {
       const price = Math.round(Number(productForm.price) * 100) / 100
       const durationMonths = 3 // politique BISO : catalogue mensuel plafonné à 3 mois
-      const durationDays = productForm.durationDays > 0 ? productForm.durationDays : null
-      const dailyRate = Number(productForm.dailyRate) > 0 ? Number(productForm.dailyRate) / 100 : 0.10
+
+      const categoryId = productForm.category_id
+      if (!categoryId) {
+        toast.error('Veuillez choisir une catégorie (Agriculture, Élevage ou Pisciculture).')
+        return
+      }
+      const category = categories.find((c) => c.id === categoryId)
+      const sector = SECTOR_GRID[getSectorKey(category?.name)] || null
+
+      // Durée en jours et taux : la grille du secteur prime, sinon valeurs saisies.
+      const durationDays = sector
+        ? sector.days
+        : productForm.durationDays > 0
+          ? productForm.durationDays
+          : null
+      const dailyRate = sector
+        ? sector.rate
+        : Number(productForm.dailyRate) > 0
+          ? Number(productForm.dailyRate) / 100
+          : null
+
       if (!Number.isFinite(price) || price <= 0) {
         toast.error('Le prix doit être supérieur à 0 FC.')
         return
       }
+      if (!durationDays || ![10, 15, 18].includes(durationDays)) {
+        toast.error('La durée du contrat doit être de 10, 15 ou 18 jours selon le secteur.')
+        return
+      }
+      if (!dailyRate || dailyRate <= 0 || dailyRate > 1) {
+        toast.error('Le taux quotidien doit être compris entre 0 et 100 %.')
+        return
+      }
 
-      const contractDays = getContractDayCount({ duration_months: durationMonths, duration_days: durationDays }, new Date())
-      const totalReturns = calculateContractGain(price, contractDays, dailyRate)
+      const totalReturns = calculateContractGain(price, durationDays, dailyRate)
       const productData = {
         name: productForm.name.trim(),
         price,
@@ -453,7 +484,7 @@ export default function AdminPage() {
         duration_months: durationMonths,
         duration_days: durationDays,
         daily_rate: dailyRate,
-        category_id: productForm.category_id,
+        category_id: categoryId,
         total_returns: totalReturns,
         description: productForm.description,
         is_active: productForm.is_active,
@@ -555,9 +586,21 @@ export default function AdminPage() {
   const pendingDeposits = filteredDeposits.filter(d => d.status === 'EN_ATTENTE');
   const pendingWithdrawals = filteredWithdrawals.filter(w => w.status === 'EN_ATTENTE');
 
+  // Catégorie sélectionnée du formulaire produit → grille sectorielle verrouillée.
+  const selectedProductCategory = categories.find((c) => c.id === productForm.category_id)
+  const productSector = SECTOR_GRID[getSectorKey(selectedProductCategory?.name)] || null
+
   // Aperçu du formulaire produit (taux quotidien + durée courte en jours).
-  const previewRate = Number(productForm.dailyRate) > 0 ? Number(productForm.dailyRate) / 100 : 0.10
-  const previewDays = productForm.durationDays > 0 ? productForm.durationDays : null
+  const previewRate = productSector
+    ? productSector.rate
+    : Number(productForm.dailyRate) > 0
+      ? Number(productForm.dailyRate) / 100
+      : 0.10
+  const previewDays = productSector
+    ? productSector.days
+    : productForm.durationDays > 0
+      ? productForm.durationDays
+      : null
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -611,11 +654,21 @@ export default function AdminPage() {
                 </div>
 
                 <div className="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800">
-                  <p className="text-xs font-black">Gain contractuel : {formatDailyProfitRate(previewRate)} du capital par jour</p>
+                  <p className="text-xs font-black">
+                    {productSector
+                      ? `Gain contractuel : ${formatDailyProfitRate(previewRate)} du capital par jour (grille ${selectedProductCategory?.name})`
+                      : 'Gain calculé selon la catégorie choisie'}
+                  </p>
                   <p className="text-[10px] mt-1">
-                    +{calculateDailyProfit(productForm.price, previewRate).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC / jour
-                    {' • '}
-                    {calculateContractGain(productForm.price, getContractDayCount({ duration_months: 3, duration_days: previewDays }, new Date()), previewRate).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC maximum sur le contrat
+                    {previewDays && Number(productForm.price) > 0 ? (
+                      <>
+                        +{calculateDailyProfit(productForm.price, previewRate).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC / jour
+                        {' • '}
+                        {calculateContractGain(productForm.price, previewDays, previewRate).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FC maximum sur le contrat
+                      </>
+                    ) : (
+                      'Choisissez une catégorie et un prix pour afficher le gain du pack.'
+                    )}
                   </p>
                 </div>
 
@@ -624,15 +677,19 @@ export default function AdminPage() {
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Durée du contrat</label>
                     <select
                       required
-                      value={productForm.durationDays}
+                      disabled={!!productSector}
+                      value={productSector ? productSector.days : (productForm.durationDays > 0 ? productForm.durationDays : '')}
                       onChange={(e) => setProductForm({ ...productForm, durationDays: Number(e.target.value) })}
-                      className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
+                      className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      <option value={0}>3 mois (défaut)</option>
+                      <option value="" disabled>Sélectionnée par la catégorie…</option>
+                      <option value={10}>10 jours (Pisciculture)</option>
                       <option value={15}>15 jours (Agriculture)</option>
                       <option value={18}>18 jours (Élevage)</option>
-                      <option value={10}>10 jours (Pisciculture)</option>
                     </select>
+                    {productSector && (
+                      <p className="text-[9px] text-biso-600 mt-1 font-bold uppercase tracking-wide">Verrouillée sur la grille {selectedProductCategory?.name}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Taux quotidien (%)</label>
@@ -642,10 +699,14 @@ export default function AdminPage() {
                       min="0.01"
                       max="100"
                       step="1"
-                      value={productForm.dailyRate}
+                      disabled={!!productSector}
+                      value={productSector ? Math.round(productSector.rate * 100) : productForm.dailyRate}
                       onChange={(e) => setProductForm({ ...productForm, dailyRate: Number(e.target.value) })}
-                      className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none"
+                      className="w-full p-3 bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-biso-500 outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                     />
+                    {productSector && (
+                      <p className="text-[9px] text-biso-600 mt-1 font-bold uppercase tracking-wide">Verrouillé sur le secteur</p>
+                    )}
                   </div>
                 </div>
 
